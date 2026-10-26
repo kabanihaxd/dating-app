@@ -1,0 +1,149 @@
+<section class="profile-card">
+  <h2>{{ 'profile.title' | t }}</h2>
+  <p class="subtitle">{{ 'profile.subtitle' | t }}</p>
+
+  @if (loading()) {
+    <div class="loading"><mat-spinner diameter="40" /></div>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <!-- ===== О себе ===== -->
+      <h3>{{ 'profile.sections.about' | t }}</h3>
+
+      <div class="photo">
+        @if (photo(); as src) {
+          <img [src]="src" [alt]="'profile.photo.alt' | t" />
+        } @else {
+          <div class="photo-placeholder"><mat-icon>person</mat-icon></div>
+        }
+        <div class="photo-actions">
+          <!-- Настоящий input type="file" некрасивый, поэтому прячем его и «нажимаем» кнопкой. -->
+          <input #photoInput type="file" accept="image/*" hidden (change)="onPhotoSelected(photoInput)" />
+          <button mat-stroked-button type="button" (click)="photoInput.click()">
+            <mat-icon>photo_camera</mat-icon>
+            {{ (photo() ? 'profile.photo.change' : 'profile.photo.add') | t }}
+          </button>
+          @if (photo()) {
+            <button mat-button type="button" (click)="removePhoto()">{{ 'profile.photo.remove' | t }}</button>
+          }
+          @if (photoErrorKey(); as key) {
+            <p class="field-error">{{ key | t }}</p>
+          }
+        </div>
+      </div>
+
+      <div class="row">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ 'profile.name' | t }}</mat-label>
+          <input matInput formControlName="name" autocomplete="given-name" />
+          @if (form.controls.name.hasError('required')) {
+            <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
+          } @else if (form.controls.name.hasError('maxlength')) {
+            <mat-error>{{ 'profile.errors.maxLength' | t: { max: 30 } }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>{{ 'profile.birthDate' | t }}</mat-label>
+          <input matInput type="date" formControlName="birthDate" [max]="maxBirthDate" />
+          @if (form.controls.birthDate.hasError('required')) {
+            <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
+          } @else if (form.controls.birthDate.hasError('underage')) {
+            <mat-error>{{ 'profile.errors.underage' | t }}</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'profile.city' | t }}</mat-label>
+        <input matInput formControlName="city" autocomplete="address-level2" />
+        @if (form.controls.city.hasError('required')) {
+          <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
+        } @else if (form.controls.city.hasError('maxlength')) {
+          <mat-error>{{ 'profile.errors.maxLength' | t: { max: 50 } }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'profile.bio' | t }}</mat-label>
+        <textarea matInput formControlName="bio" rows="4" [placeholder]="'profile.bioPlaceholder' | t"></textarea>
+        <mat-hint align="end">{{ form.controls.bio.value.length }} / {{ maxBioLength }}</mat-hint>
+        @if (form.controls.bio.hasError('maxlength')) {
+          <mat-error>{{ 'profile.errors.maxLength' | t: { max: maxBioLength } }}</mat-error>
+        }
+      </mat-form-field>
+
+      <!-- ===== Игровой профиль ===== -->
+      <h3>{{ 'profile.sections.gaming' | t }}</h3>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'profile.games.label' | t }}</mat-label>
+        <mat-chip-grid #chipGrid formControlName="games">
+          @for (game of games(); track game) {
+            <mat-chip-row (removed)="removeGame(game)">
+              {{ game }}
+              <button matChipRemove type="button" [attr.aria-label]="'profile.games.remove' | t: { game }">
+                <mat-icon>cancel</mat-icon>
+              </button>
+            </mat-chip-row>
+          }
+        </mat-chip-grid>
+        <!-- Enter или запятая добавляют набранную игру; можно выбрать и из подсказок. -->
+        <input
+          #gameInput
+          [placeholder]="'profile.games.placeholder' | t"
+          [matChipInputFor]="chipGrid"
+          [matAutocomplete]="auto"
+          (input)="gameQuery.set(gameInput.value)"
+          (matChipInputTokenEnd)="addGame($event.value, gameInput)"
+        />
+        <mat-autocomplete #auto="matAutocomplete" (optionSelected)="addGame($event.option.value, gameInput)">
+          @for (game of suggestions(); track game) {
+            <mat-option [value]="game">{{ game }}</mat-option>
+          }
+        </mat-autocomplete>
+        <mat-hint>{{ 'profile.games.hint' | t: { max: maxGames } }}</mat-hint>
+        @if (form.controls.games.hasError('required')) {
+          <mat-error>{{ 'profile.errors.minOne' | t }}</mat-error>
+        }
+      </mat-form-field>
+
+      @for (group of chipGroups; track group.control) {
+        <div class="chip-group">
+          <p class="group-label">{{ 'profile.' + group.control | t }}</p>
+          <mat-chip-listbox multiple [formControlName]="group.control" [attr.aria-label]="'profile.' + group.control | t">
+            @for (option of group.options; track option) {
+              <mat-chip-option [value]="option">{{ 'catalog.' + group.control + '.' + option | t }}</mat-chip-option>
+            }
+          </mat-chip-listbox>
+          @if (form.controls[group.control].touched && form.controls[group.control].invalid) {
+            <p class="field-error">{{ 'profile.errors.minOne' | t }}</p>
+          }
+        </div>
+      }
+
+      <!-- ===== Контакты ===== -->
+      <h3>{{ 'profile.sections.contacts' | t }}</h3>
+      <p class="hint"><mat-icon inline>lock</mat-icon> {{ 'profile.contactsHint' | t }}</p>
+
+      <div class="row" formGroupName="contacts">
+        @for (field of contactFields; track field) {
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'profile.contacts.' + field | t }}</mat-label>
+            <input matInput [formControlName]="field" />
+            @if (form.controls.contacts.controls[field].hasError('maxlength')) {
+              <mat-error>{{ 'profile.errors.maxLength' | t: { max: 50 } }}</mat-error>
+            }
+          </mat-form-field>
+        }
+      </div>
+
+      @if (errorKey(); as key) {
+        <p class="form-error" role="alert">{{ key | t }}</p>
+      }
+
+      <button mat-flat-button type="submit" class="save-btn" [disabled]="saving()">
+        {{ (saving() ? 'profile.saving' : 'profile.save') | t }}
+      </button>
+    </form>
+  }
+</section>

@@ -68,7 +68,85 @@
   },
   "profile": {
     "title": "Profile",
-    "placeholder": "Your gaming profile will be here."
+    "subtitle": "Tell us about yourself and your games so we can find you a teammate.",
+    "sections": {
+      "about": "About you",
+      "gaming": "Gaming profile",
+      "contacts": "Gaming contacts"
+    },
+    "photo": {
+      "alt": "Profile photo",
+      "add": "Add photo",
+      "change": "Change photo",
+      "remove": "Remove",
+      "tooBig": "File is too large (15 MB max)",
+      "invalid": "Couldn't open the image"
+    },
+    "name": "Name",
+    "birthDate": "Date of birth",
+    "city": "City",
+    "bio": "About you",
+    "bioPlaceholder": "How you like to play, who you're looking for...",
+    "games": {
+      "label": "Favorite games",
+      "placeholder": "Start typing a game title...",
+      "hint": "Pick from the list or type your own and press Enter. Up to {{max}} games.",
+      "remove": "Remove {{game}}"
+    },
+    "platforms": "Platforms",
+    "genres": "Genres",
+    "playTimes": "When you usually play",
+    "contactsHint": "Only players you have a mutual match with will see these usernames.",
+    "contacts": {
+      "discord": "Discord",
+      "steam": "Steam",
+      "psn": "PlayStation Network",
+      "xbox": "Xbox Gamertag"
+    },
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Profile saved",
+    "errors": {
+      "required": "Required field",
+      "maxLength": "{{max}} characters max",
+      "underage": "This site is for adults only (18+)",
+      "minOne": "Pick at least one option",
+      "invalidForm": "Check the fields marked in red",
+      "permission": "No access to the database. Check the Firestore rules",
+      "network": "No connection to the database",
+      "unknown": "Something went wrong. Please try again"
+    }
+  },
+  "catalog": {
+    "platforms": {
+      "pc": "PC",
+      "playstation": "PlayStation",
+      "xbox": "Xbox",
+      "switch": "Nintendo Switch",
+      "mobile": "Mobile"
+    },
+    "genres": {
+      "shooter": "Shooters",
+      "rpg": "RPG",
+      "mmo": "MMO",
+      "moba": "MOBA",
+      "strategy": "Strategy",
+      "horror": "Horror",
+      "survival": "Survival",
+      "sandbox": "Sandbox",
+      "sports": "Sports",
+      "racing": "Racing",
+      "fighting": "Fighting",
+      "indie": "Indie"
+    },
+    "playTimes": {
+      "morning": "Mornings",
+      "day": "Daytime",
+      "evening": "Evenings",
+      "night": "Nights",
+      "weekdays": "Weekdays",
+      "weekends": "Weekends"
+    }
   },
   "notFound": {
     "title": "404 — Game Over",

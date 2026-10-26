@@ -68,7 +68,85 @@
   },
   "profile": {
     "title": "Profil",
-    "placeholder": "Tu bude tvoj herný profil."
+    "subtitle": "Povedz nám o sebe a svojich hrách — nájdeme ti spoluhráča.",
+    "sections": {
+      "about": "O mne",
+      "gaming": "Herný profil",
+      "contacts": "Herné kontakty"
+    },
+    "photo": {
+      "alt": "Profilová fotka",
+      "add": "Pridať fotku",
+      "change": "Zmeniť fotku",
+      "remove": "Odstrániť",
+      "tooBig": "Súbor je príliš veľký (maximálne 15 MB)",
+      "invalid": "Obrázok sa nepodarilo otvoriť"
+    },
+    "name": "Meno",
+    "birthDate": "Dátum narodenia",
+    "city": "Mesto",
+    "bio": "O mne",
+    "bioPlaceholder": "Ako rád hráš, koho hľadáš...",
+    "games": {
+      "label": "Obľúbené hry",
+      "placeholder": "Začni písať názov hry...",
+      "hint": "Vyber zo zoznamu alebo napíš vlastnú a stlač Enter. Najviac {{max}} hier.",
+      "remove": "Odstrániť {{game}}"
+    },
+    "platforms": "Platformy",
+    "genres": "Žánre",
+    "playTimes": "Kedy zvyčajne hráš",
+    "contactsHint": "Tieto prezývky uvidia len hráči, s ktorými máš vzájomný match.",
+    "contacts": {
+      "discord": "Discord",
+      "steam": "Steam",
+      "psn": "PlayStation Network",
+      "xbox": "Xbox Gamertag"
+    },
+    "save": "Uložiť",
+    "saving": "Ukladáme...",
+    "saved": "Profil bol uložený",
+    "errors": {
+      "required": "Povinné pole",
+      "maxLength": "Najviac {{max}} znakov",
+      "underage": "Stránka je len pre dospelých (18+)",
+      "minOne": "Vyber aspoň jednu možnosť",
+      "invalidForm": "Skontroluj polia označené červenou",
+      "permission": "Žiadny prístup k databáze. Skontroluj pravidlá Firestore",
+      "network": "Žiadne spojenie s databázou",
+      "unknown": "Niečo sa pokazilo. Skús to znova"
+    }
+  },
+  "catalog": {
+    "platforms": {
+      "pc": "PC",
+      "playstation": "PlayStation",
+      "xbox": "Xbox",
+      "switch": "Nintendo Switch",
+      "mobile": "Mobilné"
+    },
+    "genres": {
+      "shooter": "Strieľačky",
+      "rpg": "RPG",
+      "mmo": "MMO",
+      "moba": "MOBA",
+      "strategy": "Stratégie",
+      "horror": "Horory",
+      "survival": "Prežitie",
+      "sandbox": "Sandbox",
+      "sports": "Šport",
+      "racing": "Preteky",
+      "fighting": "Bojovky",
+      "indie": "Indie"
+    },
+    "playTimes": {
+      "morning": "Ráno",
+      "day": "Cez deň",
+      "evening": "Večer",
+      "night": "V noci",
+      "weekdays": "Cez týždeň",
+      "weekends": "Cez víkend"
+    }
   },
   "notFound": {
     "title": "404 — Game Over",

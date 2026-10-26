@@ -1,0 +1,20 @@
+rules_version = '2';
+
+// Правила безопасности Firestore. Сервер Firebase проверяет их при КАЖДОМ чтении и записи,
+// поэтому обойти их из браузера нельзя (в отличие от проверок в Angular-коде).
+// Пока вставляем вручную: Firebase Console → Firestore Database → Rules → Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Публичная анкета: читать может любой вошедший, менять — только владелец.
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+
+      // Ники Discord/Steam: пока только сам владелец. На этапе 6 откроем для мэтчей.
+      match /private/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+  }
+}

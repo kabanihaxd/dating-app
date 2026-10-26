@@ -68,7 +68,85 @@
   },
   "profile": {
     "title": "Профіль",
-    "placeholder": "Тут буде твій ігровий профіль."
+    "subtitle": "Розкажи про себе та свої ігри — так ми знайдемо тобі напарника.",
+    "sections": {
+      "about": "Про себе",
+      "gaming": "Ігровий профіль",
+      "contacts": "Ігрові контакти"
+    },
+    "photo": {
+      "alt": "Фото профілю",
+      "add": "Додати фото",
+      "change": "Змінити фото",
+      "remove": "Видалити",
+      "tooBig": "Файл завеликий (максимум 15 МБ)",
+      "invalid": "Не вдалося відкрити зображення"
+    },
+    "name": "Ім'я",
+    "birthDate": "Дата народження",
+    "city": "Місто",
+    "bio": "Про себе",
+    "bioPlaceholder": "Як любиш грати, кого шукаєш...",
+    "games": {
+      "label": "Улюблені ігри",
+      "placeholder": "Почни вводити назву гри...",
+      "hint": "Обери зі списку або введи свою і натисни Enter. До {{max}} ігор.",
+      "remove": "Прибрати {{game}}"
+    },
+    "platforms": "Платформи",
+    "genres": "Жанри",
+    "playTimes": "Коли зазвичай граєш",
+    "contactsHint": "Ці ніки побачать лише гравці, з якими у тебе взаємний метч.",
+    "contacts": {
+      "discord": "Discord",
+      "steam": "Steam",
+      "psn": "PlayStation Network",
+      "xbox": "Xbox Gamertag"
+    },
+    "save": "Зберегти",
+    "saving": "Зберігаємо...",
+    "saved": "Профіль збережено",
+    "errors": {
+      "required": "Обов'язкове поле",
+      "maxLength": "Максимум {{max}} символів",
+      "underage": "Сайт лише для повнолітніх (18+)",
+      "minOne": "Обери хоча б один варіант",
+      "invalidForm": "Перевір поля, позначені червоним",
+      "permission": "Немає доступу до бази даних. Перевір правила Firestore",
+      "network": "Немає з'єднання з базою даних",
+      "unknown": "Щось пішло не так. Спробуй ще раз"
+    }
+  },
+  "catalog": {
+    "platforms": {
+      "pc": "PC",
+      "playstation": "PlayStation",
+      "xbox": "Xbox",
+      "switch": "Nintendo Switch",
+      "mobile": "Мобільні"
+    },
+    "genres": {
+      "shooter": "Шутери",
+      "rpg": "RPG",
+      "mmo": "MMO",
+      "moba": "MOBA",
+      "strategy": "Стратегії",
+      "horror": "Хорори",
+      "survival": "Виживання",
+      "sandbox": "Пісочниці",
+      "sports": "Спорт",
+      "racing": "Перегони",
+      "fighting": "Файтинги",
+      "indie": "Інді"
+    },
+    "playTimes": {
+      "morning": "Зранку",
+      "day": "Вдень",
+      "evening": "Ввечері",
+      "night": "Вночі",
+      "weekdays": "У будні",
+      "weekends": "На вихідних"
+    }
   },
   "notFound": {
     "title": "404 — Game Over",

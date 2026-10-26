@@ -68,7 +68,85 @@
   },
   "profile": {
     "title": "Профиль",
-    "placeholder": "Здесь будет твой игровой профиль."
+    "subtitle": "Расскажи о себе и своих играх — так мы найдём тебе напарника.",
+    "sections": {
+      "about": "О себе",
+      "gaming": "Игровой профиль",
+      "contacts": "Игровые контакты"
+    },
+    "photo": {
+      "alt": "Фото профиля",
+      "add": "Добавить фото",
+      "change": "Сменить фото",
+      "remove": "Удалить",
+      "tooBig": "Файл слишком большой (максимум 15 МБ)",
+      "invalid": "Не удалось открыть изображение"
+    },
+    "name": "Имя",
+    "birthDate": "Дата рождения",
+    "city": "Город",
+    "bio": "О себе",
+    "bioPlaceholder": "Как любишь играть, кого ищешь...",
+    "games": {
+      "label": "Любимые игры",
+      "placeholder": "Начни вводить название игры...",
+      "hint": "Выбери из списка или введи свою и нажми Enter. До {{max}} игр.",
+      "remove": "Убрать {{game}}"
+    },
+    "platforms": "Платформы",
+    "genres": "Жанры",
+    "playTimes": "Когда обычно играешь",
+    "contactsHint": "Эти ники увидят только игроки, с которыми у тебя взаимный мэтч.",
+    "contacts": {
+      "discord": "Discord",
+      "steam": "Steam",
+      "psn": "PlayStation Network",
+      "xbox": "Xbox Gamertag"
+    },
+    "save": "Сохранить",
+    "saving": "Сохраняем...",
+    "saved": "Профиль сохранён",
+    "errors": {
+      "required": "Обязательное поле",
+      "maxLength": "Максимум {{max}} символов",
+      "underage": "Сайт только для совершеннолетних (18+)",
+      "minOne": "Выбери хотя бы один вариант",
+      "invalidForm": "Проверь поля, отмеченные красным",
+      "permission": "Нет доступа к базе данных. Проверь правила Firestore",
+      "network": "Нет соединения с базой данных",
+      "unknown": "Что-то пошло не так. Попробуй ещё раз"
+    }
+  },
+  "catalog": {
+    "platforms": {
+      "pc": "PC",
+      "playstation": "PlayStation",
+      "xbox": "Xbox",
+      "switch": "Nintendo Switch",
+      "mobile": "Мобильные"
+    },
+    "genres": {
+      "shooter": "Шутеры",
+      "rpg": "RPG",
+      "mmo": "MMO",
+      "moba": "MOBA",
+      "strategy": "Стратегии",
+      "horror": "Хорроры",
+      "survival": "Выживание",
+      "sandbox": "Песочницы",
+      "sports": "Спорт",
+      "racing": "Гонки",
+      "fighting": "Файтинги",
+      "indie": "Инди"
+    },
+    "playTimes": {
+      "morning": "Утром",
+      "day": "Днём",
+      "evening": "Вечером",
+      "night": "Ночью",
+      "weekdays": "В будни",
+      "weekends": "На выходных"
+    }
   },
   "notFound": {
     "title": "404 — Game Over",
