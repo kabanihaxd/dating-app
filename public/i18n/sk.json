@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "feed": "Hráči",
+    "matches": "Matche",
+    "profile": "Profil",
+    "login": "Prihlásiť sa"
+  },
+  "lang": {
+    "choose": "Jazyk rozhrania"
+  },
+  "home": {
+    "title": "Nájdi svojho",
+    "subtitle": "DeadIsland — zoznamka pre hráčov. Spoločné hry, spoločné večery, spoločné víťazstvá.",
+    "cta": "Začať hru",
+    "features": {
+      "games": {
+        "title": "Spoločné hry",
+        "text": "Nájdi ľudí, ktorí hrajú to isté čo ty."
+      },
+      "platform": {
+        "title": "Tvoja platforma",
+        "text": "PC, PlayStation, Xbox, Switch alebo mobil — vyber si svojich."
+      },
+      "match": {
+        "title": "Vzájomný match",
+        "text": "Prezývky z Discordu a Steamu sa zobrazia až po vzájomnom lajku."
+      }
+    }
+  },
+  "feed": {
+    "title": "Hráči",
+    "placeholder": "Tu budú hráči s rovnakými hrami ako ty."
+  },
+  "login": {
+    "title": "Prihlásenie",
+    "placeholder": "Tu bude prihlásenie a registrácia."
+  },
+  "matches": {
+    "title": "Matche",
+    "placeholder": "Tu budú vzájomné lajky a chaty."
+  },
+  "profile": {
+    "title": "Profil",
+    "placeholder": "Tu bude tvoj herný profil."
+  },
+  "notFound": {
+    "title": "404 — Game Over",
+    "text": "Takáto stránka neexistuje.",
+    "home": "Na hlavnú stránku"
+  }
+}

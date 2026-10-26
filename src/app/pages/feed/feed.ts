@@ -1,8 +1,10 @@
 import { Component } from '@angular/core';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 // Заготовка: ленту анкет сделаем на этапе 5.
 @Component({
   selector: 'app-feed',
-  template: `<h2>Анкети</h2><p>Тут будуть гравці з такими ж іграми, як у тебе.</p>`,
+  imports: [TranslatePipe],
+  template: `<h2>{{ 'feed.title' | t }}</h2><p>{{ 'feed.placeholder' | t }}</p>`,
 })
 export class Feed {}

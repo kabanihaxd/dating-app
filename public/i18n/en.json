@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "feed": "Players",
+    "matches": "Matches",
+    "profile": "Profile",
+    "login": "Log in"
+  },
+  "lang": {
+    "choose": "Interface language"
+  },
+  "home": {
+    "title": "Find your",
+    "subtitle": "DeadIsland — dating for gamers. Shared games, shared evenings, shared victories.",
+    "cta": "Start the game",
+    "features": {
+      "games": {
+        "title": "Shared games",
+        "text": "Find people who play the same games as you."
+      },
+      "platform": {
+        "title": "Your platform",
+        "text": "PC, PlayStation, Xbox, Switch or mobile — find your crowd."
+      },
+      "match": {
+        "title": "Mutual match",
+        "text": "Discord and Steam nicknames are revealed only after a mutual like."
+      }
+    }
+  },
+  "feed": {
+    "title": "Players",
+    "placeholder": "Players who share your games will appear here."
+  },
+  "login": {
+    "title": "Log in",
+    "placeholder": "Login and sign-up will be here."
+  },
+  "matches": {
+    "title": "Matches",
+    "placeholder": "Mutual likes and chats will be here."
+  },
+  "profile": {
+    "title": "Profile",
+    "placeholder": "Your gaming profile will be here."
+  },
+  "notFound": {
+    "title": "404 — Game Over",
+    "text": "This page doesn't exist.",
+    "home": "Back to home"
+  }
+}

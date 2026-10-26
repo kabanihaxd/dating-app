@@ -1,15 +1,15 @@
 <section class="hero">
-  <h1>Знайди свого <span>player 2</span></h1>
-  <p>DeadIsland — знайомства для геймерів. Спільні ігри, спільні вечори, спільні перемоги.</p>
-  <a mat-flat-button routerLink="/login">Почати гру</a>
+  <h1>{{ 'home.title' | t }} <span>player 2</span></h1>
+  <p>{{ 'home.subtitle' | t }}</p>
+  <a mat-flat-button routerLink="/login">{{ 'home.cta' | t }}</a>
 </section>
 
 <section class="features">
-  @for (feature of features; track feature.title) {
+  @for (feature of features; track feature.key) {
     <div class="feature">
       <mat-icon>{{ feature.icon }}</mat-icon>
-      <h3>{{ feature.title }}</h3>
-      <p>{{ feature.text }}</p>
+      <h3>{{ 'home.features.' + feature.key + '.title' | t }}</h3>
+      <p>{{ 'home.features.' + feature.key + '.text' | t }}</p>
     </div>
   }
 </section>
