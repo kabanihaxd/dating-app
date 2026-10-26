@@ -3,7 +3,8 @@
     "feed": "Hráči",
     "matches": "Matche",
     "profile": "Profil",
-    "login": "Prihlásiť sa"
+    "login": "Prihlásiť sa",
+    "logout": "Odhlásiť sa"
   },
   "lang": {
     "choose": "Jazyk rozhrania"
@@ -31,9 +32,35 @@
     "title": "Hráči",
     "placeholder": "Tu budú hráči s rovnakými hrami ako ty."
   },
-  "login": {
-    "title": "Prihlásenie",
-    "placeholder": "Tu bude prihlásenie a registrácia."
+  "auth": {
+    "loginTitle": "Prihlásenie",
+    "registerTitle": "Registrácia",
+    "email": "Email",
+    "password": "Heslo",
+    "confirmPassword": "Zopakuj heslo",
+    "togglePassword": "Zobraziť alebo skryť heslo",
+    "adult": "Mám aspoň 18 rokov",
+    "loginBtn": "Prihlásiť sa",
+    "registerBtn": "Vytvoriť účet",
+    "or": "alebo",
+    "google": "Pokračovať cez Google",
+    "noAccount": "Ešte nemáš účet?",
+    "toRegister": "Zaregistrovať sa",
+    "haveAccount": "Už máš účet?",
+    "toLogin": "Prihlásiť sa",
+    "errors": {
+      "required": "Povinné pole",
+      "invalidEmail": "Neplatný formát emailu",
+      "minLength": "Minimálne {{min}} znakov",
+      "mismatch": "Heslá sa nezhodujú",
+      "adultRequired": "Stránka je len pre dospelých",
+      "invalidCredential": "Nesprávny email alebo heslo",
+      "emailInUse": "Tento email je už zaregistrovaný",
+      "weakPassword": "Heslo je príliš slabé",
+      "tooManyRequests": "Príliš veľa pokusov. Skús to neskôr",
+      "network": "Žiadne pripojenie k internetu",
+      "unknown": "Niečo sa pokazilo. Skús to znova"
+    }
   },
   "matches": {
     "title": "Matche",

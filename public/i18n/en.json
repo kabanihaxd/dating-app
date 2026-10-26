@@ -3,7 +3,8 @@
     "feed": "Players",
     "matches": "Matches",
     "profile": "Profile",
-    "login": "Log in"
+    "login": "Log in",
+    "logout": "Log out"
   },
   "lang": {
     "choose": "Interface language"
@@ -31,9 +32,35 @@
     "title": "Players",
     "placeholder": "Players who share your games will appear here."
   },
-  "login": {
-    "title": "Log in",
-    "placeholder": "Login and sign-up will be here."
+  "auth": {
+    "loginTitle": "Log in",
+    "registerTitle": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Repeat password",
+    "togglePassword": "Show or hide password",
+    "adult": "I am 18 or older",
+    "loginBtn": "Log in",
+    "registerBtn": "Create account",
+    "or": "or",
+    "google": "Continue with Google",
+    "noAccount": "No account yet?",
+    "toRegister": "Sign up",
+    "haveAccount": "Already have an account?",
+    "toLogin": "Log in",
+    "errors": {
+      "required": "This field is required",
+      "invalidEmail": "Invalid email format",
+      "minLength": "At least {{min}} characters",
+      "mismatch": "Passwords don't match",
+      "adultRequired": "This site is for adults only",
+      "invalidCredential": "Wrong email or password",
+      "emailInUse": "This email is already registered",
+      "weakPassword": "Password is too weak",
+      "tooManyRequests": "Too many attempts. Try again later",
+      "network": "No internet connection",
+      "unknown": "Something went wrong. Please try again"
+    }
   },
   "matches": {
     "title": "Matches",

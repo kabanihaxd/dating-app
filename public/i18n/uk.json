@@ -3,7 +3,8 @@
     "feed": "Анкети",
     "matches": "Метчі",
     "profile": "Профіль",
-    "login": "Увійти"
+    "login": "Увійти",
+    "logout": "Вийти"
   },
   "lang": {
     "choose": "Мова інтерфейсу"
@@ -31,9 +32,35 @@
     "title": "Анкети",
     "placeholder": "Тут будуть гравці з такими ж іграми, як у тебе."
   },
-  "login": {
-    "title": "Вхід",
-    "placeholder": "Тут буде вхід і реєстрація."
+  "auth": {
+    "loginTitle": "Вхід",
+    "registerTitle": "Реєстрація",
+    "email": "Email",
+    "password": "Пароль",
+    "confirmPassword": "Повтори пароль",
+    "togglePassword": "Показати або сховати пароль",
+    "adult": "Мені вже є 18 років",
+    "loginBtn": "Увійти",
+    "registerBtn": "Створити акаунт",
+    "or": "або",
+    "google": "Увійти через Google",
+    "noAccount": "Ще немає акаунта?",
+    "toRegister": "Зареєструватися",
+    "haveAccount": "Вже є акаунт?",
+    "toLogin": "Увійти",
+    "errors": {
+      "required": "Обов'язкове поле",
+      "invalidEmail": "Невірний формат email",
+      "minLength": "Мінімум {{min}} символів",
+      "mismatch": "Паролі не збігаються",
+      "adultRequired": "Сайт лише для повнолітніх",
+      "invalidCredential": "Невірний email або пароль",
+      "emailInUse": "Цей email вже зареєстрований",
+      "weakPassword": "Пароль занадто простий",
+      "tooManyRequests": "Забагато спроб. Спробуй пізніше",
+      "network": "Немає з'єднання з інтернетом",
+      "unknown": "Щось пішло не так. Спробуй ще раз"
+    }
   },
   "matches": {
     "title": "Метчі",

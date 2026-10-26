@@ -3,7 +3,8 @@
     "feed": "Анкеты",
     "matches": "Мэтчи",
     "profile": "Профиль",
-    "login": "Войти"
+    "login": "Войти",
+    "logout": "Выйти"
   },
   "lang": {
     "choose": "Язык интерфейса"
@@ -31,9 +32,35 @@
     "title": "Анкеты",
     "placeholder": "Здесь будут игроки с такими же играми, как у тебя."
   },
-  "login": {
-    "title": "Вход",
-    "placeholder": "Здесь будет вход и регистрация."
+  "auth": {
+    "loginTitle": "Вход",
+    "registerTitle": "Регистрация",
+    "email": "Email",
+    "password": "Пароль",
+    "confirmPassword": "Повтори пароль",
+    "togglePassword": "Показать или скрыть пароль",
+    "adult": "Мне уже есть 18 лет",
+    "loginBtn": "Войти",
+    "registerBtn": "Создать аккаунт",
+    "or": "или",
+    "google": "Войти через Google",
+    "noAccount": "Ещё нет аккаунта?",
+    "toRegister": "Зарегистрироваться",
+    "haveAccount": "Уже есть аккаунт?",
+    "toLogin": "Войти",
+    "errors": {
+      "required": "Обязательное поле",
+      "invalidEmail": "Неверный формат email",
+      "minLength": "Минимум {{min}} символов",
+      "mismatch": "Пароли не совпадают",
+      "adultRequired": "Сайт только для совершеннолетних",
+      "invalidCredential": "Неверный email или пароль",
+      "emailInUse": "Этот email уже зарегистрирован",
+      "weakPassword": "Пароль слишком простой",
+      "tooManyRequests": "Слишком много попыток. Попробуй позже",
+      "network": "Нет соединения с интернетом",
+      "unknown": "Что-то пошло не так. Попробуй ещё раз"
+    }
   },
   "matches": {
     "title": "Мэтчи",

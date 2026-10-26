@@ -1,0 +1,83 @@
+<section class="auth-card">
+  <h2>{{ (mode() === 'login' ? 'auth.loginTitle' : 'auth.registerTitle') | t }}</h2>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'auth.email' | t }}</mat-label>
+      <input matInput type="email" formControlName="email" autocomplete="email" />
+      @if (form.controls.email.hasError('required')) {
+        <mat-error>{{ 'auth.errors.required' | t }}</mat-error>
+      } @else if (form.controls.email.hasError('email')) {
+        <mat-error>{{ 'auth.errors.invalidEmail' | t }}</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'auth.password' | t }}</mat-label>
+      <input
+        matInput
+        [type]="hidePassword() ? 'password' : 'text'"
+        formControlName="password"
+        [autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'"
+      />
+      <button
+        mat-icon-button
+        matSuffix
+        type="button"
+        (click)="hidePassword.set(!hidePassword())"
+        [attr.aria-label]="'auth.togglePassword' | t"
+      >
+        <mat-icon>{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
+      </button>
+      @if (form.controls.password.hasError('required')) {
+        <mat-error>{{ 'auth.errors.required' | t }}</mat-error>
+      } @else if (form.controls.password.hasError('minlength')) {
+        <mat-error>{{ 'auth.errors.minLength' | t: { min: minPasswordLength } }}</mat-error>
+      }
+    </mat-form-field>
+
+    @if (mode() === 'register') {
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'auth.confirmPassword' | t }}</mat-label>
+        <input
+          matInput
+          [type]="hidePassword() ? 'password' : 'text'"
+          formControlName="confirmPassword"
+          autocomplete="new-password"
+        />
+        @if (form.controls.confirmPassword.hasError('required')) {
+          <mat-error>{{ 'auth.errors.required' | t }}</mat-error>
+        } @else if (form.controls.confirmPassword.hasError('mismatch')) {
+          <mat-error>{{ 'auth.errors.mismatch' | t }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-checkbox formControlName="adult">{{ 'auth.adult' | t }}</mat-checkbox>
+      @if (form.controls.adult.touched && form.controls.adult.invalid) {
+        <p class="field-error">{{ 'auth.errors.adultRequired' | t }}</p>
+      }
+    }
+
+    @if (errorKey(); as key) {
+      <p class="form-error" role="alert">{{ key | t }}</p>
+    }
+
+    <button mat-flat-button type="submit" [disabled]="loading()">
+      {{ (mode() === 'login' ? 'auth.loginBtn' : 'auth.registerBtn') | t }}
+    </button>
+  </form>
+
+  <div class="divider"><span>{{ 'auth.or' | t }}</span></div>
+
+  <button mat-stroked-button type="button" class="google-btn" [disabled]="loading()" (click)="loginWithGoogle()">
+    <mat-icon>account_circle</mat-icon>
+    {{ 'auth.google' | t }}
+  </button>
+
+  <p class="switch">
+    {{ (mode() === 'login' ? 'auth.noAccount' : 'auth.haveAccount') | t }}
+    <button type="button" class="link" (click)="setMode(mode() === 'login' ? 'register' : 'login')">
+      {{ (mode() === 'login' ? 'auth.toRegister' : 'auth.toLogin') | t }}
+    </button>
+  </p>
+</section>

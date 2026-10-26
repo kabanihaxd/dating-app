@@ -3,16 +3,25 @@
 
   <span class="spacer"></span>
 
-  <nav class="nav">
-    @for (item of navItems; track item.path) {
-      <a mat-button [routerLink]="item.path" routerLinkActive="active">
-        <mat-icon>{{ item.icon }}</mat-icon>
-        <span class="label">{{ item.labelKey | t }}</span>
-      </a>
-    }
-  </nav>
+  <!-- Меню и кнопка «Выйти» видны только вошедшему пользователю. -->
+  @if (auth.isLoggedIn()) {
+    <nav class="nav">
+      @for (item of navItems; track item.path) {
+        <a mat-button [routerLink]="item.path" routerLinkActive="active">
+          <mat-icon>{{ item.icon }}</mat-icon>
+          <span class="label">{{ item.labelKey | t }}</span>
+        </a>
+      }
+    </nav>
+  }
 
   <app-language-switcher />
 
-  <a mat-flat-button routerLink="/login" class="login-btn">{{ 'nav.login' | t }}</a>
+  @if (auth.isLoggedIn()) {
+    <button mat-icon-button type="button" (click)="logout()" [attr.aria-label]="'nav.logout' | t">
+      <mat-icon>logout</mat-icon>
+    </button>
+  } @else {
+    <a mat-flat-button routerLink="/login" class="login-btn">{{ 'nav.login' | t }}</a>
+  }
 </mat-toolbar>

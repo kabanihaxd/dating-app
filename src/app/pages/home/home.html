@@ -1,7 +1,7 @@
 <section class="hero">
   <h1>{{ 'home.title' | t }} <span>player 2</span></h1>
   <p>{{ 'home.subtitle' | t }}</p>
-  <a mat-flat-button routerLink="/login">{{ 'home.cta' | t }}</a>
+  <a mat-flat-button [routerLink]="auth.isLoggedIn() ? '/feed' : '/login'">{{ 'home.cta' | t }}</a>
 </section>
 
 <section class="features">
