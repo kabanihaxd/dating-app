@@ -1,0 +1,41 @@
+// Тема Angular Material: тёмная, неоновая (фиолетовый + бирюзовый).
+// mat.theme() создаёт CSS-переменные --mat-sys-*, которые используют все компоненты Material.
+@use '@angular/material' as mat;
+
+html {
+  height: 100%;
+  color-scheme: dark;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$violet-palette,
+        tertiary: mat.$cyan-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+}
+
+// Свои переменные бренда DeadIsland — используем их в компонентах.
+:root {
+  --di-bg: #0b0b12;
+  --di-surface: #151522;
+  --di-neon-pink: #ff2e88;
+  --di-neon-cyan: #00e5ff;
+  --di-neon-violet: #a855f7;
+  --di-text-muted: #9a9ab0;
+  --di-brand-font: 'Orbitron', sans-serif;
+}
+
+body {
+  background-color: var(--di-bg);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  margin: 0;
+  height: 100%;
+}
+
+a {
+  color: var(--di-neon-cyan);
+}

@@ -1,0 +1,15 @@
+<section class="hero">
+  <h1>Знайди свого <span>player 2</span></h1>
+  <p>DeadIsland — знайомства для геймерів. Спільні ігри, спільні вечори, спільні перемоги.</p>
+  <a mat-flat-button routerLink="/login">Почати гру</a>
+</section>
+
+<section class="features">
+  @for (feature of features; track feature.title) {
+    <div class="feature">
+      <mat-icon>{{ feature.icon }}</mat-icon>
+      <h3>{{ feature.title }}</h3>
+      <p>{{ feature.text }}</p>
+    </div>
+  }
+</section>

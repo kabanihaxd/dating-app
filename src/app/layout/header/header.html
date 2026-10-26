@@ -1,0 +1,16 @@
+<mat-toolbar class="header">
+  <a routerLink="/" class="logo">DEAD<span>ISLAND</span></a>
+
+  <span class="spacer"></span>
+
+  <nav class="nav">
+    @for (item of navItems; track item.path) {
+      <a mat-button [routerLink]="item.path" routerLinkActive="active">
+        <mat-icon>{{ item.icon }}</mat-icon>
+        <span class="label">{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+
+  <a mat-flat-button routerLink="/login" class="login-btn">Увійти</a>
+</mat-toolbar>

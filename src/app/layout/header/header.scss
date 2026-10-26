@@ -1,0 +1,43 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  gap: 8px;
+  background: var(--di-surface);
+  border-bottom: 1px solid rgba(168, 85, 247, 0.4);
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
+}
+
+.logo {
+  font-family: var(--di-brand-font);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: 2px;
+  text-decoration: none;
+  color: var(--di-neon-pink);
+  text-shadow: 0 0 8px var(--di-neon-pink);
+
+  span {
+    color: var(--di-neon-cyan);
+    text-shadow: 0 0 8px var(--di-neon-cyan);
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.nav a.active {
+  color: var(--di-neon-cyan);
+}
+
+// На узком экране (телефон) прячем подписи, оставляем только иконки.
+@media (max-width: 600px) {
+  .label {
+    display: none;
+  }
+
+  .logo {
+    font-size: 16px;
+  }
+}
