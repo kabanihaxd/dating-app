@@ -1,6 +1,12 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { AbstractControl, NonNullableFormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  NonNullableFormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
@@ -12,9 +18,12 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { AuthService } from '../../core/auth/auth';
 import { I18n } from '../../core/i18n/i18n';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { PlatformConnect } from '../../core/profile/platform-connect';
 import { ProfileService, profileErrorKey } from '../../core/profile/profile';
 import {
   CONTACT_FIELDS,
+  ContactField,
+  CONTACT_SITES,
   GENRES,
   Genre,
   PLATFORMS,
@@ -22,7 +31,10 @@ import {
   Platform,
   PlayTime,
   POPULAR_GAMES,
+  UserContacts,
   ageFrom,
+  isProfileLink,
+  isValidContact,
 } from '../../core/profile/profile.model';
 import { resizeImage } from '../../core/profile/resize-image';
 
@@ -32,6 +44,13 @@ const MAX_PHOTO_FILE_SIZE = 15 * 1024 * 1024; // 15 МБ — больше не �
 // Валидатор даты рождения: младше 18 — ошибка underage. Пустое поле проверяет Validators.required.
 function adultValidator(control: AbstractControl<string>): ValidationErrors | null {
   return control.value && ageFrom(control.value) < MIN_AGE ? { underage: true } : null;
+}
+
+// Валидатор-«фабрика»: возвращает валидатор, который знает, на какие сайты можно ссылаться.
+// Годится ник, ссылка на один из domains или пустое поле.
+function contactValidator(domains: readonly string[]) {
+  return (control: AbstractControl<string>): ValidationErrors | null =>
+    isValidContact(control.value.trim(), domains) ? null : { contact: true };
 }
 
 // Дата N лет назад в формате 'YYYY-MM-DD' — ограничение max для календаря.
@@ -63,11 +82,14 @@ export class Profile {
   private readonly profiles = inject(ProfileService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly i18n = inject(I18n);
+  protected readonly connect = inject(PlatformConnect);
 
   protected readonly maxGames = 20;
   protected readonly maxBioLength = 500;
   protected readonly maxBirthDate = yearsAgo(MIN_AGE);
   protected readonly contactFields = CONTACT_FIELDS;
+  protected readonly contactSites = CONTACT_SITES;
+  protected readonly isProfileLink = isProfileLink;
 
   // Три группы «чипов» выглядят одинаково, поэтому выводим их одним @for.
   // control — имя поля формы, и оно же — раздел переводов profile.<control> и catalog.<control>.
@@ -96,10 +118,10 @@ export class Profile {
     genres: [[] as Genre[], Validators.required],
     playTimes: [[] as PlayTime[]],
     contacts: this.fb.group({
-      discord: ['', Validators.maxLength(50)],
-      steam: ['', Validators.maxLength(50)],
-      psn: ['', Validators.maxLength(50)],
-      xbox: ['', Validators.maxLength(50)],
+      discord: ['', contactValidator(CONTACT_SITES.discord.domains)],
+      steam: ['', contactValidator(CONTACT_SITES.steam.domains)],
+      psn: ['', contactValidator(CONTACT_SITES.psn.domains)],
+      xbox: ['', contactValidator(CONTACT_SITES.xbox.domains)],
     }),
   });
 
@@ -112,7 +134,9 @@ export class Profile {
   protected readonly suggestions = computed(() => {
     const query = this.gameQuery().trim().toLowerCase();
     const chosen = new Set(this.games().map((game) => game.toLowerCase()));
-    return POPULAR_GAMES.filter((game) => !chosen.has(game.toLowerCase()) && game.toLowerCase().includes(query));
+    return POPULAR_GAMES.filter(
+      (game) => !chosen.has(game.toLowerCase()) && game.toLowerCase().includes(query),
+    );
   });
 
   constructor() {
@@ -132,7 +156,9 @@ export class Profile {
   }
 
   protected removeGame(name: string): void {
-    this.form.controls.games.setValue(this.form.controls.games.value.filter((game) => game !== name));
+    this.form.controls.games.setValue(
+      this.form.controls.games.value.filter((game) => game !== name),
+    );
     this.form.controls.games.markAsDirty();
   }
 
@@ -170,7 +196,11 @@ export class Profile {
     this.errorKey.set(null);
     const { contacts, ...profile } = this.form.getRawValue();
     try {
-      await this.profiles.save(this.uid, { ...profile, photo: this.photo() }, contacts);
+      await this.profiles.save(
+        this.uid,
+        { ...profile, photo: this.photo() },
+        this.trimmed(contacts),
+      );
       this.form.markAsPristine();
       this.snackBar.open(this.i18n.translate('profile.saved'), undefined, { duration: 3000 });
     } catch (error) {
@@ -178,6 +208,44 @@ export class Profile {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  // Уходим на сайт Steam/Discord. Страница перезагрузится, поэтому несохранённые правки пропадут — предупреждаем.
+  protected connectPlatform(field: ContactField): void {
+    if (this.form.dirty && !confirm(this.i18n.translate('profile.connect.unsavedWarning'))) {
+      return;
+    }
+    this.connect.start(field);
+  }
+
+  // Вернулись с платформы: подставляем ссылку и сразу сохраняем её, чтобы не пришлось жать «Сохранить».
+  private async finishConnect(): Promise<void> {
+    try {
+      const result = await this.connect.finish();
+      if (!result) {
+        return;
+      }
+      const contacts = this.form.controls.contacts;
+      contacts.controls[result.field].setValue(result.link);
+      await this.profiles.saveContacts(this.uid, this.trimmed(contacts.getRawValue()));
+      const platform = this.i18n.translate(`profile.contacts.${result.field}`);
+      this.snackBar.open(this.i18n.translate('profile.connect.done', { platform }), undefined, {
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error(error);
+      this.errorKey.set('profile.connect.failed');
+    }
+  }
+
+  // Убираем случайные пробелы вокруг скопированных ссылок.
+  private trimmed(contacts: UserContacts): UserContacts {
+    return {
+      discord: contacts.discord.trim(),
+      steam: contacts.steam.trim(),
+      psn: contacts.psn.trim(),
+      xbox: contacts.xbox.trim(),
+    };
   }
 
   // Страница закрыта authGuard, поэтому пользователь здесь всегда есть.
@@ -202,8 +270,10 @@ export class Profile {
       }
     } catch (error) {
       this.errorKey.set(profileErrorKey(error));
+      return;
     } finally {
       this.loading.set(false);
     }
+    await this.finishConnect();
   }
 }

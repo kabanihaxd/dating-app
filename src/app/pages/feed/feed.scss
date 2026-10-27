@@ -1,0 +1,68 @@
+h2 {
+  margin: 0;
+}
+
+.subtitle,
+.count {
+  color: var(--di-text-muted);
+  margin: 4px 0 20px;
+}
+
+.count {
+  margin: 0 0 12px;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.form-error {
+  color: var(--mat-sys-error);
+  text-align: center;
+}
+
+.notice {
+  text-align: center;
+  padding: 40px 16px;
+  background: var(--di-surface);
+  border: 1px dashed rgba(168, 85, 247, 0.4);
+  border-radius: 16px;
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: var(--di-neon-cyan);
+  }
+
+  p {
+    color: var(--di-text-muted);
+  }
+}
+
+// Фильтры: в ряд на широком экране, переносятся на узком.
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  column-gap: 12px;
+  align-items: start;
+
+  button {
+    margin-top: 8px;
+    justify-self: start;
+  }
+}
+
+.ages {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}

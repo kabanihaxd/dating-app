@@ -30,7 +30,29 @@
   },
   "feed": {
     "title": "Players",
-    "placeholder": "Players who share your games will appear here."
+    "subtitle": "Players you have the most in common with come first.",
+    "count": "Players found: {{count}}",
+    "empty": "Nobody here yet. Invite your gamer friends!",
+    "emptyFiltered": "Nobody matches these filters. Try loosening them.",
+    "noProfile": {
+      "title": "Fill in your profile first",
+      "text": "To find you teammates, we need to know your games and platforms.",
+      "cta": "Fill in profile"
+    },
+    "filters": {
+      "game": "Game",
+      "platform": "Platform",
+      "city": "City",
+      "minAge": "Age from",
+      "maxAge": "to",
+      "any": "Any",
+      "reset": "Reset"
+    },
+    "card": {
+      "match": "{{percent}}% match",
+      "commonGames": "Games in common",
+      "otherGames": "Other games"
+    }
   },
   "auth": {
     "loginTitle": "Log in",
@@ -96,12 +118,21 @@
     "platforms": "Platforms",
     "genres": "Genres",
     "playTimes": "When you usually play",
-    "contactsHint": "Only players you have a mutual match with will see these usernames.",
+    "contactsHint": "Type a username, paste a profile link or connect a platform. Only players you have a mutual match with will see them.",
+    "contactPlaceholder": "Username or profile link",
+    "openLink": "Open link",
+    "connect": {
+      "button": "Connect",
+      "reconnect": "Reconnect",
+      "done": "{{platform}} connected",
+      "failed": "Couldn't connect the platform. Please try again",
+      "unsavedWarning": "Your profile has unsaved changes — they will be lost. Continue?"
+    },
     "contacts": {
       "discord": "Discord",
       "steam": "Steam",
       "psn": "PlayStation Network",
-      "xbox": "Xbox Gamertag"
+      "xbox": "Xbox"
     },
     "save": "Save",
     "saving": "Saving...",
@@ -111,6 +142,7 @@
       "maxLength": "{{max}} characters max",
       "underage": "This site is for adults only (18+)",
       "minOne": "Pick at least one option",
+      "invalidContact": "A username (2–37 characters) or an https:// link to {{site}}",
       "invalidForm": "Check the fields marked in red",
       "permission": "No access to the database. Check the Firestore rules",
       "network": "No connection to the database",

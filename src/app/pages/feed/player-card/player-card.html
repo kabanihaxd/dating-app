@@ -1,0 +1,45 @@
+<article class="card">
+  <div class="photo">
+    @if (player().photo; as src) {
+      <img [src]="src" [alt]="player().name" />
+    } @else {
+      <mat-icon>person</mat-icon>
+    }
+    <span class="match" [class]="level()">{{ 'feed.card.match' | t: { percent: match().percent } }}</span>
+  </div>
+
+  <div class="body">
+    <h3>{{ player().name }}, {{ age() }}</h3>
+    <p class="city"><mat-icon inline>place</mat-icon> {{ player().city }}</p>
+
+    <div class="platforms">
+      @for (platform of player().platforms; track platform) {
+        <span class="tag" [class.common]="match().commonPlatforms.includes(platform)">
+          {{ 'catalog.platforms.' + platform | t }}
+        </span>
+      }
+    </div>
+
+    @if (match().commonGames.length) {
+      <p class="label">{{ 'feed.card.commonGames' | t }}</p>
+      <div class="games">
+        @for (game of match().commonGames; track game) {
+          <span class="tag common">{{ game }}</span>
+        }
+      </div>
+    }
+
+    @if (otherGames().length) {
+      <p class="label">{{ 'feed.card.otherGames' | t }}</p>
+      <div class="games">
+        @for (game of otherGames(); track game) {
+          <span class="tag">{{ game }}</span>
+        }
+      </div>
+    }
+
+    @if (player().bio) {
+      <p class="bio">{{ player().bio }}</p>
+    }
+  </div>
+</article>

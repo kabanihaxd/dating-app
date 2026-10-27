@@ -48,6 +48,33 @@ form {
   column-gap: 16px;
 }
 
+// Ссылки длинные — по одной в строку.
+.contacts {
+  display: flex;
+  flex-direction: column;
+}
+
+// Поле ссылки + кнопка «Подключить» справа; на телефоне кнопка уходит под поле.
+.contact {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 12px;
+  align-items: start;
+
+  .connect-btn {
+    margin-top: 10px;
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+
+    .connect-btn {
+      margin: 0 0 16px;
+      justify-self: start;
+    }
+  }
+}
+
 .photo {
   display: flex;
   align-items: center;

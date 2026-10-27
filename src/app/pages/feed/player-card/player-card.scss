@@ -1,0 +1,114 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--di-surface);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: 16px;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.35);
+  }
+}
+
+.photo {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--di-bg);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  mat-icon {
+    font-size: 72px;
+    width: 72px;
+    height: 72px;
+    color: var(--di-text-muted);
+  }
+}
+
+.match {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 13px;
+  background: rgba(11, 11, 18, 0.85);
+  border: 1px solid var(--di-text-muted);
+  color: var(--di-text-muted);
+
+  &.high {
+    border-color: var(--di-neon-pink);
+    color: var(--di-neon-pink);
+    box-shadow: 0 0 10px rgba(255, 46, 136, 0.5);
+  }
+
+  &.medium {
+    border-color: var(--di-neon-cyan);
+    color: var(--di-neon-cyan);
+  }
+}
+
+.body {
+  padding: 14px 16px 16px;
+
+  h3 {
+    margin: 0;
+  }
+}
+
+.city {
+  margin: 2px 0 10px;
+  color: var(--di-text-muted);
+}
+
+.label {
+  margin: 10px 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--di-text-muted);
+}
+
+.platforms,
+.games {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  border: 1px solid rgba(154, 154, 176, 0.35);
+
+  // Совпавшее со мной — подсвечено.
+  &.common {
+    border-color: var(--di-neon-cyan);
+    color: var(--di-neon-cyan);
+  }
+}
+
+.bio {
+  margin: 12px 0 0;
+  color: var(--di-text-muted);
+  // Длинный текст обрезаем до трёх строк.
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

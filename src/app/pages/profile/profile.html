@@ -17,13 +17,21 @@
         }
         <div class="photo-actions">
           <!-- Настоящий input type="file" некрасивый, поэтому прячем его и «нажимаем» кнопкой. -->
-          <input #photoInput type="file" accept="image/*" hidden (change)="onPhotoSelected(photoInput)" />
+          <input
+            #photoInput
+            type="file"
+            accept="image/*"
+            hidden
+            (change)="onPhotoSelected(photoInput)"
+          />
           <button mat-stroked-button type="button" (click)="photoInput.click()">
             <mat-icon>photo_camera</mat-icon>
             {{ (photo() ? 'profile.photo.change' : 'profile.photo.add') | t }}
           </button>
           @if (photo()) {
-            <button mat-button type="button" (click)="removePhoto()">{{ 'profile.photo.remove' | t }}</button>
+            <button mat-button type="button" (click)="removePhoto()">
+              {{ 'profile.photo.remove' | t }}
+            </button>
           }
           @if (photoErrorKey(); as key) {
             <p class="field-error">{{ key | t }}</p>
@@ -65,7 +73,12 @@
 
       <mat-form-field appearance="outline">
         <mat-label>{{ 'profile.bio' | t }}</mat-label>
-        <textarea matInput formControlName="bio" rows="4" [placeholder]="'profile.bioPlaceholder' | t"></textarea>
+        <textarea
+          matInput
+          formControlName="bio"
+          rows="4"
+          [placeholder]="'profile.bioPlaceholder' | t"
+        ></textarea>
         <mat-hint align="end">{{ form.controls.bio.value.length }} / {{ maxBioLength }}</mat-hint>
         @if (form.controls.bio.hasError('maxlength')) {
           <mat-error>{{ 'profile.errors.maxLength' | t: { max: maxBioLength } }}</mat-error>
@@ -81,7 +94,11 @@
           @for (game of games(); track game) {
             <mat-chip-row (removed)="removeGame(game)">
               {{ game }}
-              <button matChipRemove type="button" [attr.aria-label]="'profile.games.remove' | t: { game }">
+              <button
+                matChipRemove
+                type="button"
+                [attr.aria-label]="'profile.games.remove' | t: { game }"
+              >
                 <mat-icon>cancel</mat-icon>
               </button>
             </mat-chip-row>
@@ -96,7 +113,10 @@
           (input)="gameQuery.set(gameInput.value)"
           (matChipInputTokenEnd)="addGame($event.value, gameInput)"
         />
-        <mat-autocomplete #auto="matAutocomplete" (optionSelected)="addGame($event.option.value, gameInput)">
+        <mat-autocomplete
+          #auto="matAutocomplete"
+          (optionSelected)="addGame($event.option.value, gameInput)"
+        >
           @for (game of suggestions(); track game) {
             <mat-option [value]="game">{{ game }}</mat-option>
           }
@@ -110,9 +130,15 @@
       @for (group of chipGroups; track group.control) {
         <div class="chip-group">
           <p class="group-label">{{ 'profile.' + group.control | t }}</p>
-          <mat-chip-listbox multiple [formControlName]="group.control" [attr.aria-label]="'profile.' + group.control | t">
+          <mat-chip-listbox
+            multiple
+            [formControlName]="group.control"
+            [attr.aria-label]="'profile.' + group.control | t"
+          >
             @for (option of group.options; track option) {
-              <mat-chip-option [value]="option">{{ 'catalog.' + group.control + '.' + option | t }}</mat-chip-option>
+              <mat-chip-option [value]="option">{{
+                'catalog.' + group.control + '.' + option | t
+              }}</mat-chip-option>
             }
           </mat-chip-listbox>
           @if (form.controls[group.control].touched && form.controls[group.control].invalid) {
@@ -125,15 +151,51 @@
       <h3>{{ 'profile.sections.contacts' | t }}</h3>
       <p class="hint"><mat-icon inline>lock</mat-icon> {{ 'profile.contactsHint' | t }}</p>
 
-      <div class="row" formGroupName="contacts">
+      <div class="contacts" formGroupName="contacts">
         @for (field of contactFields; track field) {
-          <mat-form-field appearance="outline">
-            <mat-label>{{ 'profile.contacts.' + field | t }}</mat-label>
-            <input matInput [formControlName]="field" />
-            @if (form.controls.contacts.controls[field].hasError('maxlength')) {
-              <mat-error>{{ 'profile.errors.maxLength' | t: { max: 50 } }}</mat-error>
+          <!-- @let — короткое имя для длинного выражения внутри шаблона. -->
+          @let control = form.controls.contacts.controls[field];
+          <div class="contact">
+            <mat-form-field appearance="outline">
+              <mat-label>{{ 'profile.contacts.' + field | t }}</mat-label>
+              <input
+                matInput
+                [formControlName]="field"
+                [placeholder]="'profile.contactPlaceholder' | t"
+              />
+              <!-- Вписана правильная ссылка (а не ник) — можно сразу открыть и проверить, куда ведёт. -->
+              @if (isProfileLink(control.value.trim(), contactSites[field].domains)) {
+                <a
+                  mat-icon-button
+                  matSuffix
+                  [href]="control.value.trim()"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  [attr.aria-label]="'profile.openLink' | t"
+                >
+                  <mat-icon>open_in_new</mat-icon>
+                </a>
+              }
+              @if (control.hasError('contact')) {
+                <mat-error>{{
+                  'profile.errors.invalidContact'
+                    | t: { site: contactSites[field].domains.join(', ') }
+                }}</mat-error>
+              }
+            </mat-form-field>
+            <!-- Steam и Discord умеют «вход через сайт платформы» — ник и ссылку не нужно искать и копировать. -->
+            @if (connect.canConnect(field)) {
+              <button
+                mat-stroked-button
+                type="button"
+                class="connect-btn"
+                (click)="connectPlatform(field)"
+              >
+                <mat-icon>link</mat-icon>
+                {{ (control.value ? 'profile.connect.reconnect' : 'profile.connect.button') | t }}
+              </button>
             }
-          </mat-form-field>
+          </div>
         }
       </div>
 

@@ -1,8 +1,22 @@
 import { Injectable, inject } from '@angular/core';
 import { FirebaseError } from 'firebase/app';
-import { doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  serverTimestamp,
+  setDoc,
+  writeBatch,
+} from 'firebase/firestore';
 import { FIRESTORE } from '../firebase/firestore';
-import { UserContacts, UserProfile } from './profile.model';
+import { Player, UserContacts, UserProfile } from './profile.model';
+
+// Сколько анкет загружаем за раз. Для учебного проекта хватит; на большом сайте
+// подбор делали бы на сервере, а не скачивали всех в браузер.
+const PLAYERS_LIMIT = 200;
 
 @Injectable({ providedIn: 'root' })
 export class ProfileService {
@@ -20,6 +34,14 @@ export class ProfileService {
     };
   }
 
+  // Анкеты для ленты: все, кроме своей. doc.id — это uid владельца анкеты.
+  async listPlayers(myUid: string): Promise<Player[]> {
+    const snapshot = await getDocs(query(collection(this.db, 'users'), limit(PLAYERS_LIMIT)));
+    return snapshot.docs
+      .filter((doc) => doc.id !== myUid)
+      .map((doc) => ({ ...(doc.data() as UserProfile), uid: doc.id }));
+  }
+
   // writeBatch — оба документа сохранятся вместе или не сохранится ни один.
   // serverTimestamp() — время ставит сервер Firebase, а не часы на компьютере пользователя.
   save(uid: string, profile: UserProfile, contacts: UserContacts): Promise<void> {
@@ -27,6 +49,11 @@ export class ProfileService {
     batch.set(this.profileDoc(uid), { ...profile, updatedAt: serverTimestamp() }, { merge: true });
     batch.set(this.contactsDoc(uid), contacts);
     return batch.commit();
+  }
+
+  // Только ссылки — после «Подключить» сохраняем их сразу, не трогая остальную анкету.
+  saveContacts(uid: string, contacts: UserContacts): Promise<void> {
+    return setDoc(this.contactsDoc(uid), contacts);
   }
 
   private profileDoc(uid: string) {

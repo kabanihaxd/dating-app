@@ -17,6 +17,46 @@ export const GENRES = [
 export const PLAY_TIMES = ['morning', 'day', 'evening', 'night', 'weekdays', 'weekends'] as const;
 export const CONTACT_FIELDS = ['discord', 'steam', 'psn', 'xbox'] as const;
 
+export type ContactField = (typeof CONTACT_FIELDS)[number];
+
+// Контакт — это ник ИЛИ ссылка на профиль. Ссылку принимаем, только если она ведёт на один из
+// этих сайтов: по ней будут кликать другие люди, и подсунуть им чужой (фишинговый) сайт нельзя.
+export const CONTACT_SITES: Record<ContactField, { domains: string[] }> = {
+  discord: { domains: ['discord.com', 'discord.gg'] },
+  steam: { domains: ['steamcommunity.com'] },
+  psn: { domains: ['playstation.com', 'psnprofiles.com'] },
+  xbox: { domains: ['xbox.com', 'xboxgamertag.com'] },
+};
+
+// Ник: 2–37 букв (любого алфавита), цифр, пробелов и знаков _ . - #
+// (37 — самый длинный старый ник Discord вида name#1234). Без ':' и '/' — ссылку за ник не выдать.
+const NICKNAME = /^[\p{L}\p{N} _.\-#]{2,37}$/u;
+
+export function isNickname(value: string): boolean {
+  return NICKNAME.test(value);
+}
+
+// Пустое поле тоже годится: контакты необязательны.
+export function isValidContact(value: string, domains: readonly string[]): boolean {
+  return value === '' || isNickname(value) || isProfileLink(value, domains);
+}
+
+// true — это https-ссылка на один из domains или его поддомен (www.steamcommunity.com).
+// Сравниваем hostname целиком, а не includes(): иначе прошёл бы 'steamcommunity.com.evil.ru'.
+export function isProfileLink(value: string, domains: readonly string[]): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false; // вообще не ссылка
+  }
+  const host = url.hostname.toLowerCase();
+  return (
+    url.protocol === 'https:' &&
+    domains.some((domain) => host === domain || host.endsWith(`.${domain}`))
+  );
+}
+
 export type Platform = (typeof PLATFORMS)[number];
 export type Genre = (typeof GENRES)[number];
 export type PlayTime = (typeof PLAY_TIMES)[number];
@@ -64,9 +104,12 @@ export interface UserProfile {
   playTimes: PlayTime[];
 }
 
-// Ники — users/{uid}/private/contacts. Отдельный документ, чтобы правила базы могли
+// Анкета другого игрока в ленте: та же UserProfile плюс id документа.
+export type Player = UserProfile & { uid: string };
+
+// Ссылки на профили — users/{uid}/private/contacts. Отдельный документ, чтобы правила базы могли
 // показывать его только после взаимного мэтча (этап 6).
-export type UserContacts = Record<(typeof CONTACT_FIELDS)[number], string>;
+export type UserContacts = Record<ContactField, string>;
 
 // Полных лет на дату today. День рождения в этом году ещё не наступил — минус год.
 export function ageFrom(birthDate: string, today = new Date()): number {

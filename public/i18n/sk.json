@@ -30,7 +30,29 @@
   },
   "feed": {
     "title": "Hráči",
-    "placeholder": "Tu budú hráči s rovnakými hrami ako ty."
+    "subtitle": "Hráči, s ktorými máš najviac spoločného, sú prví.",
+    "count": "Nájdení hráči: {{count}}",
+    "empty": "Zatiaľ tu nikto nie je. Pozvi kamarátov hráčov!",
+    "emptyFiltered": "Týmto filtrom nikto nevyhovuje. Skús ich zmierniť.",
+    "noProfile": {
+      "title": "Najprv si vyplň profil",
+      "text": "Aby sme ti našli spoluhráčov, potrebujeme poznať tvoje hry a platformy.",
+      "cta": "Vyplniť profil"
+    },
+    "filters": {
+      "game": "Hra",
+      "platform": "Platforma",
+      "city": "Mesto",
+      "minAge": "Vek od",
+      "maxAge": "do",
+      "any": "Akákoľvek",
+      "reset": "Zrušiť filtre"
+    },
+    "card": {
+      "match": "{{percent}}% zhoda",
+      "commonGames": "Spoločné hry",
+      "otherGames": "Ďalšie hry"
+    }
   },
   "auth": {
     "loginTitle": "Prihlásenie",
@@ -96,12 +118,21 @@
     "platforms": "Platformy",
     "genres": "Žánre",
     "playTimes": "Kedy zvyčajne hráš",
-    "contactsHint": "Tieto prezývky uvidia len hráči, s ktorými máš vzájomný match.",
+    "contactsHint": "Napíš prezývku, vlož odkaz na profil alebo pripoj platformu. Uvidia ich len hráči, s ktorými máš vzájomný match.",
+    "contactPlaceholder": "Prezývka alebo odkaz na profil",
+    "openLink": "Otvoriť odkaz",
+    "connect": {
+      "button": "Pripojiť",
+      "reconnect": "Pripojiť znova",
+      "done": "{{platform}} je pripojený",
+      "failed": "Platformu sa nepodarilo pripojiť. Skús to znova",
+      "unsavedWarning": "V profile máš neuložené zmeny — stratia sa. Pokračovať?"
+    },
     "contacts": {
       "discord": "Discord",
       "steam": "Steam",
       "psn": "PlayStation Network",
-      "xbox": "Xbox Gamertag"
+      "xbox": "Xbox"
     },
     "save": "Uložiť",
     "saving": "Ukladáme...",
@@ -111,6 +142,7 @@
       "maxLength": "Najviac {{max}} znakov",
       "underage": "Stránka je len pre dospelých (18+)",
       "minOne": "Vyber aspoň jednu možnosť",
+      "invalidContact": "Prezývka (2–37 znakov) alebo odkaz https:// na {{site}}",
       "invalidForm": "Skontroluj polia označené červenou",
       "permission": "Žiadny prístup k databáze. Skontroluj pravidlá Firestore",
       "network": "Žiadne spojenie s databázou",

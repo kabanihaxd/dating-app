@@ -1,0 +1,74 @@
+<h2>{{ 'feed.title' | t }}</h2>
+<p class="subtitle">{{ 'feed.subtitle' | t }}</p>
+
+@if (loading()) {
+  <div class="center"><mat-spinner diameter="40" /></div>
+} @else if (errorKey(); as key) {
+  <p class="form-error" role="alert">{{ key | t }}</p>
+} @else if (!me()) {
+  <!-- Без своего профиля сравнивать не с чем — просим сначала заполнить его. -->
+  <section class="notice">
+    <mat-icon>sports_esports</mat-icon>
+    <h3>{{ 'feed.noProfile.title' | t }}</h3>
+    <p>{{ 'feed.noProfile.text' | t }}</p>
+    <a mat-flat-button routerLink="/profile">{{ 'feed.noProfile.cta' | t }}</a>
+  </section>
+} @else {
+  <form class="filters" [formGroup]="filters">
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'feed.filters.game' | t }}</mat-label>
+      <mat-select formControlName="game">
+        <mat-option value="">{{ 'feed.filters.any' | t }}</mat-option>
+        @for (game of gameOptions(); track game) {
+          <mat-option [value]="game">{{ game }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'feed.filters.platform' | t }}</mat-label>
+      <mat-select formControlName="platform">
+        <mat-option value="">{{ 'feed.filters.any' | t }}</mat-option>
+        @for (platform of platforms; track platform) {
+          <mat-option [value]="platform">{{ 'catalog.platforms.' + platform | t }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'feed.filters.city' | t }}</mat-label>
+      <input matInput formControlName="city" />
+    </mat-form-field>
+
+    <div class="ages">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'feed.filters.minAge' | t }}</mat-label>
+        <input matInput type="number" formControlName="minAge" [min]="minAge" [max]="maxAge" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'feed.filters.maxAge' | t }}</mat-label>
+        <input matInput type="number" formControlName="maxAge" [min]="minAge" [max]="maxAge" />
+      </mat-form-field>
+    </div>
+
+    <button mat-button type="button" (click)="resetFilters()">
+      <mat-icon>filter_alt_off</mat-icon>
+      {{ 'feed.filters.reset' | t }}
+    </button>
+  </form>
+
+  <p class="count">{{ 'feed.count' | t: { count: results().length } }}</p>
+
+  @if (results().length) {
+    <div class="grid">
+      @for (result of results(); track result.player.uid) {
+        <app-player-card [player]="result.player" [age]="result.age" [match]="result.match" />
+      }
+    </div>
+  } @else {
+    <section class="notice">
+      <mat-icon>search_off</mat-icon>
+      <p>{{ (players().length ? 'feed.emptyFiltered' : 'feed.empty') | t }}</p>
+    </section>
+  }
+}
