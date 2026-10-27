@@ -1,0 +1,30 @@
+<h2 mat-dialog-title>{{ 'moderation.reportTitle' | t: { name: data.name } }}</h2>
+
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <mat-dialog-content>
+    <p class="label">{{ 'moderation.reason' | t }}</p>
+    <mat-radio-group formControlName="reason" class="reasons">
+      @for (reason of reasons; track reason) {
+        <mat-radio-button [value]="reason">{{
+          'moderation.reasons.' + reason | t
+        }}</mat-radio-button>
+      }
+    </mat-radio-group>
+    @if (form.controls.reason.touched && form.controls.reason.invalid) {
+      <p class="field-error">{{ 'moderation.reasonRequired' | t }}</p>
+    }
+
+    <mat-form-field appearance="outline" class="comment">
+      <mat-label>{{ 'moderation.comment' | t }}</mat-label>
+      <textarea matInput formControlName="comment" rows="3" [maxlength]="maxComment"></textarea>
+      <mat-hint align="end">{{ form.controls.comment.value.length }} / {{ maxComment }}</mat-hint>
+    </mat-form-field>
+
+    <mat-checkbox formControlName="block">{{ 'moderation.alsoBlock' | t }}</mat-checkbox>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close>{{ 'moderation.cancel' | t }}</button>
+    <button mat-flat-button type="submit">{{ 'moderation.send' | t }}</button>
+  </mat-dialog-actions>
+</form>

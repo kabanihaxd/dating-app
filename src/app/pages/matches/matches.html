@@ -5,7 +5,7 @@
   <div class="center"><mat-spinner diameter="40" /></div>
 } @else if (errorKey(); as key) {
   <p class="form-error" role="alert">{{ key | t }}</p>
-} @else if (!matches().length) {
+} @else if (!visibleMatches().length) {
   <section class="notice">
     <mat-icon>favorite_border</mat-icon>
     <p>{{ 'matches.empty' | t }}</p>
@@ -13,7 +13,7 @@
   </section>
 } @else {
   <div class="grid">
-    @for (match of matches(); track match.uid) {
+    @for (match of visibleMatches(); track match.uid) {
       <article class="card">
         <header>
           @if (match.profile.photo; as src) {
@@ -21,10 +21,16 @@
           } @else {
             <div class="avatar"><mat-icon>person</mat-icon></div>
           }
-          <div>
+          <div class="who">
             <h3>{{ match.profile.name }}, {{ match.age }}</h3>
             <p class="muted"><mat-icon inline>place</mat-icon> {{ match.profile.city }}</p>
           </div>
+          <app-moderation-menu
+            [otherUid]="match.uid"
+            [name]="match.profile.name"
+            [matched]="true"
+            (removed)="remove(match.uid)"
+          />
         </header>
 
         @if (match.commonGames.length) {

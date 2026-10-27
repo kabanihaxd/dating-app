@@ -21,6 +21,15 @@
           <div class="avatar"><mat-icon>person</mat-icon></div>
         }
         <h2>{{ partner()?.name ?? ('chat.unknown' | t) }}</h2>
+        @if (partnerUid(); as uid) {
+          <app-moderation-menu
+            class="menu"
+            [otherUid]="uid"
+            [name]="partner()?.name ?? ''"
+            [matched]="true"
+            (removed)="leave()"
+          />
+        }
       </header>
 
       <!-- role="log" + aria-live: программа чтения с экрана сама озвучит новое сообщение. -->

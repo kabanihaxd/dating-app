@@ -6,6 +6,33 @@
     "login": "Prihlásiť sa",
     "logout": "Odhlásiť sa"
   },
+  "moderation": {
+    "menu": "Akcie s hráčom",
+    "unmatch": "Zrušiť match",
+    "report": "Nahlásiť",
+    "block": "Zablokovať",
+    "unmatchConfirm": "Zrušiť match s {{name}}? Konverzácia bude vymazaná.",
+    "blockConfirm": "Zablokovať {{name}}? Už sa navzájom neuvidíte, match aj konverzácia budú vymazané.",
+    "reportTitle": "Nahlásiť {{name}}",
+    "reason": "Čo sa stalo?",
+    "reasonRequired": "Vyber dôvod",
+    "reasons": {
+      "fake": "Falošný profil",
+      "spam": "Spam alebo reklama",
+      "offensive": "Urážky alebo nevhodné správanie",
+      "underage": "Zdá sa, že má menej ako 18 rokov",
+      "other": "Iné"
+    },
+    "comment": "Komentár (nepovinné)",
+    "alsoBlock": "Zároveň zablokovať",
+    "cancel": "Zrušiť",
+    "send": "Odoslať",
+    "unmatched": "Match s {{name}} bol zrušený",
+    "blocked": "{{name}} je zablokovaný/á",
+    "reported": "Nahlásenie odoslané. Ďakujeme!",
+    "reportedBlocked": "Nahlásenie odoslané, {{name}} je zablokovaný/á",
+    "error": "Akciu sa nepodarilo vykonať. Skús to znova"
+  },
   "notifications": {
     "liked": "{{name}} ti dáva lajk! Lajkni späť a je z toho match",
     "matched": "Je to match s {{name}}! 🎉",

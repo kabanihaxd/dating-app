@@ -6,6 +6,33 @@
     "login": "Log in",
     "logout": "Log out"
   },
+  "moderation": {
+    "menu": "Player actions",
+    "unmatch": "Unmatch",
+    "report": "Report",
+    "block": "Block",
+    "unmatchConfirm": "Unmatch {{name}}? Your chat will be deleted.",
+    "blockConfirm": "Block {{name}}? You won't see each other anymore; the match and chat will be deleted.",
+    "reportTitle": "Report {{name}}",
+    "reason": "What happened?",
+    "reasonRequired": "Choose a reason",
+    "reasons": {
+      "fake": "Fake profile",
+      "spam": "Spam or advertising",
+      "offensive": "Insults or inappropriate behavior",
+      "underage": "Seems to be under 18",
+      "other": "Other"
+    },
+    "comment": "Comment (optional)",
+    "alsoBlock": "Also block",
+    "cancel": "Cancel",
+    "send": "Send",
+    "unmatched": "Unmatched {{name}}",
+    "blocked": "{{name}} blocked",
+    "reported": "Report sent. Thank you!",
+    "reportedBlocked": "Report sent, {{name}} blocked",
+    "error": "Couldn't complete the action. Please try again"
+  },
   "notifications": {
     "liked": "{{name}} liked you! Like back to make it a match",
     "matched": "It's a match with {{name}}! 🎉",

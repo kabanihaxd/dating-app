@@ -69,9 +69,13 @@ export class Feed {
   protected readonly pendingUid = signal<string | null>(null);
 
   // Ещё не просмотренные игроки — только их и показываем.
-  protected readonly remaining = computed(() =>
-    this.players().filter((player) => !this.swiped().has(player.uid)),
-  );
+  // Заблокированные (в любую сторону) пропадают сразу: hidden обновляется в реальном времени.
+  protected readonly remaining = computed(() => {
+    const hidden = this.notifications.hidden();
+    return this.players().filter(
+      (player) => !this.swiped().has(player.uid) && !hidden.has(player.uid),
+    );
+  });
 
   protected readonly filters = inject(NonNullableFormBuilder).group({
     game: [''],

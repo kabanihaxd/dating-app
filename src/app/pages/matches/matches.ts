@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -20,6 +20,7 @@ import {
   ageFrom,
   isProfileLink,
 } from '../../core/profile/profile.model';
+import { ModerationMenu } from '../../shared/moderation-menu/moderation-menu';
 
 // Всё, что нужно шаблону про один мэтч, — посчитано заранее, чтобы в шаблоне не было логики.
 interface MatchView {
@@ -33,7 +34,14 @@ interface MatchView {
 
 @Component({
   selector: 'app-matches',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressSpinnerModule, TranslatePipe],
+  imports: [
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    TranslatePipe,
+    ModerationMenu,
+  ],
   templateUrl: './matches.html',
   styleUrl: './matches.scss',
 })
@@ -53,10 +61,21 @@ export class Matches {
   protected readonly notifications = inject(NotificationService);
   protected readonly me = this.auth.user()!.uid;
 
+  // Если меня заблокировали, пока страница открыта, — карточка исчезает сама.
+  protected readonly visibleMatches = computed(() => {
+    const hidden = this.notifications.hidden();
+    return this.matches().filter((match) => !hidden.has(match.uid));
+  });
+
   constructor() {
     // Открыл страницу — значит, новые мэтчи увидел: значок в меню гаснет.
     this.notifications.markMatchesSeen();
     void this.load();
+  }
+
+  // Мэтч разорван или человек заблокирован — убираем карточку.
+  protected remove(uid: string): void {
+    this.matches.update((matches) => matches.filter((match) => match.uid !== uid));
   }
 
   protected async copy(value: string): Promise<void> {
@@ -73,7 +92,13 @@ export class Matches {
         this.swipes.listMatches(me),
       ]);
       // Анкеты и контакты всех мэтчей — параллельно. Контакты нам отдают, потому что мэтч есть (см. firestore.rules).
-      const loaded = await Promise.all(matches.map((match) => this.profiles.load(match.otherUid)));
+      // Мэтч могли разорвать прямо сейчас — тогда контакты уже закрыты; такой мэтч просто пропускаем,
+      // а не ломаем из-за него всю страницу.
+      const loaded = await Promise.all(
+        matches.map((match) =>
+          this.profiles.load(match.otherUid).catch(() => ({ profile: null, contacts: null })),
+        ),
+      );
 
       this.matches.set(
         matches.flatMap((match, i) => {

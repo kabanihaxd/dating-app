@@ -10,7 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { TextFieldModule } from '@angular/cdk/text-field';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -26,6 +26,7 @@ import { matchScore } from '../../core/matching/match-score';
 import { NotificationService } from '../../core/notifications/notifications';
 import { ProfileService } from '../../core/profile/profile';
 import { UserProfile } from '../../core/profile/profile.model';
+import { ModerationMenu } from '../../shared/moderation-menu/moderation-menu';
 
 type ChatState = 'loading' | 'ready' | 'notFound';
 
@@ -41,6 +42,7 @@ type ChatState = 'loading' | 'ready' | 'notFound';
     MatInputModule,
     MatProgressSpinnerModule,
     TranslatePipe,
+    ModerationMenu,
   ],
   templateUrl: './chat.html',
   styleUrl: './chat.scss',
@@ -52,6 +54,7 @@ export class Chat {
   private readonly notifications = inject(NotificationService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly i18n = inject(I18n);
+  private readonly router = inject(Router);
 
   // id мэтча из адреса /chat/:matchId. Роутер сам кладёт параметр в input (withComponentInputBinding).
   // Если из одного чата перейти в другой, Angular переиспользует компонент и просто меняет input —
@@ -64,6 +67,7 @@ export class Chat {
   protected readonly maxLength = MAX_MESSAGE_LENGTH;
   protected readonly state = signal<ChatState>('loading');
   protected readonly partner = signal<UserProfile | null>(null);
+  protected readonly partnerUid = signal<string | null>(null);
   protected readonly commonGames = signal<string[]>([]);
   private readonly messages = signal<ChatMessage[]>([]);
 
@@ -94,6 +98,7 @@ export class Chat {
       const matchId = this.matchId();
       this.state.set('loading');
       this.messages.set([]);
+      this.partnerUid.set(null);
       this.markReadFailed = false;
       this.notifications.activeChat.set(matchId);
 
@@ -155,6 +160,11 @@ export class Chat {
     }
   }
 
+  // Мэтч разорван или собеседник заблокирован — чата больше нет, возвращаемся к списку мэтчей.
+  protected leave(): void {
+    void this.router.navigateByUrl('/matches');
+  }
+
   // Enter отправляет, Shift+Enter — перенос строки (как в мессенджерах).
   protected onEnter(event: Event): void {
     if (!(event as KeyboardEvent).shiftKey) {
@@ -178,6 +188,7 @@ export class Chat {
       return;
     }
     this.partner.set(partner);
+    this.partnerUid.set(partnerUid);
     this.commonGames.set(partner && myProfile ? matchScore(myProfile, partner).commonGames : []);
     this.state.set('ready');
   }

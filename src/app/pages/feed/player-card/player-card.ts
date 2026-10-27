@@ -5,12 +5,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { MatchInfo } from '../../../core/matching/match-score';
 import { Player } from '../../../core/profile/profile.model';
+import { ModerationMenu } from '../../../shared/moderation-menu/moderation-menu';
 
 // Карточка одного игрока. Сама ничего не загружает и не сохраняет:
 // данные получает через input(), а о нажатых кнопках сообщает ленте через output().
 @Component({
   selector: 'app-player-card',
-  imports: [MatButtonModule, MatChipsModule, MatIconModule, TranslatePipe],
+  imports: [MatButtonModule, MatChipsModule, MatIconModule, TranslatePipe, ModerationMenu],
   templateUrl: './player-card.html',
   styleUrl: './player-card.scss',
 })

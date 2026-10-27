@@ -1,0 +1,20 @@
+.label {
+  margin: 0 0 4px;
+  color: var(--di-text-muted);
+}
+
+.reasons {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-error {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--mat-sys-error);
+}
+
+.comment {
+  width: 100%;
+  margin-top: 16px;
+}

@@ -46,11 +46,16 @@ export class NotificationService {
   private readonly likedMeUids = signal(new Set<string>());
   private readonly myLikes = signal(new Set<string>());
   private readonly mySkips = signal(new Set<string>());
+  private readonly blockedByMe = signal(new Set<string>());
+  private readonly blockedMe = signal(new Set<string>());
   private readonly matches = signal<MatchSummary[]>([]);
   private readonly matchesSeenAt = signal(0);
 
   // Какой чат сейчас открыт (id мэтча). Ставит страница чата: о сообщениях в нём всплывашка не нужна.
   readonly activeChat = signal<string | null>(null);
+
+  // Скрытые люди: я заблокировал их или они меня. Их нет ни в ленте, ни в мэтчах, ни в уведомлениях.
+  readonly hidden = computed(() => new Set([...this.blockedByMe(), ...this.blockedMe()]));
 
   // Кто лайкнул меня (uid). Лента показывает их первыми.
   readonly likedMe = this.likedMeUids.asReadonly();
@@ -58,8 +63,9 @@ export class NotificationService {
   // Лайкнули меня, а я ещё не ответил: лайкну в ответ — сразу мэтч. Это число на значке «Анкеты».
   readonly pendingLikes = computed(
     () =>
-      [...this.likedMeUids()].filter((uid) => !this.myLikes().has(uid) && !this.mySkips().has(uid))
-        .length,
+      [...this.likedMeUids()].filter(
+        (uid) => !this.myLikes().has(uid) && !this.mySkips().has(uid) && !this.hidden().has(uid),
+      ).length,
   );
 
   // Последнее сообщение каждого чата: id мэтча → сообщение. Для превью на странице «Мэтчи».
@@ -100,8 +106,10 @@ export class NotificationService {
       this.matchesSeenAt.set(Number(this.storage()?.getItem(`${SEEN_KEY}-${uid}`) ?? 0));
       const unsubscribers = [
         this.watchLikesToMe(uid),
-        this.watchSet('likes', uid, this.myLikes),
-        this.watchSet('skips', uid, this.mySkips),
+        this.watchSet('likes', 'from', uid, this.myLikes),
+        this.watchSet('skips', 'from', uid, this.mySkips),
+        this.watchSet('blocks', 'from', uid, this.blockedByMe),
+        this.watchSet('blocks', 'to', uid, this.blockedMe),
         this.watchMatches(uid),
       ];
       onCleanup(() => {
@@ -109,6 +117,8 @@ export class NotificationService {
         this.likedMeUids.set(new Set());
         this.myLikes.set(new Set());
         this.mySkips.set(new Set());
+        this.blockedByMe.set(new Set());
+        this.blockedMe.set(new Set());
         this.matches.set([]);
       });
     });
@@ -183,15 +193,18 @@ export class NotificationService {
     );
   }
 
-  // Мои лайки или пропуски → Set uid тех, кому я уже ответил.
+  // Документы {from, to}, где я — from (мои лайки, пропуски, блокировки) или to (блокировки меня)
+  // → Set uid второго человека.
   private watchSet(
-    name: 'likes' | 'skips',
+    name: 'likes' | 'skips' | 'blocks',
+    side: 'from' | 'to',
     uid: string,
     target: WritableSignal<Set<string>>,
   ): () => void {
+    const other = side === 'from' ? 'to' : 'from';
     return onSnapshot(
-      query(collection(this.db, name), where('from', '==', uid)),
-      (snapshot) => target.set(new Set(snapshot.docs.map((swipe) => swipe.get('to') as string))),
+      query(collection(this.db, name), where(side, '==', uid)),
+      (snapshot) => target.set(new Set(snapshot.docs.map((item) => item.get(other) as string))),
       (error) => console.error(error),
     );
   }
@@ -202,6 +215,9 @@ export class NotificationService {
     link: string,
     params: Record<string, string> = {},
   ): Promise<void> {
+    if (this.hidden().has(otherUid)) {
+      return; // от заблокированных — никаких всплывашек
+    }
     const profile = await this.profiles.loadPublic(otherUid).catch(() => null);
     const text = this.i18n.translate(key, { ...params, name: profile?.name ?? '' });
     this.snackBar

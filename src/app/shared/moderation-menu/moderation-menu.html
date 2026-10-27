@@ -1,0 +1,26 @@
+<button
+  mat-icon-button
+  type="button"
+  [matMenuTriggerFor]="menu"
+  [disabled]="busy()"
+  [attr.aria-label]="'moderation.menu' | t"
+>
+  <mat-icon>more_vert</mat-icon>
+</button>
+
+<mat-menu #menu="matMenu" xPosition="before">
+  @if (matched()) {
+    <button mat-menu-item type="button" (click)="unmatch()">
+      <mat-icon>heart_broken</mat-icon>
+      <span>{{ 'moderation.unmatch' | t }}</span>
+    </button>
+  }
+  <button mat-menu-item type="button" (click)="report()">
+    <mat-icon>flag</mat-icon>
+    <span>{{ 'moderation.report' | t }}</span>
+  </button>
+  <button mat-menu-item type="button" class="danger" (click)="block()">
+    <mat-icon>block</mat-icon>
+    <span>{{ 'moderation.block' | t }}</span>
+  </button>
+</mat-menu>
