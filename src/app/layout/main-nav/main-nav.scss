@@ -1,0 +1,16 @@
+.nav a.active {
+  color: var(--di-neon-cyan);
+}
+
+// Значок уведомления — неоново-розовый, в цвет бренда.
+.nav {
+  --mat-badge-background-color: var(--di-neon-pink);
+  --mat-badge-text-color: #fff;
+}
+
+// На узком экране (телефон) прячем подписи, оставляем только иконки.
+@media (max-width: 600px) {
+  .label {
+    display: none;
+  }
+}

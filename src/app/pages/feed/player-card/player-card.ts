@@ -1,14 +1,16 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { MatchInfo } from '../../../core/matching/match-score';
 import { Player } from '../../../core/profile/profile.model';
 
-// Карточка одного игрока. Сама ничего не загружает — всё получает через input() от ленты.
+// Карточка одного игрока. Сама ничего не загружает и не сохраняет:
+// данные получает через input(), а о нажатых кнопках сообщает ленте через output().
 @Component({
   selector: 'app-player-card',
-  imports: [MatChipsModule, MatIconModule, TranslatePipe],
+  imports: [MatButtonModule, MatChipsModule, MatIconModule, TranslatePipe],
   templateUrl: './player-card.html',
   styleUrl: './player-card.scss',
 })
@@ -17,6 +19,14 @@ export class PlayerCard {
   readonly player = input.required<Player>();
   readonly age = input.required<number>();
   readonly match = input.required<MatchInfo>();
+  // true, пока лента сохраняет лайк/пропуск — кнопки выключены, чтобы не нажать дважды.
+  readonly busy = input(false);
+  // Этот игрок уже лайкнул меня — показываем метку.
+  readonly likedMe = input(false);
+
+  // output — «событие» компонента. Лента подписывается на него так: (liked)="like(...)".
+  readonly liked = output<void>();
+  readonly skipped = output<void>();
 
   // Остальные игры игрока — те, что не совпали с моими.
   protected readonly otherGames = computed(() => {

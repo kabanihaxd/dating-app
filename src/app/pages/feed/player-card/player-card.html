@@ -5,7 +5,15 @@
     } @else {
       <mat-icon>person</mat-icon>
     }
-    <span class="match" [class]="level()">{{ 'feed.card.match' | t: { percent: match().percent } }}</span>
+    @if (likedMe()) {
+      <span class="liked-me">
+        <mat-icon>favorite</mat-icon>
+        {{ 'feed.card.likedMe' | t }}
+      </span>
+    }
+    <span class="match" [class]="level()">{{
+      'feed.card.match' | t: { percent: match().percent }
+    }}</span>
   </div>
 
   <div class="body">
@@ -41,5 +49,22 @@
     @if (player().bio) {
       <p class="bio">{{ player().bio }}</p>
     }
+  </div>
+
+  <div class="actions">
+    <button
+      mat-stroked-button
+      type="button"
+      class="skip"
+      [disabled]="busy()"
+      (click)="skipped.emit()"
+    >
+      <mat-icon>close</mat-icon>
+      {{ 'feed.card.skip' | t }}
+    </button>
+    <button mat-flat-button type="button" class="like" [disabled]="busy()" (click)="liked.emit()">
+      <mat-icon>favorite</mat-icon>
+      {{ 'feed.card.like' | t }}
+    </button>
   </div>
 </article>

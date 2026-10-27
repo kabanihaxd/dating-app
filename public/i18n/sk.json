@@ -6,6 +6,13 @@
     "login": "Prihlásiť sa",
     "logout": "Odhlásiť sa"
   },
+  "notifications": {
+    "liked": "{{name}} ti dáva lajk! Lajkni späť a je z toho match",
+    "matched": "Je to match s {{name}}! 🎉",
+    "view": "Zobraziť",
+    "badge": "Nové: {{count}}",
+    "message": "💬 {{name}}: {{text}}"
+  },
   "lang": {
     "choose": "Jazyk rozhrania"
   },
@@ -51,8 +58,15 @@
     "card": {
       "match": "{{percent}}% zhoda",
       "commonGames": "Spoločné hry",
-      "otherGames": "Ďalšie hry"
-    }
+      "otherGames": "Ďalšie hry",
+      "likedMe": "Páčiš sa mu/jej",
+      "like": "Páči sa mi",
+      "skip": "Preskočiť"
+    },
+    "allSwiped": "Prezrel si všetky profily. Pozri sa neskôr — pribudnú noví hráči.",
+    "toMatches": "Na matche",
+    "matchToast": "Je to match s {{name}}! 🎉",
+    "matchAction": "Napísať"
   },
   "auth": {
     "loginTitle": "Prihlásenie",
@@ -86,7 +100,28 @@
   },
   "matches": {
     "title": "Matche",
-    "placeholder": "Tu budú vzájomné lajky a chaty."
+    "subtitle": "Hráči, s ktorými je lajk vzájomný. Teraz vidíte navzájom svoje kontakty.",
+    "empty": "Zatiaľ žiadne matche. Lajkuj profily — keď bude lajk vzájomný, hráč sa objaví tu.",
+    "toFeed": "Na profily",
+    "contacts": "Kontakty",
+    "noContacts": "Hráč ešte nepridal kontakty.",
+    "openProfile": "Otvoriť profil",
+    "copy": "Kopírovať",
+    "copied": "Skopírované",
+    "write": "Napísať správu",
+    "you": "Ty",
+    "unread": "Nová správa"
+  },
+  "chat": {
+    "back": "Späť na matche",
+    "unknown": "Hráč",
+    "placeholder": "Napíš správu…",
+    "send": "Odoslať",
+    "hint": "Enter — odoslať, Shift+Enter — nový riadok",
+    "empty": "Zatiaľ tu nič nie je. Napíš {{name}} ako prvý!",
+    "emptyGames": "Téma na rozhovor — vaše spoločné hry:",
+    "notFound": "Chat sa nenašiel: match mohol byť zrušený alebo je odkaz nesprávny.",
+    "sendError": "Správu sa nepodarilo odoslať. Skontroluj pripojenie a skús to znova."
   },
   "profile": {
     "title": "Profil",

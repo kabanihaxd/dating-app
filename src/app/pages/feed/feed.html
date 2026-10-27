@@ -62,13 +62,29 @@
   @if (results().length) {
     <div class="grid">
       @for (result of results(); track result.player.uid) {
-        <app-player-card [player]="result.player" [age]="result.age" [match]="result.match" />
+        <app-player-card
+          [player]="result.player"
+          [age]="result.age"
+          [match]="result.match"
+          [busy]="pendingUid() === result.player.uid"
+          [likedMe]="result.likedMe"
+          (liked)="like(result.player)"
+          (skipped)="skip(result.player)"
+        />
       }
     </div>
   } @else {
     <section class="notice">
       <mat-icon>search_off</mat-icon>
-      <p>{{ (players().length ? 'feed.emptyFiltered' : 'feed.empty') | t }}</p>
+      <!-- Три разных «пусто»: никого нет вообще, всех уже посмотрел, никто не подходит под фильтры. -->
+      @if (!players().length) {
+        <p>{{ 'feed.empty' | t }}</p>
+      } @else if (!remaining().length) {
+        <p>{{ 'feed.allSwiped' | t }}</p>
+        <a mat-stroked-button routerLink="/matches">{{ 'feed.toMatches' | t }}</a>
+      } @else {
+        <p>{{ 'feed.emptyFiltered' | t }}</p>
+      }
     </section>
   }
 }

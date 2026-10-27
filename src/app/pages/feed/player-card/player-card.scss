@@ -30,11 +30,35 @@
     object-fit: cover;
   }
 
-  mat-icon {
+  // «>» — только иконка-заглушка, лежащая прямо в .photo, а не иконки внутри меток.
+  > mat-icon {
     font-size: 72px;
     width: 72px;
     height: 72px;
     color: var(--di-text-muted);
+  }
+}
+
+.liked-me {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1;
+  color: #fff;
+  background: var(--di-neon-pink);
+  box-shadow: 0 0 12px rgba(255, 46, 136, 0.6);
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
   }
 }
 
@@ -63,6 +87,7 @@
 }
 
 .body {
+  flex: 1; // растягивается, чтобы кнопки у всех карточек в ряду стояли на одной высоте
   padding: 14px 16px 16px;
 
   h3 {
@@ -100,6 +125,19 @@
   &.common {
     border-color: var(--di-neon-cyan);
     color: var(--di-neon-cyan);
+  }
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 16px 16px;
+
+  .like {
+    background: var(--di-neon-pink);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(255, 46, 136, 0.45);
   }
 }
 

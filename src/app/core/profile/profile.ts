@@ -34,6 +34,12 @@ export class ProfileService {
     };
   }
 
+  // Только публичная анкета, без контактов — например, чтобы показать имя в уведомлении.
+  async loadPublic(uid: string): Promise<UserProfile | null> {
+    const snapshot = await getDoc(this.profileDoc(uid));
+    return snapshot.exists() ? (snapshot.data() as UserProfile) : null;
+  }
+
   // Анкеты для ленты: все, кроме своей. doc.id — это uid владельца анкеты.
   async listPlayers(myUid: string): Promise<Player[]> {
     const snapshot = await getDocs(query(collection(this.db, 'users'), limit(PLAYERS_LIMIT)));

@@ -3,16 +3,13 @@
 
   <span class="spacer"></span>
 
-  <!-- Меню и кнопка «Выйти» видны только вошедшему пользователю. -->
+  <!-- Меню и кнопка «Выйти» видны только вошедшему пользователю.
+       @defer — код меню (а с ним и Firestore для уведомлений) скачивается отдельным файлом,
+       только когда он реально нужен. Гость его не загружает вовсе. -->
   @if (auth.isLoggedIn()) {
-    <nav class="nav">
-      @for (item of navItems; track item.path) {
-        <a mat-button [routerLink]="item.path" routerLinkActive="active">
-          <mat-icon>{{ item.icon }}</mat-icon>
-          <span class="label">{{ item.labelKey | t }}</span>
-        </a>
-      }
-    </nav>
+    @defer (on immediate) {
+      <app-main-nav />
+    }
   }
 
   <app-language-switcher />

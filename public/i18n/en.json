@@ -6,6 +6,13 @@
     "login": "Log in",
     "logout": "Log out"
   },
+  "notifications": {
+    "liked": "{{name}} liked you! Like back to make it a match",
+    "matched": "It's a match with {{name}}! 🎉",
+    "view": "View",
+    "badge": "New: {{count}}",
+    "message": "💬 {{name}}: {{text}}"
+  },
   "lang": {
     "choose": "Interface language"
   },
@@ -51,8 +58,15 @@
     "card": {
       "match": "{{percent}}% match",
       "commonGames": "Games in common",
-      "otherGames": "Other games"
-    }
+      "otherGames": "Other games",
+      "likedMe": "Likes you",
+      "like": "Like",
+      "skip": "Skip"
+    },
+    "allSwiped": "You've seen every profile. Come back later — new players will show up.",
+    "toMatches": "Go to matches",
+    "matchToast": "It's a match with {{name}}! 🎉",
+    "matchAction": "Message"
   },
   "auth": {
     "loginTitle": "Log in",
@@ -86,7 +100,28 @@
   },
   "matches": {
     "title": "Matches",
-    "placeholder": "Mutual likes and chats will be here."
+    "subtitle": "Players who liked you back. You can now see each other's contacts.",
+    "empty": "No matches yet. Like some profiles — when a like is mutual, the player shows up here.",
+    "toFeed": "Browse players",
+    "contacts": "Contacts",
+    "noContacts": "This player hasn't added any contacts yet.",
+    "openProfile": "Open profile",
+    "copy": "Copy",
+    "copied": "Copied",
+    "write": "Send a message",
+    "you": "You",
+    "unread": "New message"
+  },
+  "chat": {
+    "back": "Back to matches",
+    "unknown": "Player",
+    "placeholder": "Type a message…",
+    "send": "Send",
+    "hint": "Enter to send, Shift+Enter for a new line",
+    "empty": "Nothing here yet. Say hi to {{name}} first!",
+    "emptyGames": "Something to talk about — your games in common:",
+    "notFound": "Chat not found: the match may have been removed, or the link is wrong.",
+    "sendError": "Couldn't send the message. Check your connection and try again."
   },
   "profile": {
     "title": "Profile",

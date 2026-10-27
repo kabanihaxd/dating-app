@@ -1,0 +1,76 @@
+@switch (state()) {
+  @case ('loading') {
+    <div class="center"><mat-spinner diameter="40" /></div>
+  }
+  @case ('notFound') {
+    <section class="notice">
+      <mat-icon>chat_bubble_outline</mat-icon>
+      <p>{{ 'chat.notFound' | t }}</p>
+      <a mat-flat-button routerLink="/matches">{{ 'chat.back' | t }}</a>
+    </section>
+  }
+  @case ('ready') {
+    <section class="chat">
+      <header class="chat-header">
+        <a mat-icon-button routerLink="/matches" [attr.aria-label]="'chat.back' | t">
+          <mat-icon>arrow_back</mat-icon>
+        </a>
+        @if (partner()?.photo; as src) {
+          <img [src]="src" [alt]="partner()?.name" />
+        } @else {
+          <div class="avatar"><mat-icon>person</mat-icon></div>
+        }
+        <h2>{{ partner()?.name ?? ('chat.unknown' | t) }}</h2>
+      </header>
+
+      <!-- role="log" + aria-live: программа чтения с экрана сама озвучит новое сообщение. -->
+      <div class="messages" #list role="log" aria-live="polite">
+        @for (message of messageViews(); track message.id) {
+          <div class="message" [class.mine]="message.mine">
+            <p>{{ message.text }}</p>
+            <time>{{ message.time }}</time>
+          </div>
+        } @empty {
+          <div class="empty">
+            <mat-icon>waving_hand</mat-icon>
+            <p>{{ 'chat.empty' | t: { name: partner()?.name ?? '' } }}</p>
+            @if (commonGames().length) {
+              <p class="muted">{{ 'chat.emptyGames' | t }}</p>
+              <div class="tags">
+                @for (game of commonGames(); track game) {
+                  <span class="tag">{{ game }}</span>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <form class="composer" (ngSubmit)="send()">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <textarea
+            matInput
+            [formControl]="draft"
+            cdkTextareaAutosize
+            cdkAutosizeMinRows="1"
+            cdkAutosizeMaxRows="5"
+            [maxlength]="maxLength"
+            [placeholder]="'chat.placeholder' | t"
+            [attr.aria-label]="'chat.placeholder' | t"
+            (keydown.enter)="onEnter($event)"
+          ></textarea>
+          <mat-hint>{{ 'chat.hint' | t }}</mat-hint>
+        </mat-form-field>
+        <button
+          mat-icon-button
+          type="submit"
+          class="send"
+          [disabled]="!draft.value.trim()"
+          [attr.aria-label]="'chat.send' | t"
+        >
+          <mat-icon>send</mat-icon>
+        </button>
+      </form>
+    </section>
+  }
+}

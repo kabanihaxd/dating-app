@@ -1,0 +1,90 @@
+<h2>{{ 'matches.title' | t }}</h2>
+<p class="subtitle">{{ 'matches.subtitle' | t }}</p>
+
+@if (loading()) {
+  <div class="center"><mat-spinner diameter="40" /></div>
+} @else if (errorKey(); as key) {
+  <p class="form-error" role="alert">{{ key | t }}</p>
+} @else if (!matches().length) {
+  <section class="notice">
+    <mat-icon>favorite_border</mat-icon>
+    <p>{{ 'matches.empty' | t }}</p>
+    <a mat-flat-button routerLink="/feed">{{ 'matches.toFeed' | t }}</a>
+  </section>
+} @else {
+  <div class="grid">
+    @for (match of matches(); track match.uid) {
+      <article class="card">
+        <header>
+          @if (match.profile.photo; as src) {
+            <img [src]="src" [alt]="match.profile.name" />
+          } @else {
+            <div class="avatar"><mat-icon>person</mat-icon></div>
+          }
+          <div>
+            <h3>{{ match.profile.name }}, {{ match.age }}</h3>
+            <p class="muted"><mat-icon inline>place</mat-icon> {{ match.profile.city }}</p>
+          </div>
+        </header>
+
+        @if (match.commonGames.length) {
+          <p class="label">{{ 'feed.card.commonGames' | t }}</p>
+          <div class="tags">
+            @for (game of match.commonGames; track game) {
+              <span class="tag">{{ game }}</span>
+            }
+          </div>
+        }
+
+        <!-- Превью чата: последнее сообщение и розовая точка, если оно не прочитано. -->
+        @let last = notifications.lastMessages().get(match.id);
+        @let unread = notifications.unreadChats().has(match.id);
+        <a class="chat-link" [class.unread]="unread" [routerLink]="['/chat', match.id]">
+          <mat-icon>chat</mat-icon>
+          <span class="preview">
+            @if (last) {
+              @if (last.from === me) {
+                <span class="muted">{{ 'matches.you' | t }}:</span>
+              }
+              {{ last.text }}
+            } @else {
+              {{ 'matches.write' | t }}
+            }
+          </span>
+          @if (unread) {
+            <span class="dot" [attr.aria-label]="'matches.unread' | t"></span>
+          }
+        </a>
+
+        <p class="label">{{ 'matches.contacts' | t }}</p>
+        @if (match.contacts.length) {
+          <ul class="contacts">
+            @for (contact of match.contacts; track contact.field) {
+              <li>
+                <span class="platform">{{ 'profile.contacts.' + contact.field | t }}</span>
+                <!-- Ссылку (уже проверенную при сохранении) делаем кликабельной, ник — копируем. -->
+                @if (contact.isLink) {
+                  <a [href]="contact.value" target="_blank" rel="noopener noreferrer">
+                    {{ 'matches.openProfile' | t }} <mat-icon inline>open_in_new</mat-icon>
+                  </a>
+                } @else {
+                  <span class="nickname">{{ contact.value }}</span>
+                  <button
+                    mat-icon-button
+                    type="button"
+                    (click)="copy(contact.value)"
+                    [attr.aria-label]="'matches.copy' | t"
+                  >
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                }
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="muted">{{ 'matches.noContacts' | t }}</p>
+        }
+      </article>
+    }
+  </div>
+}

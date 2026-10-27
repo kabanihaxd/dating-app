@@ -21,6 +21,12 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/matches/matches').then((m) => m.Matches),
   },
   {
+    // :matchId — параметр адреса: /chat/abc_xyz. Компонент получит его как input matchId.
+    path: 'chat/:matchId',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/chat/chat').then((m) => m.Chat),
+  },
+  {
     path: 'profile',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/profile/profile').then((m) => m.Profile),

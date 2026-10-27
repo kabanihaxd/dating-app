@@ -16,7 +16,11 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
     <mat-menu #menu="matMenu">
       @for (lang of languages; track lang.code) {
-        <button mat-menu-item [class.active]="lang.code === i18n.lang()" (click)="i18n.use(lang.code)">
+        <button
+          mat-menu-item
+          [class.active]="lang.code === i18n.lang()"
+          (click)="i18n.use(lang.code)"
+        >
           {{ lang.label }}
         </button>
       }

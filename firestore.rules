@@ -6,14 +6,104 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Есть ли мэтч между a и b. id мэтча — два uid через '_' по алфавиту; проверяем оба порядка на всякий случай.
+    // exists() смотрит в базу в обход правил, поэтому права на чтение matches здесь не нужны.
+    function isMatched(a, b) {
+      return exists(/databases/$(database)/documents/matches/$(a + '_' + b))
+        || exists(/databases/$(database)/documents/matches/$(b + '_' + a));
+    }
+
+    function liked(from, to) {
+      return exists(/databases/$(database)/documents/likes/$(from + '_' + to));
+    }
+
+    // Создать лайк/пропуск можно только от своего имени, не себе, и id документа обязан быть {from}_{to}.
+    function isOwnSwipe(swipeId) {
+      return signedIn()
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to != request.auth.uid
+        && swipeId == request.auth.uid + '_' + request.resource.data.to;
+    }
+
     // Публичная анкета: читать может любой вошедший, менять — только владелец.
     match /users/{uid} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == uid;
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid;
 
-      // Ники Discord/Steam: пока только сам владелец. На этапе 6 откроем для мэтчей.
+      // Контакты (ники и ссылки): владелец и те, с кем у него мэтч.
       match /private/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow write: if signedIn() && request.auth.uid == uid;
+        allow read: if signedIn() && (request.auth.uid == uid || isMatched(request.auth.uid, uid));
+      }
+    }
+
+    // Лайк likes/{from}_{to}. get — по id: и тот, кто лайкнул, и тот, кого лайкнули
+    // (uid состоит из букв и цифр, поэтому '_' однозначно делит id на две части).
+    // list — свои лайки (from) и лайки МНЕ (to): из них уведомления «тебя лайкнули».
+    match /likes/{likeId} {
+      allow get: if signedIn() && request.auth.uid in likeId.split('_');
+      allow list: if signedIn()
+        && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+      allow create: if isOwnSwipe(likeId);
+      allow delete: if signedIn() && resource.data.from == request.auth.uid;
+    }
+
+    // Пропуск skips/{from}_{to} — виден только тому, кто пропустил.
+    match /skips/{skipId} {
+      allow read: if signedIn() && resource.data.from == request.auth.uid;
+      allow create: if isOwnSwipe(skipId);
+      allow delete: if signedIn() && resource.data.from == request.auth.uid;
+    }
+
+    // Участник мэтча: его uid есть в массиве users документа мэтча.
+    // Параметр не называем match — это зарезервированное слово правил (им начинаются блоки match /...).
+    function isMember(matchData) {
+      return signedIn() && request.auth.uid in matchData.users;
+    }
+
+    // Сообщение: только эти три поля, автор — я, текст 1–1000 символов, время ставит сервер.
+    // request.time — время запроса; serverTimestamp() из браузера ему как раз равен.
+    function isValidMessage(message) {
+      return message.keys().hasOnly(['from', 'text', 'createdAt'])
+        && message.from == request.auth.uid
+        && message.text is string
+        && message.text.size() > 0
+        && message.text.size() <= 1000
+        && message.createdAt == request.time;
+    }
+
+    // Мэтч создаётся, только если ОБА лайка уже лежат в базе — подделать взаимность нельзя.
+    match /matches/{matchId} {
+      allow read, delete: if isMember(resource.data);
+      allow create: if signedIn()
+        && request.resource.data.users.size() == 2
+        && request.auth.uid in request.resource.data.users
+        && matchId == request.resource.data.users[0] + '_' + request.resource.data.users[1]
+        && liked(request.resource.data.users[0], request.resource.data.users[1])
+        && liked(request.resource.data.users[1], request.resource.data.users[0]);
+
+      // Менять готовый мэтч можно только участнику и только два поля:
+      //  lastMessage — последнее сообщение (превью в списке мэтчей), обязательно от моего имени;
+      //  readAt.{uid} — когда я последний раз читал чат; чужое время прочтения трогать нельзя.
+      // users, createdBy и createdAt после создания не меняются.
+      allow update: if isMember(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'readAt'])
+        && (!('lastMessage' in request.resource.data.diff(resource.data).affectedKeys())
+          || (isValidMessage(request.resource.data.lastMessage)))
+        && request.resource.data.get('readAt', {}).diff(resource.data.get('readAt', {}))
+          .affectedKeys().hasOnly([request.auth.uid]);
+
+      // Сообщения чата. Читать и писать — только двоим участникам мэтча.
+      // get() достаёт документ мэтча, чтобы узнать участников (это ещё одно чтение, оно платное).
+      // Удалять может любой участник — например, вместе с мэтчем; менять сообщения нельзя.
+      match /messages/{messageId} {
+        allow read, delete: if isMember(get(/databases/$(database)/documents/matches/$(matchId)).data);
+        allow create: if isMember(get(/databases/$(database)/documents/matches/$(matchId)).data)
+          && isValidMessage(request.resource.data);
       }
     }
   }

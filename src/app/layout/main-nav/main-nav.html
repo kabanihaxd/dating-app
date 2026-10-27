@@ -1,0 +1,15 @@
+<nav class="nav">
+  @for (item of navItems(); track item.path) {
+    <a mat-button [routerLink]="item.path" routerLinkActive="active">
+      <mat-icon
+        [matBadge]="item.badge"
+        [matBadgeHidden]="!item.badge"
+        [matBadgeDescription]="'notifications.badge' | t: { count: item.badge }"
+        matBadgeSize="small"
+        aria-hidden="false"
+        >{{ item.icon }}</mat-icon
+      >
+      <span class="label">{{ item.labelKey | t }}</span>
+    </a>
+  }
+</nav>

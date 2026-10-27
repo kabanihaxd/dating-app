@@ -27,16 +27,8 @@
   flex: 1;
 }
 
-.nav a.active {
-  color: var(--di-neon-cyan);
-}
-
-// На узком экране (телефон) прячем подписи, оставляем только иконки.
+// На узком экране (телефон) логотип поменьше.
 @media (max-width: 600px) {
-  .label {
-    display: none;
-  }
-
   .logo {
     font-size: 16px;
   }
