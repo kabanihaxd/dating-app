@@ -271,6 +271,16 @@
         }
         <span class="sr-only">{{ invalidAnnouncement() }}</span>
       </div>
+      <!-- role="status" — вежливая живая область: «сохранено на устройстве, отправится позже» — не авария,
+           диктор дочитает текущую фразу и только потом скажет это. Область есть всегда, меняется только текст. -->
+      <div role="status">
+        @if (statusKey(); as key) {
+          <p class="form-status">
+            <mat-icon inline aria-hidden="true">cloud_off</mat-icon>
+            {{ key | t }}
+          </p>
+        }
+      </div>
     </div>
     <div class="bar-row">
       @if (dirty()) {
@@ -279,15 +289,26 @@
           {{ 'profile.unsaved' | t }}
         </span>
       }
+      <!-- disabledInteractive: погасшая кнопка остаётся фокусируемой (aria-disabled вместо disabled).
+           Нажал «Сохранить» с клавиатуры — после сохранения фокус остаётся на ней, а не теряется в body. -->
       <button
         mat-flat-button
         type="submit"
         form="profile-form"
         class="save-btn"
         [disabled]="saveDisabled()"
+        disabledInteractive
       >
         {{ (saving() ? 'profile.saving' : isNew() ? 'profile.firstRun.save' : 'profile.save') | t }}
       </button>
+      <!-- Анкету только что создали, но в ленту сами не перешли (вернулись со Steam/Discord, не было сети) —
+           обещание «игроки появятся сразу после сохранения» держим явной кнопкой. -->
+      @if (readyForFeed()) {
+        <a mat-flat-button routerLink="/feed" class="save-btn feed-btn">
+          {{ 'profile.toFeed' | t }}
+          <mat-icon iconPositionEnd aria-hidden="true">arrow_forward</mat-icon>
+        </a>
+      }
     </div>
   </div>
 }

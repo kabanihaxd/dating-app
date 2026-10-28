@@ -42,7 +42,18 @@
         }
         <!-- Имя собеседника — главный заголовок страницы (h1): по нему программа чтения с экрана
              понимает, где она. Размер задаёт CSS, а не уровень заголовка. -->
-        <h1 id="chat-title">{{ partnerName() }}</h1>
+        <div class="who">
+          <h1 id="chat-title">{{ partnerName() }}</h1>
+          <!-- Общие игры — повод для разговора. Раньше они были только в пустом чате и пропадали
+               после первого сообщения; теперь всегда под именем. Длинный список обрезается
+               многоточием только визуально — программа чтения с экрана прочтёт его целиком. -->
+          @if (commonGames().length) {
+            <p class="games">
+              <mat-icon aria-hidden="true">sports_esports</mat-icon>
+              <span>{{ 'chat.commonGames' | t: { games: commonGames().join(', ') } }}</span>
+            </p>
+          }
+        </div>
         @if (partnerUid(); as uid) {
           <app-moderation-menu
             class="menu"
@@ -50,6 +61,7 @@
             [name]="partner()?.name ?? ''"
             [matched]="state() === 'ready'"
             (removing)="onRemoving()"
+            (removeFailed)="onRemoveFailed()"
             (removed)="leave()"
           />
         }
@@ -58,34 +70,86 @@
       <!-- Список сообщений сам ничего не озвучивает (иначе программа чтения с экрана повторяла бы
            и мои только что отправленные сообщения). Новые входящие озвучивает .sr-only ниже.
            tabindex="0" — чтобы прокручиваемую переписку можно было листать с клавиатуры. -->
-      <div class="messages" #list role="region" aria-labelledby="chat-title" tabindex="0">
-        @for (message of messageViews(); track message.id) {
-          <!-- Новое сообщение «выпрыгивает» из своего угла: своё справа, чужое слева. -->
-          <div class="message" [class.mine]="message.mine" animate.enter="pop-in">
-            <!-- Кто говорит: глазами это видно по стороне и цвету пузыря, а на слух — нет. -->
-            <span class="sr-only">{{
-              message.mine
-                ? ('chat.speaker.me' | t)
-                : ('chat.speaker.partner' | t: { name: partnerName() })
-            }}</span>
-            <p>{{ message.text }}</p>
-            <time [attr.datetime]="message.datetime">{{ message.time }}</time>
-          </div>
-        } @empty {
-          @if (state() === 'ready') {
-            <div class="empty">
-              <mat-icon aria-hidden="true">waving_hand</mat-icon>
-              <p>{{ 'chat.empty' | t }}</p>
-              @if (commonGames().length) {
-                <p class="muted">{{ 'chat.emptyGames' | t }}</p>
-                <div class="tags">
-                  @for (game of commonGames(); track game) {
-                    <span class="tag">{{ game }}</span>
-                  }
-                </div>
-              }
+      <!-- Обёртка нужна плашке «Новые сообщения»: она висит над низом списка (position: absolute)
+           и не прокручивается вместе с ним. -->
+      <div class="messages-wrap">
+        <div
+          class="messages"
+          #list
+          role="region"
+          aria-labelledby="chat-title"
+          tabindex="0"
+          (scroll)="onScroll()"
+        >
+          @for (message of messageViews(); track message.id) {
+            <!-- Новое сообщение «выпрыгивает» из своего угла: своё справа, чужое слева. -->
+            <div class="message" [class.mine]="message.mine" animate.enter="pop-in">
+              <!-- Кто говорит: глазами это видно по стороне и цвету пузыря, а на слух — нет. -->
+              <span class="sr-only">{{
+                message.mine
+                  ? ('chat.speaker.me' | t)
+                  : ('chat.speaker.partner' | t: { name: partnerName() })
+              }}</span>
+              <p>{{ message.text }}</p>
+              <div class="meta">
+                <time [attr.datetime]="message.datetime">{{ message.time }}</time>
+                <!-- Доставка — только у своих: «часики», пока сервер не подтвердил запись
+                   (медленная сеть или офлайн), и галочка, когда сообщение записано.
+                   Значок декоративный, смысл дублирует скрытый текст для программы чтения. -->
+                @if (message.mine) {
+                  <mat-icon class="status" [class.pending]="message.pending" aria-hidden="true">{{
+                    message.pending ? 'schedule' : 'done'
+                  }}</mat-icon>
+                  <span class="sr-only">{{
+                    (message.pending ? 'chat.status.sending' : 'chat.status.sent') | t
+                  }}</span>
+                }
+              </div>
+            </div>
+          } @empty {
+            @if (state() === 'ready') {
+              <div class="empty">
+                <mat-icon aria-hidden="true">waving_hand</mat-icon>
+                <p>{{ 'chat.empty' | t }}</p>
+                @if (commonGames().length) {
+                  <p class="muted">{{ 'chat.emptyGames' | t }}</p>
+                  <div class="tags">
+                    @for (game of commonGames(); track game) {
+                      <span class="tag">{{ game }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          }
+          <!-- Мои сообщения, которые сервер отклонил: остаются в конце переписки с пометкой
+             и кнопками «Повторить» / «Удалить». Отдельно от списка выше — Firestore их уже убрал. -->
+          @for (message of failed(); track message.id) {
+            <div class="message mine failed" animate.enter="pop-in">
+              <span class="sr-only">{{ 'chat.speaker.me' | t }}</span>
+              <p>{{ message.text }}</p>
+              <div class="meta">
+                <mat-icon class="status" aria-hidden="true">error_outline</mat-icon>
+                <span>{{ 'chat.status.failed' | t }}</span>
+                @if (state() === 'ready') {
+                  <button type="button" class="link" (click)="resend(message)">
+                    {{ 'chat.retry' | t }}
+                  </button>
+                }
+                <button type="button" class="link" (click)="discard(message)">
+                  {{ 'chat.discard' | t }}
+                </button>
+              </div>
             </div>
           }
+        </div>
+        @if (newBelow()) {
+          <!-- Пришло входящее, а человек листает историю выше — не прокручиваем силой,
+             а предлагаем спуститься. Озвучку нового сообщения и так делает живая область ниже. -->
+          <button type="button" class="new-below" (click)="scrollToBottom()">
+            <mat-icon aria-hidden="true">arrow_downward</mat-icon>
+            {{ 'chat.newMessages' | t }}
+          </button>
         }
       </div>
 
@@ -103,7 +167,10 @@
       </div>
 
       @if (state() === 'ready') {
-        <form class="composer" (ngSubmit)="send()">
+        <!-- (submit), а не (ngSubmit): ngSubmit выдаёт директива NgForm из FormsModule, а здесь только
+             ReactiveFormsModule и одиночный FormControl без [formGroup]. Без неё ngSubmit не наступал
+             никогда, а обычная отправка формы ПЕРЕЗАГРУЖАЛА страницу при нажатии кнопки «Отправить». -->
+        <form class="composer" (submit)="onSubmit($event)">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <textarea
               #input

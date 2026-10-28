@@ -1,10 +1,12 @@
 // Сколько ждём ответа сервера при сохранении, прежде чем сказать «нет связи».
 export const SAVE_TIMEOUT_MS = 10_000;
 
-// Своя ошибка «сеть не ответила»: по ней страница показывает тот же текст, что и для
-// Firestore-ошибки unavailable (errors.network).
+// Своя ошибка «сеть не ответила». Это НЕ «запись пропала»: Firestore положил её в очередь
+// на этом устройстве и сам отправит, когда связь вернётся. Поэтому ошибка несёт с собой
+// pending — тот же Promise записи: по нему страница узнает, когда запись всё-таки дошла
+// (или сервер её отклонил), и скажет об этом человеку.
 export class NetworkTimeoutError extends Error {
-  constructor() {
+  constructor(readonly pending: Promise<unknown>) {
     super('Network timeout');
     this.name = 'NetworkTimeoutError';
   }
@@ -14,8 +16,8 @@ export class NetworkTimeoutError extends Error {
 // и ждёт, когда связь вернётся. Promise записи при этом висит сколько угодно, а кнопка — «Сохранение…».
 // Поэтому «гонка» (как Promise.race): кто первый — ответ сервера, таймер на timeoutMs
 // или событие браузера offline. Если браузер уже знает, что сети нет (navigator.onLine === false), сдаёмся сразу.
-// Важно: сама запись из очереди Firestore никуда не девается и может дойти позже, когда сеть вернётся, —
-// поэтому страница оставляет форму «грязной», и повторное «Сохранить» просто запишет то же ещё раз.
+// Важно: сама запись из очереди Firestore никуда не девается и дойдёт позже, когда сеть вернётся
+// (пока открыта вкладка), — поэтому страница говорит «сохранено на устройстве», а не «не сохранилось».
 export function withNetworkTimeout<T>(
   work: Promise<T>,
   win: Window,
@@ -29,7 +31,7 @@ export function withNetworkTimeout<T>(
     };
     const giveUp = () => {
       cleanup();
-      reject(new NetworkTimeoutError());
+      reject(new NetworkTimeoutError(work));
     };
     const timer = setTimeout(giveUp, timeoutMs);
     win.addEventListener('offline', giveUp);

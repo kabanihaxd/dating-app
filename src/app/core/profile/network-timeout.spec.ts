@@ -17,6 +17,15 @@ describe('withNetworkTimeout', () => {
     await expect(result).rejects.toBeInstanceOf(NetworkTimeoutError);
   });
 
+  it('hands back the queued write so the page can tell when it finally lands', async () => {
+    let land!: () => void;
+    const queued = new Promise<void>((resolve) => (land = resolve));
+    const error = await withNetworkTimeout(queued, window, 10).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(NetworkTimeoutError);
+    land();
+    await expect((error as NetworkTimeoutError).pending).resolves.toBeUndefined();
+  });
+
   it('keeps the original server error', async () => {
     const error = new Error('permission-denied');
     await expect(withNetworkTimeout(Promise.reject(error), window, 1000)).rejects.toBe(error);

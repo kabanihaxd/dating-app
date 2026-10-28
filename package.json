@@ -6,7 +6,10 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "emulators": "firebase emulators:start --only auth,firestore --project deadisland-3213f",
+    "start:emu": "ng serve --configuration emulator",
+    "seed:emu": "node scripts/seed-test-players.mts --emulator"
   },
   "private": true,
   "packageManager": "npm@11.12.1",
@@ -27,6 +30,7 @@
     "@angular/build": "^22.2.4",
     "@angular/cli": "^22.2.4",
     "@angular/compiler-cli": "^22.2.0",
+    "firebase-tools": "^15.34.1",
     "jsdom": "^30.0.0",
     "prettier": "^3.8.1",
     "typescript": "~6.0.2",

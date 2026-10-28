@@ -30,6 +30,18 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     .active {
       color: var(--di-neon-cyan);
     }
+
+    // На телефоне хватает «UA»: глобус съедает место, и шапка вылезает за экран.
+    @media (max-width: 600px) {
+      button {
+        min-width: 44px;
+        padding-inline: 8px;
+      }
+
+      button mat-icon {
+        display: none;
+      }
+    }
   `,
 })
 export class LanguageSwitcher {

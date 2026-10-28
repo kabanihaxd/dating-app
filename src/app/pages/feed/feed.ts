@@ -30,6 +30,7 @@ import { firestoreErrorKey } from '../../core/firebase/firestore-errors';
 import { I18n } from '../../core/i18n/i18n';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { MatchInfo, matchScore } from '../../core/matching/match-score';
+import { LikeOutcome, PendingLikes } from '../../core/matching/pending-likes';
 import { SwipeService, matchId } from '../../core/matching/swipes';
 import { NotificationService } from '../../core/notifications/notifications';
 import { ProfileService } from '../../core/profile/profile';
@@ -90,16 +91,6 @@ interface LastAction {
   undoable?: boolean;
 }
 
-// Лайк, который ещё не ушёл на сервер. send — отправить сейчас (время вышло, человек уходит
-// со страницы), cancel — отменить («Вернуть»). pause / resume — «заморозить» таймер, пока
-// человек навёл мышь на строку или поставил фокус на «Вернуть»: пока он решает, время не идёт.
-interface PendingLike {
-  send: () => void;
-  cancel: () => void;
-  pause: () => void;
-  resume: () => void;
-}
-
 // Поля ввода и списки, где буквы и Backspace — это набор текста или поиск по пунктам,
 // а не наша горячая клавиша «Вернуть».
 const TEXT_ENTRY =
@@ -126,20 +117,26 @@ const TEXT_ENTRY =
   templateUrl: './feed.html',
   styleUrl: './feed.scss',
   // Стрелки ← / → в режиме «по одному» — пропустить / лайкнуть, Z или Backspace — вернуть.
-  // visibilitychange и pagehide — человек сворачивает вкладку или закрывает её: отложенные
-  // лайки отправляем сразу, иначе они потерялись бы вместе со страницей.
+  // Свёрнутую или закрытую вкладку (отправить отложенные лайки сразу) ловит сам PendingLikes.
   host: {
     '(document:keydown)': 'onKeydown($event)',
-    '(document:visibilitychange)': 'onVisibilityChange()',
-    '(window:pagehide)': 'flushLikes()',
     // Где сейчас фокус — для «сторожа» пропавшей карточки (см. onFocusIn).
     '(document:focusin)': 'onFocusIn($event)',
+    // Где сейчас мышь — для паузы таймера лайка (см. onPointer). Слушаем весь документ,
+    // а не саму строку: её pointerleave не придёт, если строку перерисовали в другом месте
+    // (колода → «пусто») или мышь ушла за окно, — и пауза «залипала» бы навсегда.
+    '(document:pointermove)': 'onPointer($event)',
+    '(document:pointerover)': 'onPointer($event)',
+    '(document:pointerout)': 'onPointerOut($event)',
+    '(window:blur)': 'lineHovered.set(false)',
   },
 })
 export class Feed {
   private readonly auth = inject(AuthService);
   private readonly profiles = inject(ProfileService);
   private readonly swipes = inject(SwipeService);
+  // Очередь отложенных лайков живёт в сервисе, а не здесь: лента закроется, а лайк должен дойти.
+  private readonly pendingLikes = inject(PendingLikes);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   private readonly clipboard = inject(Clipboard);
@@ -164,8 +161,6 @@ export class Feed {
   private readonly swipeDirections = new Map<string, Direction>();
   // Незавершённые сохранения пропусков: «Вернуть» сначала дождётся записи, потом удалит её.
   private readonly pendingSkips = new Map<string, Promise<void>>();
-  // Отложенные лайки: uid → как отправить или отменить. Каждый лайк ждёт LIKE_UNDO_MS.
-  private readonly pendingLikes = new Map<string, PendingLike>();
   // Игроки, убранные через «⋮» (заблокированы). Убираем сразу, не дожидаясь, пока блокировка
   // придёт из Firestore в notifications.hidden.
   private readonly removedUids = signal(new Set<string>());
@@ -176,11 +171,20 @@ export class Feed {
   private focusedCardUid: string | null = null;
   // Порядок карточек на прошлом шаге — чтобы знать, на каком месте стояла пропавшая.
   private previousUids: string[] = [];
-  // Указатель мыши над строкой «последнее действие» / фокус внутри неё. Пока хоть одно
-  // верно — таймер отложенного лайка стоит на паузе (и полоска прогресса тоже).
-  private readonly lineHovered = signal(false);
+  // Указатель мыши над строкой «последнее действие» / фокус внутри неё / нажата «Пауза».
+  // Пока хоть одно верно — таймер отложенного лайка стоит на паузе (и полоска прогресса тоже).
+  protected readonly lineHovered = signal(false);
   private readonly lineFocused = signal(false);
-  protected readonly lineHeld = computed(() => this.lineHovered() || this.lineFocused());
+  // uid игрока, чей лайк поставлен на паузу кнопкой. Мышь и фокус — удобство, но скринридер
+  // в режиме чтения (browse mode) не двигает ни то, ни другое: человек слушает строку, а таймер
+  // идёт. Явная кнопка «Пауза» работает везде — её «нажимает» и виртуальный курсор.
+  protected readonly heldByButton = signal<string | null>(null);
+  protected readonly lineHeld = computed(
+    () =>
+      this.lineHovered() ||
+      this.lineFocused() ||
+      (this.heldByButton() !== null && this.heldByButton() === this.lastAction()?.player.uid),
+  );
   // uid лайка, чей таймер сейчас на паузе.
   private heldUid: string | null = null;
   // Игрок, которого только что вернули, — он встаёт первым, даже если сортировка за это время
@@ -341,11 +345,27 @@ export class Feed {
       const list = this.results();
       untracked(() => this.watchFocusedCard(list));
     });
-    // Уход со страницы (другой маршрут) уничтожает компонент — отложенные лайки отправляем сразу.
+    // Строка «последнее действие» сменилась — её могли перерисовать в другом месте (последняя
+    // карточка ушла, и вместо колоды — «пусто»). Старый элемент удалён, а «прощальных» событий
+    // (pointerleave, focusout) удалённый элемент не присылает. Пересчитываем по факту:
+    // мышь заново «увидит» строку при первом же движении (onPointer), фокус — смотрим, где он.
+    effect(() => {
+      this.lastAction();
+      untracked(() => {
+        this.lineHovered.set(false);
+        afterNextRender(
+          () => this.lineFocused.set(!!this.document.activeElement?.closest('.last-action')),
+          { injector: this.injector },
+        );
+      });
+    });
+    // Уход со страницы (другой маршрут) уничтожает компонент — отложенные лайки НЕ теряем,
+    // а отправляем сразу. Дописывает их PendingLikes: он живёт дольше страницы,
+    // и «Выйти» в шапке дождётся его, прежде чем выйти из аккаунта.
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       clearTimeout(this.settleTimer);
-      this.flushLikes();
+      void this.pendingLikes.flush();
     });
   }
 
@@ -389,64 +409,29 @@ export class Feed {
     }
   }
 
-  // Лайк не уходит сразу: LIKE_UNDO_MS он ждёт в pendingLikes, и пока можно нажать «Вернуть».
+  // Лайк не уходит сразу: LIKE_UNDO_MS он ждёт в PendingLikes, и пока можно нажать «Вернуть».
   // Исключение — игрок уже лайкнул меня: это мгновенный мэтч, отправляем сразу и показываем
   // «Это мэтч!» — окно само всё объясняет, а отменять мэтч «на всякий случай» незачем.
+  // Ошибку сохранения swipe() обработает как обычно: вернёт карточку и покажет сообщение.
   protected like(player: Player): void {
-    // uid берём СЕЙЧАС, а не в момент отправки: отложенный лайк может уйти уже после выхода
-    // из аккаунта (страница уничтожается → flushLikes()), и тогда auth.user() — null.
+    // uid берём СЕЙЧАС, а не в момент отправки: отложенный лайк может уйти уже после ухода
+    // со страницы, а ответ — прийти, когда из аккаунта вышли и auth.user() — null.
     const uid = this.uid;
     if (this.notifications.likedMe().has(player.uid)) {
-      this.swipe(player, 'like', () => this.sendLike(player, uid));
+      this.swipe(player, 'like', () =>
+        this.pendingLikes
+          .likeNow(uid, player.uid)
+          .then((outcome) => this.likeDone(player, uid, outcome)),
+      );
       return;
     }
     this.swipe(
       player,
       'like',
-      // Promise, который завершится, когда лайк реально сохранится (или отменится).
-      // Ошибку сохранения swipe() обработает как обычно: вернёт карточку и покажет сообщение.
       () =>
-        new Promise<void>((resolve, reject) => {
-          // undefined — таймер сейчас не идёт (пауза или уже отправили/отменили).
-          let timer: ReturnType<typeof setTimeout> | undefined;
-          // Сколько ещё ждать и когда таймер запустили последний раз — для паузы.
-          let left = LIKE_UNDO_MS;
-          let startedAt = 0;
-          const stop = () => {
-            clearTimeout(timer);
-            timer = undefined;
-          };
-          const start = () => {
-            startedAt = Date.now();
-            timer = setTimeout(send, left);
-          };
-          const send = () => {
-            stop();
-            this.pendingLikes.delete(player.uid);
-            this.likeSending(player.uid);
-            this.sendLike(player, uid).then(resolve, reject);
-          };
-          start();
-          this.pendingLikes.set(player.uid, {
-            send,
-            cancel: () => {
-              stop();
-              this.pendingLikes.delete(player.uid);
-              resolve(); // ничего не отправили — и ошибки нет
-            },
-            pause: () => {
-              if (timer !== undefined) {
-                stop();
-                left = Math.max(0, left - (Date.now() - startedAt));
-              }
-            },
-            resume: () => {
-              if (timer === undefined) {
-                start();
-              }
-            },
-          });
-        }),
+        this.pendingLikes
+          .schedule(uid, player.uid, LIKE_UNDO_MS, () => this.likeSending(player.uid))
+          .then((outcome) => this.likeDone(player, uid, outcome)),
       true,
     );
   }
@@ -454,28 +439,40 @@ export class Feed {
   // Отменить ещё не отправленный лайк: таймер выключаем, карточку возвращаем.
   // Сервер ничего не знает, поэтому ждать нечего — всё происходит мгновенно.
   protected undoLike(player: Player): void {
-    const pending = this.pendingLikes.get(player.uid);
-    if (!pending) {
+    if (!this.pendingLikes.cancel(this.uid, player.uid)) {
       return;
     }
-    pending.cancel();
     // Пояснение о скрытых контактах человек уже прочитал — заново его не показываем.
     this.restoreCard(player);
   }
 
-  // Отправить все отложенные лайки прямо сейчас: человек уходит со страницы или сворачивает её.
-  // Копия списка — send() удаляет запись из pendingLikes, пока мы по нему идём.
-  protected flushLikes(): void {
-    for (const pending of [...this.pendingLikes.values()]) {
-      pending.send();
+  // Кнопка «Пауза» / «Отправить» в строке ожидающего лайка. Первое нажатие — пауза без срока
+  // (таймер стоит, пока человек не решит), второе — отправить сразу, не дожидаясь конца.
+  // Кнопка одна и та же (меняются только текст и иконка), поэтому фокус с неё не слетает.
+  protected toggleHold(player: Player): void {
+    if (this.heldByButton() === player.uid) {
+      this.heldByButton.set(null);
+      this.pendingLikes.release(this.uid, player.uid);
+      return;
     }
+    this.heldByButton.set(player.uid);
+    this.announcement.set(this.i18n.translate('feed.announce.held', { name: player.name }));
   }
 
   // Мышь над строкой «последнее действие» — пауза. Только мышь: на телефоне «наведение»
-  // эмулируется тапом, и pointerleave может не прийти вовсе — таймер замер бы навсегда.
-  protected onLinePointer(event: PointerEvent, inside: boolean): void {
-    if (event.pointerType === 'mouse') {
-      this.lineHovered.set(inside);
+  // эмулируется тапом, и «ухода» может не случиться вовсе — таймер замер бы навсегда.
+  // Каждое движение указателя заново отвечает на вопрос «я над строкой?», поэтому ошибка
+  // не копится: даже если что-то пропустили, следующее движение мыши всё исправит.
+  // set() с тем же значением signal игнорирует — частый pointermove ничего не перерисовывает.
+  protected onPointer(event: PointerEvent): void {
+    const target = event.target as Element | null;
+    this.lineHovered.set(event.pointerType === 'mouse' && !!target?.closest?.('.last-action'));
+  }
+
+  // relatedTarget === null — указатель ушёл за пределы окна (или касание закончилось).
+  protected onPointerOut(event: PointerEvent): void {
+    if (!event.relatedTarget) {
+      this.lineHovered.set(false);
     }
   }
 
@@ -497,12 +494,6 @@ export class Feed {
     }
     const card = target?.closest<HTMLElement>('app-player-card[data-uid]');
     this.focusedCardUid = card?.dataset['uid'] ?? null;
-  }
-
-  protected onVisibilityChange(): void {
-    if (this.document.visibilityState === 'hidden') {
-      this.flushLikes();
-    }
   }
 
   protected skip(player: Player): void {
@@ -637,6 +628,8 @@ export class Feed {
     const consentKey = this.consentKey;
     // Фокус после свайпа переводит focusAfterSwipe — «сторож» пропавшей карточки не нужен.
     this.focusedCardUid = null;
+    // Новое действие — новая строка: «Пауза» от прошлого лайка к нему не относится.
+    this.heldByButton.set(null);
     this.settle();
     // Направление запоминаем ДО того, как карточка пропадёт из списка, —
     // Angular спросит leaveClass в момент удаления.
@@ -689,10 +682,13 @@ export class Feed {
     });
   }
 
-  // Сохраняем лайк. Если тот человек лайкнул меня раньше (или успел, пока лайк ждал), — мэтч.
-  // uid — мой, захваченный в like(): к этому моменту из аккаунта могли уже выйти.
-  private async sendLike(player: Player, uid: string): Promise<void> {
-    const matched = await this.swipes.like(uid, player.uid);
+  // Лайк записан (или отменён). Если тот человек лайкнул меня раньше (или успел, пока лайк
+  // ждал), — мэтч. uid — мой, захваченный в like(): к этому моменту из аккаунта могли уже выйти.
+  private likeDone(player: Player, uid: string, outcome: LikeOutcome): void {
+    if (outcome === 'cancelled') {
+      return;
+    }
+    const matched = outcome === 'matched';
     this.likeSent(player.uid, matched);
     if (!matched) {
       return;
@@ -747,11 +743,13 @@ export class Feed {
     if (uid === this.heldUid) {
       return;
     }
-    if (this.heldUid) {
-      this.pendingLikes.get(this.heldUid)?.resume();
+    // Мой uid — без «!»: effect может сработать и в момент выхода из аккаунта.
+    const me = this.auth.user()?.uid;
+    if (me && this.heldUid) {
+      this.pendingLikes.resume(me, this.heldUid);
     }
-    if (uid) {
-      this.pendingLikes.get(uid)?.pause();
+    if (me && uid) {
+      this.pendingLikes.pause(me, uid);
     }
     this.heldUid = uid;
   }
@@ -805,6 +803,7 @@ export class Feed {
 
   // Общий конец «Вернуть» для лайка и пропуска: карточка снова в ленте, и первой.
   private restoreCard(player: Player): void {
+    this.heldByButton.set(null);
     this.swipeDirections.delete(player.uid);
     this.frontUid.set(player.uid);
     this.swiped.update((uids) => {

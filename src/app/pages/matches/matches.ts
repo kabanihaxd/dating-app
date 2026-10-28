@@ -6,6 +6,7 @@ import {
   computed,
   effect,
   inject,
+  linkedSignal,
   signal,
   untracked,
 } from '@angular/core';
@@ -128,11 +129,9 @@ export class Matches {
     return this.failedUids().some((uid) => inFlight.has(uid));
   });
 
-  // Состав — из живого списка мэтчей, данные карточки — из кэша. Если мэтч разорвали или меня
-  // заблокировали, пока страница открыта, — карточка исчезает сама.
-  // Порядок: сначала чаты с непрочитанным, потом по свежести — последнее сообщение или сам мэтч.
-  protected readonly visibleMatches = computed(() => {
-    const cards = this.cards();
+  // «Честный» порядок, посчитанный с нуля: сначала чаты с непрочитанным, потом по свежести —
+  // последнее сообщение или сам мэтч. Здесь только uid, без карточек.
+  private readonly liveOrder = computed(() => {
     const unread = this.notifications.unreadChats();
     const last = this.notifications.lastMessages();
     const activity = (match: LiveMatch) => Math.max(match.createdAt, last.get(match.id)?.at ?? 0);
@@ -140,10 +139,49 @@ export class Matches {
       .sort(
         (a, b) => Number(unread.has(b.id)) - Number(unread.has(a.id)) || activity(b) - activity(a),
       )
-      .flatMap((match) => {
-        const entry = cards.get(match.otherUid);
-        return entry?.state === 'view' ? [entry.view] : [];
-      });
+      .map((match) => match.otherUid);
+  });
+
+  // Порядок, который реально видит пользователь. Пока страница грузится, он просто повторяет
+  // liveOrder. Но как только карточки показаны (firstBatchLoaded), порядок «замораживается»
+  // до следующего захода на страницу: уже стоящие карточки больше не переставляются.
+  //
+  // Зачем: каждое новое сообщение меняет liveOrder, и карточка прыгала бы наверх прямо из-под
+  // курсора или фокуса — человек целился в «Копировать ник» у Ани, а под пальцем уже Катя.
+  // Новое сообщение и так видно по розовой точке и превью, а свежий порядок человек получит,
+  // когда откроет «Мэтчи» в следующий раз.
+  // Это проще и надёжнее, чем следить «курсор/фокус внутри списка или нет»: заморозка
+  // не зависит от того, чем человек пользуется (мышь, палец, клавиатура, скринридер), и не
+  // устраивает «отложенный прыжок» в момент, когда курсор просто ушёл со списка.
+  //
+  // Новые мэтчи всё же добавляются — в начало списка, остальные карточки между собой не меняются.
+  //
+  // linkedSignal — сигнал, который пересчитывается от source, но в computation видит своё
+  // ПРОШЛОЕ значение (previous). Ровно то, что нужно: «новый порядок = новички + старый».
+  // Ушедшие uid из массива намеренно НЕ вычищаем: по ним focusNeighbour() находит соседей
+  // карточки, которая уже исчезла (см. remove()). Отфильтровываются они в visibleMatches.
+  private readonly order = linkedSignal<{ uids: string[]; frozen: boolean }, string[]>({
+    source: () => ({ uids: this.liveOrder(), frozen: this.firstBatchLoaded() }),
+    computation: ({ uids, frozen }, previous) => {
+      if (!frozen || !previous) {
+        return uids;
+      }
+      const known = new Set(previous.value);
+      const newcomers = uids.filter((uid) => !known.has(uid));
+      // Нет новичков — возвращаем тот же массив: сигнал не меняется, сетка не пересчитывается.
+      return newcomers.length ? [...newcomers, ...previous.value] : previous.value;
+    },
+  });
+
+  // Состав — из живого списка мэтчей, данные карточки — из кэша, порядок — замороженный order.
+  // Если мэтч разорвали или меня заблокировали, пока страница открыта, — карточка исчезает сама.
+  protected readonly visibleMatches = computed(() => {
+    const cards = this.cards();
+    const shown = new Set(this.shownList().map((match) => match.otherUid));
+    return this.order().flatMap((uid) => {
+      const entry = shown.has(uid) ? cards.get(uid) : undefined;
+      return entry?.state === 'view' ? [entry.view] : [];
+    });
   });
 
   // id мэтчей, случившихся после моего прошлого захода, — им метка «Новый».
@@ -198,8 +236,6 @@ export class Matches {
   // Где сейчас фокус: uid карточки и сам элемент. Обычные поля, а не сигналы, — шаблон их не читает.
   private focusedUid: string | null = null;
   private focusedEl: HTMLElement | null = null;
-  // Список карточек на прошлой отрисовке — чтобы понять, какая исчезла и кто был её соседом.
-  private previousList: MatchView[] = [];
 
   constructor() {
     // Открыл страницу — значит, новые мэтчи увидел: значок в меню гаснет.
@@ -258,10 +294,25 @@ export class Matches {
   }
 
   // Мэтч разорван или человек заблокирован через «⋮» — убираем карточку и переносим фокус.
+  //
+  // Тонкость с порядком событий: removed приходит ПОСЛЕ того, как запись в Firestore завершилась,
+  // а снимок onSnapshot со «своей» записью Firestore присылает раньше (сразу, из локального кэша).
+  // Поэтому к этому моменту карточки в visibleMatches часто уже нет: раньше поиск соседа по нему
+  // ничего не находил, и фокус улетал на h1. Теперь соседа ищем в order, где uid остаётся.
   protected remove(uid: string): void {
-    const list = this.visibleMatches();
+    // После закрытия окна подтверждения Material возвращает фокус на кнопку «⋮» этой карточки.
+    // Элемент карточки берём ДО обновления сигнала — пока он точно в DOM (если ещё не исчез).
+    const card = this.cardElement(uid);
     this.removedUids.update((removed) => new Set(removed).add(uid));
-    this.focusNeighbour(list, uid);
+    const active = this.document.activeElement;
+    const lost = !active || active === this.document.body;
+    // Фокус «потерян» (карточка уже исчезла и унесла его) или всё ещё внутри уходящей карточки —
+    // переносим на соседа. Если фокус уже в другом месте (его перенёс keepFocus() или человек
+    // сам ушёл дальше) — не дёргаем.
+    if (lost || card?.contains(active)) {
+      this.forgetFocus();
+      this.focusNeighbour(uid);
+    }
   }
 
   // Фокус вошёл в карточку — запоминаем, в какую и на какой элемент.
@@ -313,8 +364,6 @@ export class Matches {
   // переехала из-за сортировки. В обоих случаях браузер сбрасывает фокус на body, и тот,
   // кто ходит клавиатурой, теряется. Возвращаем фокус туда, где ему разумно быть.
   private keepFocus(list: MatchView[]): void {
-    const previous = this.previousList;
-    this.previousList = list;
     const uid = this.focusedUid;
     if (!uid) {
       return;
@@ -322,37 +371,54 @@ export class Matches {
     const active = this.document.activeElement;
     const lost = !active || active === this.document.body;
     if (list.some((match) => match.uid === uid)) {
-      // Карточка на месте, но её переставили — возвращаем фокус на тот же элемент.
+      // Карточка на месте, но DOM вокруг неё перестроили — возвращаем фокус на тот же элемент.
+      // preventScroll: с точки зрения человека фокус никуда не уходил, поэтому прокручивать
+      // страницу незачем — иначе экран «уезжал» бы к карточке при каждом обновлении списка.
       if (lost && this.focusedEl?.isConnected) {
-        this.focusedEl.focus();
+        this.focusedEl.focus({ preventScroll: true });
       }
       return;
     }
     // Карточка исчезла. Пока идёт анимация ухода, она ещё в DOM — и фокус может быть внутри.
     // Если же фокус уже в другом месте (например, его перенёс remove()), — не трогаем.
-    const card = this.host.nativeElement.querySelector(`article[data-uid="${uid}"]`);
+    const card = this.cardElement(uid);
     if (!lost && !card?.contains(active)) {
       this.forgetFocus();
       return;
     }
-    // Соседей ищем в прошлом списке, но только среди тех, кто остался на странице.
-    const current = new Set(list.map((match) => match.uid));
     this.forgetFocus();
-    this.focusNeighbour(
-      previous.filter((match) => match.uid === uid || current.has(match.uid)),
-      uid,
-    );
+    this.focusNeighbour(uid);
   }
 
-  // Куда переносить фокус, когда карточка uid уходит из списка list: на имя следующей карточки,
-  // если её нет — предыдущей, а если карточек не осталось — на заголовок страницы.
+  // Куда переносить фокус, когда карточка uid ушла: на имя следующей карточки, если её нет —
+  // предыдущей, а если карточек не осталось — на заголовок страницы.
   // Иначе фокус «провалится» в начало страницы вместе с исчезнувшей карточкой.
-  private focusNeighbour(list: MatchView[], uid: string): void {
-    const index = list.findIndex((match) => match.uid === uid);
-    const target = index < 0 ? undefined : (list[index + 1] ?? list[index - 1]);
+  // Соседей ищем в order: там uid остаётся и после ухода карточки, так что её место известно.
+  // «Следующая» — ближайшая ЕЩЁ ВИДИМАЯ после неё (соседняя могла исчезнуть одновременно).
+  private focusNeighbour(uid: string): void {
+    const order = this.order();
+    const visible = new Map(this.visibleMatches().map((match) => [match.uid, match]));
+    visible.delete(uid); // на случай, если снимок ещё не догнал и карточка числится видимой
+    const index = order.indexOf(uid);
+    const next = index < 0 ? undefined : order.slice(index + 1).find((other) => visible.has(other));
+    // reverse() на копии от slice — исходный order не трогаем (findLast недоступен в ES2022).
+    const prev =
+      index < 0
+        ? undefined
+        : order
+            .slice(0, index)
+            .reverse()
+            .find((other) => visible.has(other));
+    const target = visible.get(next ?? prev ?? '');
     // Заголовок соседней карточки и h1 уже есть в DOM, поэтому фокус можно ставить сразу.
+    // Прокрутку здесь НЕ запрещаем: фокус переезжает на другую карточку, её нужно увидеть.
     const id = target ? target.headingId : 'matches-title';
     this.host.nativeElement.querySelector<HTMLElement>(`#${id}`)?.focus();
+  }
+
+  // DOM-элемент карточки по uid (пока карточка «тает» после ухода, она ещё здесь).
+  private cardElement(uid: string): HTMLElement | null {
+    return this.host.nativeElement.querySelector<HTMLElement>(`article[data-uid="${uid}"]`);
   }
 
   private forgetFocus(): void {

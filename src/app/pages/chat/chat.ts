@@ -17,7 +17,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { AuthService } from '../../core/auth/auth';
 import { FirebaseError } from 'firebase/app';
 import { ChatMessage, ChatService, MAX_MESSAGE_LENGTH } from '../../core/chat/chat';
@@ -55,6 +54,19 @@ interface Announcement {
 // и чат снова должен реагировать на настоящее завершение.
 const LEAVING_TIMEOUT_MS = 15000;
 
+// «Почти внизу» — до низа списка осталось меньше этого (в пикселях). Ровно 0 требовать нельзя:
+// поле ввода, вырастая на строку, чуть сдвигает низ, и человек «внизу» оказался бы «не внизу».
+const NEAR_BOTTOM_PX = 80;
+
+// Моё сообщение, которое сервер ОТКЛОНИЛ (правила, ошибка записи). Firestore в этом случае
+// сам убирает его из списка (откатывает локальную запись), поэтому храним его отдельно —
+// чтобы человек видел, что именно не ушло, и мог отправить ещё раз одной кнопкой.
+// Без сети запись не отклоняется, а просто ждёт: такое сообщение остаётся в списке с «часиками».
+interface FailedMessage {
+  id: string;
+  text: string;
+}
+
 @Component({
   selector: 'app-chat',
   imports: [
@@ -78,7 +90,6 @@ export class Chat {
   private readonly chat = inject(ChatService);
   private readonly profiles = inject(ProfileService);
   private readonly notifications = inject(NotificationService);
-  private readonly snackBar = inject(MatSnackBar);
   private readonly i18n = inject(I18n);
   private readonly router = inject(Router);
 
@@ -113,6 +124,11 @@ export class Chat {
   // Свои сообщения не озвучиваем — человек их только что сам набрал.
   // Массив из 0 или 1 элемента — так шаблон может пересоздать элемент по key (см. Announcement).
   protected readonly announcement = signal<Announcement[]>([]);
+  // Неотправленные сообщения (см. FailedMessage) — рисуются в конце переписки с кнопкой «Повторить».
+  protected readonly failed = signal<FailedMessage[]>([]);
+  // Плашка «Новые сообщения ↓»: пришло входящее, а человек в этот момент листал историю выше.
+  // Прокручивать его вниз силой нельзя — он потеряет место, где читал.
+  protected readonly newBelow = signal(false);
 
   // Имя собеседника для подписей; если анкета не загрузилась — нейтральное «Игрок».
   protected readonly partnerName = computed(
@@ -132,6 +148,8 @@ export class Chat {
       time: message.createdAt ? format.format(message.createdAt) : '',
       // Машиночитаемое время для <time datetime="...">: ISO-строка вида 2026-10-28T18:05:00.000Z.
       datetime: message.createdAt?.toISOString() ?? null,
+      // Состояние доставки показываем только у своих: «часики» — ждём сервер, галочка — записано.
+      pending: message.pending,
     }));
   });
 
@@ -163,6 +181,16 @@ export class Chat {
   private pendingMessages: ChatMessage[] | null = null;
   // «Спробувати ще раз» увеличивает счётчик — effect ниже читает его и запускается заново.
   private readonly attempt = signal(0);
+  // Для прокрутки: какой элемент списка мы уже прокрутили (новый элемент = чат только что открылся),
+  // какое сообщение было последним и сколько было неотправленных — так afterRenderEffect понимает,
+  // что именно изменилось: пришло новое сообщение или у старого просто сменились «часики» на галочку.
+  private scrolledList: HTMLElement | null = null;
+  private lastTailId: string | null = null;
+  private lastFailedCount = 0;
+  // Был ли человек внизу списка ДО того, как пришло новое сообщение. Обновляется на каждой
+  // прокрутке (onScroll): после отрисовки нового пузыря «до низа» уже больше, и мерить поздно.
+  private nearBottom = true;
+  private failedSeq = 0;
 
   constructor() {
     effect((onCleanup) => {
@@ -176,6 +204,8 @@ export class Chat {
         this.draft.reset();
         this.partner.set(null);
         this.commonGames.set([]);
+        // Неотправленные сообщения относятся к тому чату, где их писали.
+        this.failed.set([]);
         this.stopLeaving();
       }
       this.state.set('loading');
@@ -189,8 +219,10 @@ export class Chat {
       this.verifying = false;
       this.pendingMessages = null;
       this.endSuppressed = false;
+      this.newBelow.set(false);
       // Прокрутку отдельно сбрасывать не нужно: в состоянии loading список удаляется из DOM,
-      // а новый после загрузки сам прокручивается в самый низ (afterRenderEffect ниже).
+      // а новый после загрузки сам прокручивается в самый низ (afterRenderEffect ниже узнаёт
+      // его как «новый элемент»).
       this.notifications.activeChat.set(matchId);
 
       void this.loadPartner(matchId);
@@ -231,12 +263,34 @@ export class Chat {
     });
 
     // afterRenderEffect срабатывает ПОСЛЕ того, как Angular нарисовал новые сообщения, —
-    // тогда высота списка уже новая, и можно прокрутить его в самый низ.
+    // тогда высота списка уже новая, и можно решать, прокручивать ли его вниз.
     afterRenderEffect(() => {
-      this.messageViews();
+      const views = this.messageViews();
+      const failedCount = this.failed().length;
       const list = this.list()?.nativeElement;
-      if (list) {
+      if (!list) {
+        this.scrolledList = null;
+        return;
+      }
+      const tail = views.at(-1);
+      const tailId = tail?.id ?? null;
+      const opened = list !== this.scrolledList;
+      const newTail = tailId !== this.lastTailId;
+      const newFailed = failedCount > this.lastFailedCount;
+      this.scrolledList = list;
+      this.lastTailId = tailId;
+      this.lastFailedCount = failedCount;
+
+      // Вниз прокручиваем, если: чат только что открылся; новое сообщение — моё (я его только что
+      // отправил и хочу видеть) или моё не ушло; человек и так был внизу. Последнее касается и
+      // снимков без новых сообщений (часики → галочка): высота пузыря могла чуть измениться.
+      if (opened || (newTail && tail?.mine) || newFailed || this.nearBottom) {
         list.scrollTop = list.scrollHeight;
+        this.nearBottom = true;
+        this.newBelow.set(false);
+      } else if (newTail && tail) {
+        // Человек читает историю выше — не дёргаем его, а показываем плашку «Новые сообщения».
+        this.newBelow.set(true);
       }
     });
 
@@ -244,23 +298,77 @@ export class Chat {
     inject(DestroyRef).onDestroy(() => clearTimeout(this.leavingTimer));
   }
 
-  protected async send(): Promise<void> {
+  protected send(): void {
     const text = this.draft.value.trim();
     if (!text || this.draft.invalid || this.sending() || this.state() !== 'ready') {
       return;
     }
-    // Запоминаем, в какой чат отправляем: пока ждём сервер, человек может перейти в другой чат,
-    // и тогда ответ (успех или ошибка) к открытому сейчас чату уже не относится.
-    const matchId = this.matchId();
     // Поле очищаем сразу, не дожидаясь сервера: Firestore и так мгновенно покажет сообщение
-    // в списке (из локального кэша). Если отправка не удалась — возвращаем текст в поле.
-    // sending снимается, как только сообщение появилось в списке (см. onMessages) или запись
+    // в списке (из локального кэша) — с «часиками», пока сервер его не подтвердит.
+    // sending снимается, как только сообщение появилось в списке (см. applyMessages) или запись
     // завершилась. Ждать только ответа сервера нельзя: без сети он не придёт никогда,
     // и человек не смог бы отправить второе сообщение офлайн.
     this.sending.set(true);
     this.draft.reset();
     // Фокус остаётся в поле ввода: на телефоне клавиатура не закрывается, можно писать дальше.
     this.input()?.nativeElement.focus();
+    void this.deliver(this.matchId(), text);
+  }
+
+  // Отправка формы кнопкой: отменяем «родное» поведение браузера (перезагрузку страницы)
+  // и отправляем сообщение сами.
+  protected onSubmit(event: Event): void {
+    event.preventDefault();
+    this.send();
+  }
+
+  // «Повторить» у неотправленного сообщения: убираем его из списка ошибок и пробуем ещё раз.
+  // Если снова не выйдет — deliver опять положит его в конец списка ошибок.
+  protected resend(message: FailedMessage): void {
+    if (this.state() !== 'ready') {
+      return;
+    }
+    this.failed.update((list) => list.filter((m) => m.id !== message.id));
+    void this.deliver(this.matchId(), message.text);
+  }
+
+  // «Удалить» у неотправленного: человек передумал его отправлять.
+  protected discard(message: FailedMessage): void {
+    this.failed.update((list) => list.filter((m) => m.id !== message.id));
+    // Кнопка, на которой был фокус, исчезла вместе с пузырём — возвращаем фокус в поле ввода,
+    // иначе он «упадёт» на <body> и клавиатурный пользователь потеряет место.
+    this.input()?.nativeElement.focus();
+  }
+
+  // Плашка «Новые сообщения ↓»: плавно едем вниз (или сразу, если человек просил меньше анимации).
+  protected scrollToBottom(): void {
+    const list = this.list()?.nativeElement;
+    if (!list) {
+      return;
+    }
+    const reduce =
+      typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    list.scrollTo({ top: list.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+    this.newBelow.set(false);
+    // Плашка-кнопка сейчас исчезнет — фокус переводим на сам список, чтобы он не потерялся.
+    list.focus({ preventScroll: true });
+  }
+
+  // Каждая прокрутка списка: запоминаем, внизу ли человек. Доскроллил до низа сам — плашка не нужна.
+  protected onScroll(): void {
+    const list = this.list()?.nativeElement;
+    if (!list) {
+      return;
+    }
+    this.nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < NEAR_BOTTOM_PX;
+    if (this.nearBottom && this.newBelow()) {
+      this.newBelow.set(false);
+    }
+  }
+
+  // Сама запись. Запоминаем, в какой чат отправляем: пока ждём сервер, человек может перейти
+  // в другой чат, и тогда ответ (успех или ошибка) к открытому сейчас чату уже не относится.
+  private async deliver(matchId: string, text: string): Promise<void> {
     try {
       await this.chat.send(matchId, this.me, text);
     } catch (error) {
@@ -279,15 +387,16 @@ export class Chat {
       if (matchId !== this.matchId()) {
         return;
       }
-      // Текст возвращаем, только если человек ещё не начал писать новое сообщение.
-      if (!this.draft.value) {
-        this.draft.setValue(text);
-      }
+      // Сообщение не ушло: показываем его в конце переписки с пометкой «Не отправлено»
+      // и кнопкой «Повторить» — текст не теряется, и видно, какое именно сообщение не дошло.
+      const id = `failed-${++this.failedSeq}`;
+      this.failed.update((list) => [...list, { id, text }]);
+      // Глазами ошибку видно по пузырю, а программе чтения с экрана сообщаем через живую область.
       // Нет сети — просим проверить интернет; иначе — нейтральное «не получилось, попробуй ещё раз».
       const key = isNetworkErrorKey(firestoreErrorKey(error))
         ? 'chat.sendErrorNetwork'
         : 'chat.sendError';
-      this.snackBar.open(this.i18n.translate(key), undefined, { duration: 4000 });
+      this.announcement.set([{ key: id, lines: [this.i18n.translate(key)] }]);
     }
     if (matchId === this.matchId()) {
       this.sending.set(false);
@@ -311,21 +420,25 @@ export class Chat {
   }
 
   // Я подтвердил разрыв/блокировку в меню «⋮», запрос ещё в пути. Мэтч вот-вот пропадёт —
-  // это не «собеседник ушёл», поэтому плашку «Чат завершён» не показываем. Если же за
-  // LEAVING_TIMEOUT_MS мы так и не ушли со страницы, значит, действие сорвалось — снимаем флаг.
+  // это не «собеседник ушёл», поэтому плашку «Чат завершён» не показываем.
+  // Дальше одно из трёх: removed (успех — уходим, см. leave), removeFailed (ошибка — см.
+  // onRemoveFailed) или, на всякий случай, таймер: если за LEAVING_TIMEOUT_MS ни того ни другого
+  // не случилось (например, запрос завис без сети), перестаём ждать и смотрим, что на сервере.
   protected onRemoving(): void {
     const matchId = this.matchId();
     this.leaving = true;
     clearTimeout(this.leavingTimer);
     this.leavingTimer = setTimeout(() => {
-      const suppressed = this.endSuppressed;
-      this.stopLeaving();
-      // Пока «уходили», мы проигнорировали признаки завершения. Раз ушли не мы —
-      // проверяем, не завершил ли чат собеседник за это время.
-      if (suppressed && matchId === this.matchId()) {
-        this.verifyEnded(matchId);
+      if (matchId === this.matchId()) {
+        this.finishLeaving(matchId, true);
       }
     }, LEAVING_TIMEOUT_MS);
+  }
+
+  // Разрыв/блокировка не удались (меню «⋮» уже показало ошибку). Чат не должен остаться
+  // «замороженным»: снимаем флаг ухода и показываем всё, что пришло, пока мы ждали.
+  protected onRemoveFailed(): void {
+    this.finishLeaving(this.matchId(), false);
   }
 
   // На компьютере Enter отправляет, Shift+Enter — перенос строки (как в мессенджерах).
@@ -346,6 +459,46 @@ export class Chat {
     return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   }
 
+  // Ожидание «своего» ухода закончилось, а со страницы мы так и не ушли.
+  // afterTimeout — сработал таймер: запрос мог просто затянуться и всё-таки удалить мэтч.
+  private finishLeaving(matchId: string, afterTimeout: boolean): void {
+    if (!this.leaving) {
+      return;
+    }
+    const suppressed = this.endSuppressed;
+    this.stopLeaving();
+    if (suppressed) {
+      // Пока «уходили», мы игнорировали признаки завершения. Проверяем их на сервере.
+      // Если мэтча действительно нет, а ждали мы своего же медленного разрыва, — плашка
+      // «Чат завершён» была бы странной: человек сам этого хотел. Просто уходим к мэтчам.
+      if (afterTimeout) {
+        void this.matchStillExists(matchId).then((exists) => {
+          if (matchId !== this.matchId()) {
+            return;
+          }
+          if (exists) {
+            this.applyPending();
+          } else {
+            this.leave();
+          }
+        });
+      } else {
+        this.verifyEnded(matchId);
+      }
+      return;
+    }
+    // Признаков завершения не было — просто применяем отложенный снимок переписки (если есть).
+    this.applyPending();
+  }
+
+  private applyPending(): void {
+    const pending = this.pendingMessages;
+    this.pendingMessages = null;
+    if (pending && this.state() === 'ready' && !this.verifying) {
+      this.applyMessages(pending, false);
+    }
+  }
+
   private stopLeaving(): void {
     clearTimeout(this.leavingTimer);
     this.leaving = false;
@@ -363,14 +516,21 @@ export class Chat {
     // (разрыв или блокировка). Поэтому «сообщений стало меньше» — повод заподозрить конец чата,
     // но не доказательство (снимок мог прийти из неполного кэша). Пока сервер не ответил,
     // переписку «замораживаем», а последний снимок откладываем, чтобы применить, если мэтч жив.
+    // Считаем только подтверждённые сервером: если сервер отклонил МОЁ неотправленное сообщение,
+    // Firestore убирает его из списка — это не признак конца чата (см. FailedMessage).
+    const confirmed = (list: ChatMessage[]) => list.filter((m) => !m.pending).length;
+    const shrunk = confirmed(messages) < confirmed(this.messages());
+    // Пока я сам разрываю мэтч, переписку замораживаем, только когда она начала исчезать:
+    // обычные снимки (новое входящее, «часики» → галочка) показываем как всегда — иначе
+    // при неудачном разрыве чат выглядел бы зависшим.
     if (
       this.state() === 'ready' &&
-      (this.verifying || this.leaving || messages.length < this.messages().length)
+      (this.verifying || shrunk || (this.leaving && this.endSuppressed))
     ) {
       this.pendingMessages = messages;
       if (this.leaving) {
         // Сам ухожу — сообщения стираются из-за моего же разрыва. Просто не показываем это.
-        // Если уход сорвётся, отложенный снимок применит проверка после таймера (onRemoving).
+        // Если уход сорвётся, отложенный снимок применит finishLeaving.
         this.endSuppressed = true;
         return;
       }

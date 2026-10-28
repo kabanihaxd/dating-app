@@ -1,6 +1,7 @@
 import { InjectionToken, inject, makeEnvironmentProviders } from '@angular/core';
 import { FirebaseApp, initializeApp } from 'firebase/app';
-import { Auth, getAuth } from 'firebase/auth';
+import { Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
+import { USE_EMULATORS } from './emulator';
 import { firebaseConfig } from './firebase.config';
 
 // InjectionToken — «ярлык», по которому DI находит объект, у которого нет своего Angular-класса.
@@ -13,6 +14,16 @@ export const FIREBASE_AUTH = new InjectionToken<Auth>('FIREBASE_AUTH');
 export function provideFirebase() {
   return makeEnvironmentProviders([
     { provide: FIREBASE_APP, useFactory: () => initializeApp(firebaseConfig) },
-    { provide: FIREBASE_AUTH, useFactory: () => getAuth(inject(FIREBASE_APP)) },
+    {
+      provide: FIREBASE_AUTH,
+      useFactory: () => {
+        const auth = getAuth(inject(FIREBASE_APP));
+        // Локальный эмулятор: аккаунты создаются на этом компьютере, настоящие не видны.
+        if (USE_EMULATORS) {
+          connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+        }
+        return auth;
+      },
+    },
   ]);
 }

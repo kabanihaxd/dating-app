@@ -36,3 +36,18 @@
     font-size: 16px;
   }
 }
+
+@media (max-width: 600px) {
+  .header {
+    gap: 0;
+    padding-inline: 8px 4px;
+  }
+}
+
+// 360px (многие Android): логотип чуть компактнее, чтобы меню и выход остались на экране.
+@media (max-width: 380px) {
+  .logo {
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+}

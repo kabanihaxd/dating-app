@@ -355,18 +355,12 @@
 
 <!-- Строка «последнее действие»: подтверждение лайка/пропуска и «Вернуть» (у лайка — пока он ждёт отправки).
      ng-template — кусок шаблона, который вставляется в нескольких местах (колода, сетка, «пусто»).
-     Мышь над строкой или фокус внутри неё ставят таймер лайка на паузу (onLinePointer, onFocusIn /
-     onLineFocusOut). tabindex="-1": если «Вернуть» исчезнет, пока на ней фокус, он останется
+     Мышь над строкой, фокус внутри неё или кнопка «Пауза» ставят таймер лайка на паузу
+     (onPointer, onFocusIn / onLineFocusOut, toggleHold). tabindex="-1": если «Вернуть» исчезнет, пока на ней фокус, он останется
      здесь же, на строке, а не упадёт на <body> и не прыгнет к карточке. -->
 <ng-template #lastLine>
   @if (lastAction(); as last) {
-    <p
-      class="last-action"
-      tabindex="-1"
-      (pointerenter)="onLinePointer($event, true)"
-      (pointerleave)="onLinePointer($event, false)"
-      (focusout)="onLineFocusOut($event)"
-    >
+    <p class="last-action" tabindex="-1" (focusout)="onLineFocusOut($event)">
       @switch (last.kind) {
         @case ('sending') {
           <!-- Лайк ещё не записан: честно «отправляется», а не «отправлено». -->
@@ -381,6 +375,23 @@
                 name: last.player.name,
               }"
             />
+            <!-- «Пауза» → «Отправить»: явная остановка таймера. Наведение и фокус — удобство,
+                 а скринридер в режиме чтения их не делает; кнопку же «нажмёт» любой.
+                 Одна кнопка с меняющимся текстом (а не две по очереди) — фокус с неё не слетает. -->
+            @let held = heldByButton() === last.player.uid;
+            <button
+              mat-button
+              type="button"
+              class="hold"
+              [attr.aria-label]="
+                (held ? 'feed.last.sendNowName' : 'feed.last.pauseName')
+                  | t: { name: last.player.name }
+              "
+              (click)="toggleHold(last.player)"
+            >
+              <mat-icon aria-hidden="true">{{ held ? 'send' : 'pause' }}</mat-icon>
+              {{ (held ? 'feed.last.sendNow' : 'feed.last.pause') | t }}
+            </button>
             <!-- Полоска «сколько осталось»: CSS-анимация длиной в таймер. @for с одним элементом
                  и track по uid — приём, чтобы для НОВОГО лайка Angular создал новую полоску
                  (и анимация началась сначала), а не продолжил старую. held — пауза, как у таймера.

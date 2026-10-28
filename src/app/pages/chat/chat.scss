@@ -44,6 +44,41 @@
     white-space: nowrap;
   }
 
+  // Имя и строка общих игр под ним. min-width: 0 — иначе flex-элемент не сжимается,
+  // и многоточие у длинного имени или списка игр не сработало бы.
+  .who {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  // Общие игры — «общая почва», поэтому значок Signal Cyan; сам текст спокойный, Haze Grey,
+  // чтобы строка не спорила с именем. Одна строка с многоточием: шапка не должна расти.
+  .games {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--di-text-muted);
+
+    mat-icon {
+      flex-shrink: 0;
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      color: var(--di-neon-cyan);
+    }
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
   // Кнопка «⋮» — у правого края шапки.
   .menu {
     margin-left: auto;
@@ -71,8 +106,19 @@
   }
 }
 
+// Обёртка списка: занимает всё место между шапкой и полем ввода и служит «якорем»
+// (position: relative) для плашки «Новые сообщения», которая висит над низом списка.
+.messages-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .messages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -132,12 +178,23 @@
     overflow-wrap: anywhere;
   }
 
-  time {
-    display: block;
+  // Строка под текстом: время и (у своих) состояние доставки — справа, мелко, Haze Grey.
+  .meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
     margin-top: 2px;
     font-size: 11px;
-    text-align: right;
+    line-height: 14px;
     color: var(--di-text-muted);
+  }
+
+  // Галочка/«часики» размером с текст времени: заметны, если искать, но не кричат.
+  .status {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
   }
 
   &.mine {
@@ -145,6 +202,92 @@
     border-radius: 16px 16px 4px 16px;
     border-color: transparent;
     background: rgba(255, 46, 136, 0.22);
+  }
+
+  // Ещё не подтверждено сервером: пузырь чуть приглушён, рядом «часики».
+  // Через :has — чтобы не заводить отдельный класс на пузыре ради одного значения.
+  &.mine:has(.status.pending) {
+    opacity: 0.7;
+  }
+
+  // Не отправлено: красная рамка (--mat-sys-error, как у всех ошибок) и строка с действиями.
+  // Фон бледнее обычного «моего» — сообщение как бы ещё не «настоящее».
+  &.failed {
+    background: rgba(255, 46, 136, 0.1);
+    border-color: var(--mat-sys-error);
+
+    .meta {
+      flex-wrap: wrap;
+      color: var(--mat-sys-error);
+    }
+  }
+
+  // «Повторить» / «Удалить»: текстовые кнопки размером с мета-строку. Своя мини-кнопка,
+  // а не mat-button: Material-кнопка в 11px-строке раздула бы пузырь до 40px высоты.
+  // Область нажатия добираем padding'ом, чтобы по ней было проще попасть пальцем.
+  .link {
+    padding: 4px 6px;
+    margin: -4px 0;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    font: inherit;
+    font-weight: 600;
+    color: var(--mat-sys-on-surface);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--di-neon-cyan);
+      outline-offset: 1px;
+    }
+  }
+}
+
+// Плашка «Новые сообщения ↓» — пилюля по центру над низом списка, в цвет «общей почвы» (cyan).
+.new-below {
+  position: absolute;
+  bottom: 12px;
+  // Центруем через left/right + auto-отступы, а не transform: translateX(-50%) —
+  // анимация di-fade-up сама использует transform и сбила бы центровку на время появления.
+  left: 0;
+  right: 0;
+  width: max-content;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px 6px 10px;
+  border: 1px solid var(--di-neon-cyan);
+  border-radius: 999px;
+  background: var(--di-surface);
+  color: var(--di-neon-cyan);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  animation: di-fade-up 0.2s ease-out;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    background: var(--di-bg);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--di-neon-cyan);
+    outline-offset: 2px;
   }
 }
 

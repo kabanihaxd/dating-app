@@ -135,7 +135,11 @@
       "undoName": "Undo skip: {{name}}",
       "consent": "Your contacts stay hidden until they like you back.",
       "undoLikeName": "Undo invite: {{name}}",
-      "sending": "Sending invite: {{name}}"
+      "sending": "Sending invite: {{name}}",
+      "pause": "Pause",
+      "pauseName": "Pause invite: {{name}}",
+      "sendNow": "Send now",
+      "sendNowName": "Send invite now: {{name}}"
     },
     "matchDialog": {
       "title": "It's a match!",
@@ -172,8 +176,9 @@
       "undo": "Couldn't bring {{name}} back to the feed."
     },
     "announce": {
-      "skipped": "Skipped {{name}}. Undo available",
-      "sending": "Sending invite: {{name}}. Undo available"
+      "skipped": "Skipped {{name}}. Press Z to undo",
+      "sending": "Sending invite: {{name}}. Press Z to undo, or Pause to take your time",
+      "held": "Invite to {{name}} paused. Send it or undo when you're ready"
     },
     "matchToast": "It's a match: {{name}}!",
     "inviteCopyFailed": "Couldn't copy. Here's the link: {{url}}",
@@ -248,7 +253,16 @@
       "title": "This chat has ended",
       "text": "The match is no longer active, so new messages can't be sent."
     },
-    "sendErrorNetwork": "Couldn't send the message: no connection to the server. Check your internet and try again."
+    "sendErrorNetwork": "Couldn't send the message: no connection to the server. Check your internet and try again.",
+    "commonGames": "Games in common: {{games}}",
+    "status": {
+      "sending": "Sending",
+      "sent": "Sent",
+      "failed": "Not sent"
+    },
+    "retry": "Retry",
+    "discard": "Delete",
+    "newMessages": "New messages"
   },
   "profile": {
     "title": "Profile",
@@ -320,7 +334,9 @@
       "text": "Your profile changes haven't been saved and will be lost.",
       "stay": "Stay",
       "leave": "Leave"
-    }
+    },
+    "queued": "No connection. Your profile is saved on this device and will sync when you're back online. Keep this tab open until then.",
+    "synced": "Back online. Profile synced"
   },
   "catalog": {
     "platforms": {

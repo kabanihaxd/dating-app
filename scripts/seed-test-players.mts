@@ -4,6 +4,7 @@
 //   node scripts/seed-test-players.mts --delete  — удалить их аккаунты, анкеты, лайки, мэтчи и чаты
 //   node scripts/seed-test-players.mts --chat    — тестовые игроки пишут «привет» во все свои мэтчи
 //                                                  (открой чат в браузере — сообщение появится само)
+//   node scripts/seed-test-players.mts --emulator — то же в локальных эмуляторах (npm run emulators)
 //
 // Каждый второй тестовый игрок (Аня, Катя, Лера, Оля) лайкает всех настоящих пользователей —
 // лайкни кого-то из них в ленте, и сразу получится мэтч.
@@ -14,6 +15,7 @@ import { initializeApp } from 'firebase/app';
 import {
   createUserWithEmailAndPassword,
   deleteUser,
+  connectAuthEmulator,
   getAuth,
   signInWithEmailAndPassword,
   signOut,
@@ -24,6 +26,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  connectFirestoreEmulator,
   getFirestore,
   query,
   serverTimestamp,
@@ -123,6 +126,15 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const emailOf = (index: number) => `test-player-${index + 1}@deadisland.test`;
 
+// --emulator: всё то же самое, но в локальных эмуляторах (npm run emulators), а не в настоящем проекте.
+// Там нет настоящих пользователей, поэтому создаём ещё и «твой» аккаунт для входа в браузере.
+const EMULATOR = process.argv.includes('--emulator');
+const VIEWER_EMAIL = 'me@deadisland.test';
+if (EMULATOR) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+}
+
 // Удаляем всё, что создал тестовый игрок: лайки, пропуски, мэтчи, контакты, анкету и сам аккаунт.
 async function removePlayer(index: number): Promise<void> {
   const { user } = await signInWithEmailAndPassword(auth, emailOf(index), PASSWORD);
@@ -156,8 +168,7 @@ if (process.argv.includes('--delete')) {
       console.log(`- ${emailOf(index)} не найден, пропускаем`);
     }
   }
-  process.exit(0);
-}
+  }
 
 const greetings = [
   'Привіт! Бачу, ти теж граєш — зіграємо сьогодні ввечері? 🎮',
@@ -201,8 +212,37 @@ if (process.argv.includes('--chat')) {
   process.exit(0);
 }
 
+// Шаг 0 (только эмулятор): «настоящий» пользователь, под которым смотрим сайт.
+// Анкета заполнена, чтобы сразу открывалась лента; тестовые игроки на шаге 2 его лайкнут.
+if (EMULATOR) {
+  const { user } = await createUserWithEmailAndPassword(auth, VIEWER_EMAIL, PASSWORD).catch(() =>
+    signInWithEmailAndPassword(auth, VIEWER_EMAIL, PASSWORD),
+  );
+  await setDoc(doc(db, 'users', user.uid), {
+    name: 'Олег',
+    birthDate: '1997-06-15',
+    city: 'Київ',
+    bio: 'Тестовий акаунт для локального емулятора.',
+    games: ['Overwatch 2', 'Elden Ring', 'Counter-Strike 2'],
+    platforms: ['pc', 'playstation'],
+    genres: ['shooter', 'rpg'],
+    playTimes: ['evening', 'weekends'],
+    photo: null,
+    updatedAt: serverTimestamp(),
+  });
+  await setDoc(doc(db, 'users', user.uid, 'private', 'contacts'), {
+    discord: 'oleg_test',
+    steam: '',
+    psn: '',
+    xbox: '',
+  });
+  await signOut(auth);
+  console.log(`✓ вход в браузере: ${VIEWER_EMAIL} / ${PASSWORD}`);
+}
+
 // Шаг 1: аккаунты и анкеты. Аккаунт уже есть (скрипт запускали раньше) — входим и обновляем анкету.
 const testUids = new Set<string>();
+const uidOf: string[] = [];
 for (const [index, player] of players.entries()) {
   const email = emailOf(index);
   const { user } = await createUserWithEmailAndPassword(auth, email, PASSWORD).catch(() =>
@@ -220,6 +260,7 @@ for (const [index, player] of players.entries()) {
     xbox: '',
   });
   testUids.add(user.uid);
+  uidOf[index] = user.uid;
   await signOut(auth);
   console.log(`✓ ${player.name} (${email})`);
 }
@@ -242,6 +283,28 @@ for (const [index, player] of players.entries()) {
   }
   await signOut(auth);
   console.log(`♥ ${player.name} лайкнула настоящих игроков: ${realUsers.length}`);
+}
+
+// Шаг 3 (только эмулятор): «ты» лайкаешь Аню и Катю в ответ — сразу два готовых мэтча,
+// чтобы страница мэтчей и чат были не пустыми. Сообщения в них — через --chat --emulator.
+if (EMULATOR) {
+  const { user } = await signInWithEmailAndPassword(auth, VIEWER_EMAIL, PASSWORD);
+  for (const index of [0, 2]) {
+    const other = uidOf[index];
+    const like = doc(db, 'likes', `${user.uid}_${other}`);
+    if (!(await getDoc(like)).exists()) {
+      await setDoc(like, { from: user.uid, to: other, createdAt: serverTimestamp() });
+    }
+    const users = [user.uid, other].sort();
+    const match = doc(db, 'matches', users.join('_'));
+    // Несуществующий мэтч читать нельзя (правила смотрят на его участников) — отказ = «ещё нет».
+    const exists = await getDoc(match).then((m) => m.exists(), () => false);
+    if (!exists) {
+      await setDoc(match, { users, createdBy: user.uid, createdAt: serverTimestamp() });
+    }
+    console.log(`🤝 мэтч с ${players[index].name}`);
+  }
+  await signOut(auth);
 }
 
 process.exit(0);

@@ -24,7 +24,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth';
 import { firestoreErrorKey } from '../../core/firebase/firestore-errors';
 import { confirmLeave } from '../../core/guards/leave-dialog';
@@ -54,6 +54,10 @@ import { resizeImage } from '../../core/profile/resize-image';
 import { ErrorState } from '../../shared/error-state/error-state';
 
 const MIN_AGE = 18;
+// Метка «анкету создали только что, а человек ушёл подключать Steam/Discord».
+// После возврата страница загружается заново и про первый заход уже ничего не помнит —
+// по этой метке она покажет кнопку «К анкетам», чтобы путь в ленту не терялся.
+const FIRST_RUN_KEY = 'di-profile-first-run';
 const MAX_PHOTO_FILE_SIZE = 15 * 1024 * 1024; // 15 МБ — больше не тянем в браузер даже для сжатия
 
 // Валидатор даты рождения: младше 18 — ошибка underage. Пустое поле проверяет Validators.required.
@@ -101,6 +105,7 @@ function yearsAgo(years: number): string {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    RouterLink,
     TranslatePipe,
     ErrorState,
   ],
@@ -152,6 +157,15 @@ export class Profile implements HasUnsavedChanges {
   protected readonly gameQuery = signal('');
   // Первый заход: анкеты в базе ещё нет. Тогда страница — «собери профиль», а после сохранения ведём в ленту.
   protected readonly isNew = signal(false);
+  // Анкету только что создали, но в ленту сами не увели (вернулись со Steam/Discord, не было сети,
+  // правили во время сохранения) — тогда в панели внизу появляется кнопка «К анкетам».
+  protected readonly readyForFeed = signal(false);
+  // Сеть не ответила, и запись ждёт в очереди Firestore на этом устройстве. Пока она не дошла,
+  // закрывать вкладку молча нельзя: очередь живёт в памяти вкладки и пропадёт вместе с ней.
+  private readonly pendingSync = signal(false);
+  // Не ошибка, а состояние: «сохранено на устройстве, отправится, когда вернётся связь».
+  // Показываем под кнопкой и озвучиваем вежливо (role="status"), а не тревожно, как ошибку.
+  protected readonly statusKey = signal<string | null>(null);
   // Человек уже пытался сохранить форму с ошибками — с этого момента показываем список полей, которые надо поправить.
   protected readonly showInvalid = signal(false);
   // Почему не добавилась набранная игра (дубль или уже 20 штук). Показываем под полем, пока человек не начнёт печатать снова.
@@ -312,16 +326,20 @@ export class Profile implements HasUnsavedChanges {
     return this.form.dirty || this.saving();
   }
 
+  // Внутри приложения запись из очереди Firestore не пропадёт (база живёт, пока открыта вкладка),
+  // поэтому guard про неё не спрашивает. А вот закрытие вкладки очередь стирает — тут предупреждаем.
   // preventDefault() просит браузер показать своё окно «Покинуть сайт?». Текст окна задаёт сам браузер.
   protected onBeforeUnload(event: BeforeUnloadEvent): void {
-    if (this.hasUnsavedChanges() && !this.leavingForConnect) {
+    if ((this.hasUnsavedChanges() || this.pendingSync()) && !this.leavingForConnect) {
       event.preventDefault();
     }
   }
 
   protected async save(): Promise<void> {
-    if (this.saving()) {
-      return; // Enter в поле, пока прошлое сохранение ещё в пути, — второй раз не отправляем
+    // У кнопки disabledInteractive: «погасшая», она остаётся в фокусе и её можно нажать —
+    // поэтому проверяем здесь. Это же ловит Enter в поле, пока прошлое сохранение ещё в пути.
+    if (this.saveDisabled()) {
+      return;
     }
     this.flushGameInput();
     if (this.form.invalid) {
@@ -333,7 +351,16 @@ export class Profile implements HasUnsavedChanges {
       return;
     }
     const wasNew = this.isNew();
-    if (!(await this.persist())) {
+    const result = await this.persist();
+    if (!result) {
+      return;
+    }
+    if (result === 'queued') {
+      // Записали на устройство, но не на сервер. В ленту (её без сети не загрузить) не уводим —
+      // объяснение уже под кнопкой, а путь в ленту оставляем кнопкой «К анкетам».
+      if (wasNew) {
+        this.readyForFeed.set(true);
+      }
       return;
     }
     const saved = this.i18n.translate('profile.saved');
@@ -351,9 +378,11 @@ export class Profile implements HasUnsavedChanges {
       await this.router.navigate(['/feed']);
       return;
     }
-    // После сохранения «Сохранить» гаснет (форма снова pristine), и фокус с неё пропал бы
-    // в никуда — переносим его на заголовок страницы, чтобы клавиатура не теряла место.
-    this.host.nativeElement.querySelector<HTMLElement>('h1')?.focus();
+    if (wasNew) {
+      this.readyForFeed.set(true); // правили во время сохранения — остались, но путь в ленту под рукой
+    }
+    this.keepFocus();
+    // Об успехе говорит снекбар: он сам живая область (aria-live), диктор прочитает его, не трогая фокус.
     // onAction() срабатывает, когда нажали кнопку на самом снекбаре.
     this.snackBar
       .open(saved, this.i18n.translate('profile.toFeed'), { duration: 5000 })
@@ -361,10 +390,25 @@ export class Profile implements HasUnsavedChanges {
       .subscribe(() => void this.router.navigate(['/feed']));
   }
 
-  // Сама запись анкеты: true — сервер подтвердил. Её зовут и «Сохранить», и «Подключить».
-  private async persist(): Promise<boolean> {
+  // Фокус после сохранения. Человек мог, не дожидаясь ответа, вернуться в поле и печатать дальше —
+  // тогда фокус не трогаем вообще. «Сохранить» с disabledInteractive и погасшей остаётся в фокусе,
+  // так что обычно делать ничего не нужно. Если же фокус всё-таки потерялся (ушёл на body),
+  // ставим его на заголовок, но без прокрутки: экран не прыгает наверх от нижней панели.
+  private keepFocus(): void {
+    const doc = this.host.nativeElement.ownerDocument;
+    if (!doc.activeElement || doc.activeElement === doc.body) {
+      this.host.nativeElement.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
+    }
+  }
+
+  // Сама запись анкеты. Её зовут и «Сохранить», и «Подключить». Ответ:
+  // 'saved'  — сервер подтвердил;
+  // 'queued' — сеть не ответила, но Firestore держит запись в очереди и отправит её сам;
+  // false    — сервер отказал (правила базы и т.п.), правки остаются несохранёнными.
+  private async persist(): Promise<'saved' | 'queued' | false> {
     this.saving.set(true);
     this.errorKey.set(null);
+    this.statusKey.set(null);
     this.showInvalid.set(false);
     // Снимок того, что отправили. Пока ждём сервер, человек может печатать дальше —
     // эти новые правки не должны пропасть, поэтому «всё сохранено» (pristine) ставим,
@@ -379,14 +423,20 @@ export class Profile implements HasUnsavedChanges {
         this.window,
       );
       this.isNew.set(false); // анкета теперь есть в базе
-      if (JSON.stringify([this.form.getRawValue(), this.photo()]) === snapshot) {
-        this.form.markAsPristine();
-      }
-      return true;
+      this.markSavedIfUnchanged(snapshot);
+      return 'saved';
     } catch (error) {
+      if (error instanceof NetworkTimeoutError) {
+        // Честно: «не сохранилось» тут было бы неправдой. Запись лежит в очереди на устройстве —
+        // для формы это «сохранено» (pristine, guard не пугает потерей), а pendingSync помнит,
+        // что до сервера она ещё не дошла.
+        this.isNew.set(false);
+        this.markSavedIfUnchanged(snapshot);
+        this.waitForSync(error.pending);
+        return 'queued';
+      }
       // Форма остаётся «грязной»: правки на месте, «Сохранить» активна — можно повторить.
-      const key =
-        error instanceof NetworkTimeoutError ? 'errors.network' : firestoreErrorKey(error);
+      const key = firestoreErrorKey(error);
       if (this.destroyed) {
         // Страницу уже закрыли — сообщение под кнопкой никто не увидит, говорим снекбаром.
         this.snackBar.open(this.i18n.translate(key), undefined, { duration: 5000 });
@@ -399,6 +449,47 @@ export class Profile implements HasUnsavedChanges {
     }
   }
 
+  // «Всё сохранено» (pristine) ставим, только если форма и фото не изменились с момента отправки.
+  private markSavedIfUnchanged(snapshot: string): void {
+    if (JSON.stringify([this.form.getRawValue(), this.photo()]) === snapshot) {
+      this.form.markAsPristine();
+    }
+  }
+
+  // Запись ушла в очередь Firestore. Показываем «сохранено на устройстве» и ждём, чем кончится:
+  // дошла — говорим «связь вернулась, отправлено»; сервер отказал — снова зажигаем «Сохранить»,
+  // чтобы правки не считались сохранёнными. Повторное сохранение просто встанет в очередь следом.
+  private waitForSync(pending: Promise<unknown>): void {
+    this.pendingSync.set(true);
+    if (this.destroyed) {
+      this.snackBar.open(this.i18n.translate('profile.queued'), undefined, { duration: 5000 });
+    } else {
+      this.statusKey.set('profile.queued');
+    }
+    pending.then(
+      () => {
+        this.pendingSync.set(false);
+        // Снимаем сообщение, только если оно всё ещё наше (новое сохранение могло его сменить).
+        if (this.statusKey() === 'profile.queued') {
+          this.statusKey.set(null);
+        }
+        this.snackBar.open(this.i18n.translate('profile.synced'), undefined, { duration: 3000 });
+      },
+      (error: unknown) => {
+        console.error(error);
+        this.pendingSync.set(false);
+        this.statusKey.set(null);
+        const key = firestoreErrorKey(error);
+        if (this.destroyed) {
+          this.snackBar.open(this.i18n.translate(key), undefined, { duration: 5000 });
+          return;
+        }
+        this.form.markAsDirty(); // правки до сервера не дошли — «Сохранить» снова активна
+        this.errorKey.set(key); // markAsDirty не меняет значения, так что подписка ошибку не сотрёт
+      },
+    );
+  }
+
   // Уходим на сайт Steam/Discord, и страница перезагрузится. Чтобы анкета не пропала:
   // - есть что сохранять и всё заполнено верно — сначала сохраняем, потом уходим;
   // - есть ошибки — сохранить нельзя, поэтому предупреждаем тем же окном, что и guard.
@@ -408,9 +499,19 @@ export class Profile implements HasUnsavedChanges {
       return;
     }
     this.flushGameInput();
+    // Первый заход: после возврата с платформы страница должна помнить, что дальше путь — в ленту.
+    const firstRun = this.isNew() || this.readyForFeed();
     if ((this.form.dirty || this.isNew()) && this.form.valid) {
-      if (!(await this.persist())) {
+      const result = await this.persist();
+      if (!result) {
         return; // не сохранилось — остаёмся, ошибка уже под кнопкой
+      }
+      if (result === 'queued') {
+        // Запись ждёт сеть в памяти этой вкладки — уход на Steam её бы стёр. Да и без сети туда не попасть.
+        if (firstRun) {
+          this.readyForFeed.set(true);
+        }
+        return;
       }
     }
     // Ещё грязная: либо ошибки в полях, либо что-то поправили, пока шло сохранение.
@@ -419,12 +520,16 @@ export class Profile implements HasUnsavedChanges {
     }
     this.leavingForConnect = true;
     try {
+      if (firstRun) {
+        rememberFirstRun(true);
+      }
       this.connect.start(field);
     } catch (error) {
       // start() может упасть (например, браузер запретил sessionStorage) — тогда мы никуда не ушли,
       // и beforeunload снова должен защищать правки.
       console.error(error);
       this.leavingForConnect = false;
+      rememberFirstRun(false);
       this.errorKey.set('profile.connect.failed');
     }
   }
@@ -478,6 +583,11 @@ export class Profile implements HasUnsavedChanges {
         duration: 3000,
       });
     } catch (error) {
+      if (error instanceof NetworkTimeoutError) {
+        // Ссылку получили, и она стоит в очереди на устройстве — это не «не удалось подключить».
+        this.waitForSync(error.pending);
+        return;
+      }
       console.error(error);
       if (linkInForm) {
         // Ссылку получили, а записать не смогли. Помечаем контакты «изменёнными» —
@@ -515,6 +625,11 @@ export class Profile implements HasUnsavedChanges {
     try {
       const { profile, contacts } = await this.profiles.load(this.uid);
       this.isNew.set(!profile);
+      // Вернулись со Steam/Discord посреди первого захода — анкета уже есть, предлагаем ленту.
+      // Метку снимаем сразу: при следующем открытии профиля это уже обычное редактирование.
+      if (profile && rememberFirstRun(false)) {
+        this.readyForFeed.set(true);
+      }
       if (profile) {
         // patchValue заполняет только известные форме поля, лишние (updatedAt) пропускает.
         const { photo, ...fields } = profile;
@@ -534,5 +649,23 @@ export class Profile implements HasUnsavedChanges {
       this.loading.set(false);
     }
     await this.finishConnect();
+  }
+}
+
+// Метка первого захода в sessionStorage: живёт в этой вкладке и переживает уход на Steam и обратно.
+// true — поставить, false — снять. Возвращает, была ли метка до вызова.
+// try/catch: браузер может запретить хранилище (приватный режим, блокировка cookies) —
+// тогда после возврата просто не будет кнопки «К анкетам», страница от этого не ломается.
+function rememberFirstRun(on: boolean): boolean {
+  try {
+    const was = sessionStorage.getItem(FIRST_RUN_KEY) !== null;
+    if (on) {
+      sessionStorage.setItem(FIRST_RUN_KEY, '1');
+    } else {
+      sessionStorage.removeItem(FIRST_RUN_KEY);
+    }
+    return was;
+  } catch {
+    return false;
   }
 }

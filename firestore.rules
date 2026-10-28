@@ -19,8 +19,11 @@ service cloud.firestore {
         || exists(/databases/$(database)/documents/matches/$(b + '_' + a));
     }
 
+    // existsAfter(), а не exists(): смотрит на базу ПОСЛЕ текущей записи. Так мэтч можно создать
+    // одним batch вместе с моим лайком («лайк + мэтч — всё или ничего»): exists() моего лайка
+    // в этом batch'е ещё не увидел бы. Для одиночной записи разницы нет — лайк уже в базе.
     function liked(from, to) {
-      return exists(/databases/$(database)/documents/likes/$(from + '_' + to));
+      return existsAfter(/databases/$(database)/documents/likes/$(from + '_' + to));
     }
 
     // Блокировка в любую сторону: кто-то из двоих заблокировал другого.

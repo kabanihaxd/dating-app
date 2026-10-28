@@ -44,6 +44,10 @@ export class ModerationMenu {
   // убрать карточку из списка или уйти из чата.
   readonly removed = output<void>();
 
+  // removeFailed — пара к removing: запрос упал (ошибку меню уже показало снекбаром).
+  // Страница, которая по removing что-то «заморозила», здесь должна это разморозить.
+  readonly removeFailed = output<void>();
+
   protected readonly busy = signal(false);
 
   protected unmatch(): void {
@@ -152,6 +156,9 @@ export class ModerationMenu {
     } catch (error) {
       console.error(error);
       this.snackBar.open(this.i18n.translate('moderation.error'), undefined, { duration: 4000 });
+      if (removes) {
+        this.removeFailed.emit();
+      }
     } finally {
       this.busy.set(false);
     }

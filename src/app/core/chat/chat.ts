@@ -28,6 +28,10 @@ export interface ChatMessage {
   from: string;
   text: string;
   createdAt: Date | null;
+  // true — сообщение пока есть только в локальном кэше: Firestore показал его сразу,
+  // но сервер ещё не подтвердил запись (медленная сеть или её нет вовсе).
+  // По этому флагу чат рисует «часики» вместо галочки.
+  pending: boolean;
 }
 
 // Чат живёт внутри мэтча: matches/{matchId}/messages/{messageId}.
@@ -86,6 +90,9 @@ export class ChatService {
   // Возвращает функцию отписки — её нужно вызвать при уходе со страницы.
   // fromCache — снимок собран из локального кэша, а не получен с сервера. Первый такой снимок
   // бывает пустым просто потому, что кэш ещё пуст, — странице важно отличать его от «переписки нет».
+  // includeMetadataChanges: true — снимок приходит и тогда, когда поменялись только «служебные»
+  // данные: например, сервер подтвердил моё сообщение и hasPendingWrites стал false.
+  // Без этой опции «часики» у отправленного сообщения так и не сменились бы галочкой.
   watchMessages(
     matchId: string,
     onMessages: (messages: ChatMessage[], fromCache: boolean) => void,
@@ -99,6 +106,7 @@ export class ChatService {
     );
     return onSnapshot(
       messages,
+      { includeMetadataChanges: true },
       (snapshot) =>
         onMessages(
           snapshot.docs.map((message) => ({
@@ -111,6 +119,7 @@ export class ChatService {
               (
                 message.get('createdAt', { serverTimestamps: 'estimate' }) as Timestamp | null
               )?.toDate() ?? null,
+            pending: message.metadata.hasPendingWrites,
           })),
           snapshot.metadata.fromCache,
         ),

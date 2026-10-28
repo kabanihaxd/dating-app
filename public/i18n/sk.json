@@ -135,7 +135,11 @@
       "undoName": "Vrátiť preskočeného: {{name}}",
       "consent": "Kontakty sa zobrazia, len ak ti dajú lajk späť.",
       "undoLikeName": "Vrátiť späť pozvánku: {{name}}",
-      "sending": "Pozvánka sa odosiela: {{name}}"
+      "sending": "Pozvánka sa odosiela: {{name}}",
+      "pause": "Pozastaviť",
+      "pauseName": "Pozastaviť pozvánku: {{name}}",
+      "sendNow": "Odoslať",
+      "sendNowName": "Odoslať pozvánku hneď: {{name}}"
     },
     "matchDialog": {
       "title": "Je to zhoda!",
@@ -172,8 +176,9 @@
       "undo": "Nepodarilo sa vrátiť do výberu: {{name}}."
     },
     "announce": {
-      "skipped": "Preskočené: {{name}}. Dá sa vrátiť späť",
-      "sending": "Pozvánka sa odosiela: {{name}}. Dá sa vrátiť späť"
+      "skipped": "Preskočené: {{name}}. Z – vrátiť späť",
+      "sending": "Pozvánka sa odosiela: {{name}}. Z – vrátiť späť, Pozastaviť – rozmyslieť si",
+      "held": "Pozvánka pre {{name}} je pozastavená. Odošli ju alebo vráť späť, keď sa rozhodneš"
     },
     "matchToast": "Je to zhoda: {{name}}!",
     "inviteCopyFailed": "Nepodarilo sa skopírovať. Tu je odkaz: {{url}}",
@@ -248,7 +253,16 @@
       "title": "Tento chat sa skončil",
       "text": "Match už nie je aktívny, takže nové správy sa nedajú odoslať."
     },
-    "sendErrorNetwork": "Správu sa nepodarilo odoslať: nie je spojenie so serverom. Skontroluj pripojenie a skús to znova."
+    "sendErrorNetwork": "Správu sa nepodarilo odoslať: nie je spojenie so serverom. Skontroluj pripojenie a skús to znova.",
+    "commonGames": "Spoločné hry: {{games}}",
+    "status": {
+      "sending": "Odosiela sa",
+      "sent": "Odoslané",
+      "failed": "Neodoslané"
+    },
+    "retry": "Skúsiť znova",
+    "discard": "Vymazať",
+    "newMessages": "Nové správy"
   },
   "profile": {
     "title": "Profil",
@@ -320,7 +334,9 @@
       "text": "Zmeny v profile nie sú uložené a stratia sa.",
       "stay": "Zostať",
       "leave": "Odísť"
-    }
+    },
+    "queued": "Bez pripojenia. Profil je uložený v tomto zariadení a odošle sa, keď sa pripojenie obnoví. Dovtedy nezatváraj túto kartu.",
+    "synced": "Pripojenie je späť. Profil bol odoslaný"
   },
   "catalog": {
     "platforms": {

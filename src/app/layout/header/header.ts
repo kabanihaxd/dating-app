@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, Injector, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
@@ -25,18 +25,48 @@ import { MainNav } from '../main-nav/main-nav';
 export class Header {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly injector = inject(Injector);
+  // Выход уже идёт — второе нажатие ничего не делает (ждём лайки, потом signOut).
+  private loggingOut = false;
 
   // Порядок важен: сначала уходим со страницы, и только потом выходим из аккаунта.
   // При уходе срабатывают «прощальные» действия страницы, которым нужен вошедший пользователь:
   // canDeactivate-guard профиля спрашивает про несохранённые правки, лента дописывает отложенный лайк.
   // Если guard навигацию отменил (нажали «Остаться»), из аккаунта не выходим:
   // человек передумал уходить, а значит, и выходить.
+  // Лента, закрываясь, отправляет отложенные лайки, но сама запись идёт ещё долю секунды:
+  // лайк, проверка «а он меня лайкнул?» и, может быть, мэтч. Выйди мы из аккаунта посреди
+  // этого — запросы ушли бы уже без пользователя, и мэтч не создался бы. Поэтому ждём
+  // flush() очереди лайков, но не дольше LOGOUT_FLUSH_MS: без сети человек всё равно должен
+  // выйти, а недописанное повторится при его следующем входе (outbox в PendingLikes).
   protected async logout(): Promise<void> {
-    await this.router.navigateByUrl('/');
-    // Проверяем не результат navigateByUrl(), а где мы оказались: на главной он тоже вернёт false —
-    // переход «на тот же адрес» Angular пропускает, хотя уходить никуда и не нужно.
-    if (this.isHome()) {
-      await this.auth.logout();
+    if (this.loggingOut) {
+      return;
+    }
+    this.loggingOut = true;
+    try {
+      await this.router.navigateByUrl('/');
+      // Проверяем не результат navigateByUrl(), а где мы оказались: на главной он тоже вернёт
+      // false — переход «на тот же адрес» Angular пропускает, хотя уходить никуда и не нужно.
+      if (this.isHome()) {
+        await this.flushLikes();
+        await this.auth.logout();
+      }
+    } finally {
+      this.loggingOut = false;
+    }
+  }
+
+  // import() — код очереди лайков (а с ним и Firestore) шапка грузит только при выходе:
+  // гость и страница входа без него обходятся. Если лента в этой вкладке уже открывалась,
+  // файл давно скачан и сервис уже создан — inject вернёт тот же экземпляр с теми же лайками.
+  private async flushLikes(): Promise<void> {
+    try {
+      const { PendingLikes, LOGOUT_FLUSH_MS } = await import('../../core/matching/pending-likes');
+      await this.injector.get(PendingLikes).flush(LOGOUT_FLUSH_MS);
+    } catch (error) {
+      // Не скачался файл (нет сети) — выходим всё равно: недописанное лежит в outbox.
+      console.error(error);
     }
   }
 

@@ -53,6 +53,17 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "emulator": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/app/core/firebase/emulator.ts",
+                  "with": "src/app/core/firebase/emulator.local.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -65,6 +76,9 @@
             },
             "development": {
               "buildTarget": "dating-app:build:development"
+            },
+            "emulator": {
+              "buildTarget": "dating-app:build:emulator"
             }
           },
           "defaultConfiguration": "development"
