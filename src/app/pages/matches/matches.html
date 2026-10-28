@@ -31,6 +31,24 @@
     <a mat-flat-button routerLink="/feed">{{ 'matches.toFeed' | t }}</a>
   </app-state-message>
 } @else {
+  <!-- Часть карточек не загрузилась: честно говорим, сколько, и даём повторить только их.
+       role="status" — скринридер озвучит строку вежливо, не перебивая. -->
+  @if (failedCount()) {
+    <div class="load-failed" role="status">
+      <mat-icon aria-hidden="true">error_outline</mat-icon>
+      <span>{{ 'matches.loadFailed' | t: { count: failedCount() } }}</span>
+      <!-- aria-disabled вместо disabled: настоящий disabled сбросил бы фокус с кнопки. -->
+      <button
+        mat-button
+        type="button"
+        [attr.aria-disabled]="retrying()"
+        (click)="retry()"
+      >
+        <mat-icon>refresh</mat-icon>
+        {{ (retrying() ? 'common.loading' : 'errors.retry') | t }}
+      </button>
+    </div>
+  }
   <div class="grid">
     <!-- Карточки появляются «лесенкой», а при разрыве мэтча или блокировке плавно тают.
          aria-labelledby: скринридер называет карточку по имени игрока («статья: Аня, 24»). -->
@@ -42,6 +60,9 @@
         animate.leave="di-leave"
         [style.--i]="$index"
         [attr.aria-labelledby]="match.headingId"
+        [attr.data-uid]="match.uid"
+        (focusin)="onFocusIn($event, match.uid)"
+        (focusout)="onFocusOut($event, match.uid)"
       >
         <header>
           <!-- alt="": имя и так написано рядом, повторять его скринридеру незачем. -->
@@ -51,7 +72,13 @@
             <div class="avatar" aria-hidden="true"><mat-icon>person</mat-icon></div>
           }
           <div class="who">
-            <h2 [id]="match.headingId" tabindex="-1">{{ name }}, {{ match.age }}</h2>
+            <div class="name-row">
+              <h2 [id]="match.headingId" tabindex="-1">{{ name }}, {{ match.age }}</h2>
+              <!-- Мэтч случился после моего прошлого захода на страницу. -->
+              @if (newMatchIds().has(match.id)) {
+                <span class="new-pill">{{ 'matches.new' | t }}</span>
+              }
+            </div>
             <p class="muted"><mat-icon inline>place</mat-icon> {{ match.profile.city }}</p>
           </div>
           <app-moderation-menu

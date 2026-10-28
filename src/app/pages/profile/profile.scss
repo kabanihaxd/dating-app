@@ -216,3 +216,13 @@ form {
     flex: 1 1 100%;
   }
 }
+
+// Текст только для программ чтения с экрана: на экране не виден, но остаётся в дереве доступности.
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

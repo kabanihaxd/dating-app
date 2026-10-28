@@ -18,17 +18,22 @@
         </span>
       }
       <!-- 0% не показываем: «ничего общего» — плохой повод для первого впечатления.
-           matTooltip объясняет, из чего складывается процент. tabindex="0" — чтобы подсказку
-           можно было открыть и с клавиатуры (по фокусу), а не только мышью; на телефоне —
-           долгим нажатием. Текст подсказки Material сам связывает с бейджем (aria-describedby). -->
+           matTooltip объясняет, из чего складывается процент. Бейдж — настоящая <button>:
+           у неё есть роль, её видно с клавиатуры, а нажатие (или тап на телефоне, где нет
+           наведения) открывает и закрывает подсказку. #tip="matTooltip" — ссылка на саму
+           подсказку, чтобы вызвать её toggle(). Текст подсказки Material сам связывает
+           с кнопкой (aria-describedby): скринридер прочитает «87% совпадения» и пояснение. -->
       @if (match().percent) {
-        <span
+        <button
+          type="button"
           class="match"
           [class]="level()"
-          tabindex="0"
+          #tip="matTooltip"
           [matTooltip]="'feed.card.matchHint' | t"
-          >{{ 'feed.card.match' | t: { percent: match().percent } }}</span
+          (click)="tip.toggle()"
         >
+          {{ 'feed.card.match' | t: { percent: match().percent } }}
+        </button>
       }
     </div>
   </div>

@@ -4,6 +4,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocFromServer,
   limitToLast,
   onSnapshot,
   orderBy,
@@ -48,10 +49,25 @@ export class ChatService {
     return users.includes(me) ? users.find((uid) => uid !== me)! : null;
   }
 
-  // Подписка на сам документ мэтча: onGone вызывается, когда мэтча больше нет —
-  // собеседник разорвал мэтч или заблокировал. Удалённый документ приходит либо как snapshot
-  // без данных (exists() === false), либо как ошибка доступа: правила читают resource.data,
-  // а у удалённого документа его нет. Оба случая для чата значат одно и то же — «чат завершён».
+  // Есть ли мэтч НА СЕРВЕРЕ прямо сейчас. getDocFromServer идёт мимо локального кэша:
+  // кэш без сети может «не знать» документа, а нам нужен точный ответ — завершён ли чат.
+  // permission-denied здесь значит «документа нет»: правила читают resource.data, а у удалённого
+  // мэтча его нет. Сетевые ошибки пробрасываем — «не смогли проверить» не то же самое, что «мэтча нет».
+  async matchExists(matchId: string): Promise<boolean> {
+    try {
+      const snapshot = await getDocFromServer(doc(this.db, 'matches', matchId));
+      return snapshot.exists();
+    } catch (error) {
+      if (isPermissionDenied(error)) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  // Подписка на сам документ мэтча: onGone вызывается, когда сервер ответил «документа нет» —
+  // собеседник разорвал мэтч или заблокировал. Ошибки (в том числе ошибку доступа) отдаём в onError:
+  // ошибка доступа ЧАСТО значит удалённый мэтч, но не всегда — страница перепроверит через matchExists.
   watchMatch(matchId: string, onGone: () => void, onError: (error: unknown) => void): () => void {
     return onSnapshot(
       doc(this.db, 'matches', matchId),
@@ -62,15 +78,17 @@ export class ChatService {
           onGone();
         }
       },
-      (error) => (isPermissionDenied(error) ? onGone() : onError(error)),
+      onError,
     );
   }
 
   // Подписка на последние сообщения: onMessages вызывается сразу и потом при каждом новом сообщении.
   // Возвращает функцию отписки — её нужно вызвать при уходе со страницы.
+  // fromCache — снимок собран из локального кэша, а не получен с сервера. Первый такой снимок
+  // бывает пустым просто потому, что кэш ещё пуст, — странице важно отличать его от «переписки нет».
   watchMessages(
     matchId: string,
-    onMessages: (messages: ChatMessage[]) => void,
+    onMessages: (messages: ChatMessage[], fromCache: boolean) => void,
     onError: (error: unknown) => void,
   ): () => void {
     // orderBy + limitToLast = «последние 100, от старых к новым» — как и показываем в чате.
@@ -94,6 +112,7 @@ export class ChatService {
                 message.get('createdAt', { serverTimestamps: 'estimate' }) as Timestamp | null
               )?.toDate() ?? null,
           })),
+          snapshot.metadata.fromCache,
         ),
       onError,
     );

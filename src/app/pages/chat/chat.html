@@ -49,6 +49,7 @@
             [otherUid]="uid"
             [name]="partner()?.name ?? ''"
             [matched]="state() === 'ready'"
+            (removing)="onRemoving()"
             (removed)="leave()"
           />
         }
@@ -88,14 +89,24 @@
         }
       </div>
 
-      <!-- Живая область: сюда попадает последнее входящее сообщение, и программа чтения
-           с экрана зачитывает его сама («Аня: привет»). -->
-      <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
+      <!-- Живая область: сюда попадают новые входящие сообщения, и программа чтения
+           с экрана зачитывает их сама («Аня: привет»). track по key — каждая порция озвучки
+           вставляется новым элементом, поэтому даже два одинаковых «ок» подряд прозвучат оба. -->
+      <div class="sr-only" aria-live="polite">
+        @for (item of announcement(); track item.key) {
+          <div>
+            @for (line of item.lines; track $index) {
+              <p>{{ line }}</p>
+            }
+          </div>
+        }
+      </div>
 
       @if (state() === 'ready') {
         <form class="composer" (ngSubmit)="send()">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <textarea
+              #input
               matInput
               [formControl]="draft"
               cdkTextareaAutosize
@@ -111,12 +122,15 @@
               <mat-hint>{{ 'chat.hint' | t }}</mat-hint>
             }
           </mat-form-field>
+          <!-- pointerdown — не отдаём фокус кнопке, он остаётся в поле (клавиатура телефона не прячется).
+               Выключаем кнопку только при пустом поле: повторную отправку и так не пустит send(). -->
           <button
             mat-icon-button
             type="submit"
             class="send"
-            [disabled]="!draft.value.trim() || sending()"
+            [disabled]="!draft.value.trim()"
             [attr.aria-label]="'chat.send' | t"
+            (pointerdown)="keepFocus($event)"
           >
             <mat-icon>send</mat-icon>
           </button>

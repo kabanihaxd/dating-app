@@ -77,7 +77,7 @@
     "count": "Nájdení hráči: {{count}}",
     "emptyTitle": "Iní hráči tu zatiaľ nie sú",
     "empty": "Pozvi kamarátov hráčov — zobrazia sa tu, hneď ako sa zaregistrujú.",
-    "emptyFiltered": "Týmto filtrom nikto nevyhovuje. Rozšír vekový rozsah alebo zruš niektoré filtre.",
+    "emptyFiltered": "Rozšír vekový rozsah alebo zruš niektoré filtre.",
     "noProfile": {
       "title": "Najprv si vyplň profil",
       "text": "Aby sme našli tvojho player 2, potrebujeme poznať tvoje hry a platformy.",
@@ -125,7 +125,7 @@
       "deck": "Po jednom",
       "grid": "Mriežka"
     },
-    "keysHint": "← preskočiť · → player 2 · Z vrátiť späť",
+    "keysHint": "← preskočiť · → player 2 · Z / Backspace vrátiť späť",
     "likeHint": "Player 2? je pozvánka. Kontakty sa zobrazia, len ak ti dajú lajk späť.",
     "last": {
       "liked": "Pozvánka odoslaná: {{name}}",
@@ -134,7 +134,8 @@
       "restored": "{{name}} je späť vo výbere",
       "undoName": "Vrátiť preskočeného: {{name}}",
       "consent": "Kontakty sa zobrazia, len ak ti dajú lajk späť.",
-      "undoLikeName": "Vrátiť späť pozvánku: {{name}}"
+      "undoLikeName": "Vrátiť späť pozvánku: {{name}}",
+      "sending": "Pozvánka sa odosiela: {{name}}"
     },
     "matchDialog": {
       "title": "Je to zhoda!",
@@ -171,9 +172,13 @@
       "undo": "Nepodarilo sa vrátiť do výberu: {{name}}."
     },
     "announce": {
-      "liked": "Pozvánka odoslaná: {{name}}. Dá sa vrátiť späť",
-      "skipped": "Preskočené: {{name}}. Dá sa vrátiť späť"
-    }
+      "skipped": "Preskočené: {{name}}. Dá sa vrátiť späť",
+      "sending": "Pozvánka sa odosiela: {{name}}. Dá sa vrátiť späť"
+    },
+    "matchToast": "Je to zhoda: {{name}}!",
+    "inviteCopyFailed": "Nepodarilo sa skopírovať. Tu je odkaz: {{url}}",
+    "deckLabel": "Balíček hráčov",
+    "emptyFilteredTitle": "Nikoho sme nenašli"
   },
   "auth": {
     "loginTitle": "Prihlásenie",
@@ -220,7 +225,9 @@
     "copyNickname": "Kopírovať prezývku ({{platform}}, {{name}})",
     "copiedNickname": "Prezývka ({{platform}}) skopírovaná",
     "copyFailed": "Nepodarilo sa skopírovať. Označ prezývku a skopíruj ju ručne.",
-    "openProfileHint": "{{platform}}, {{name}}, otvorí sa na novej karte"
+    "openProfileHint": "{{platform}}, {{name}}, otvorí sa na novej karte",
+    "loadFailed": "Nepodarilo sa načítať matche: {{count}}",
+    "new": "Nový match"
   },
   "chat": {
     "back": "Späť na matche",
@@ -231,7 +238,7 @@
     "empty": "Zatiaľ tu nie sú žiadne správy. Pozdrav sa a začni rozhovor!",
     "emptyGames": "Téma na rozhovor — vaše spoločné hry:",
     "notFound": "Chat sa nenašiel: match mohol byť zrušený alebo je odkaz nesprávny.",
-    "sendError": "Správu sa nepodarilo odoslať. Skontroluj pripojenie a skús to znova.",
+    "sendError": "Správu sa nepodarilo odoslať. Skús to znova.",
     "speaker": {
       "me": "Ty:",
       "partner": "{{name}}:"
@@ -240,7 +247,8 @@
     "ended": {
       "title": "Tento chat sa skončil",
       "text": "Match už nie je aktívny, takže nové správy sa nedajú odoslať."
-    }
+    },
+    "sendErrorNetwork": "Správu sa nepodarilo odoslať: nie je spojenie so serverom. Skontroluj pripojenie a skús to znova."
   },
   "profile": {
     "title": "Profil",
@@ -267,7 +275,9 @@
       "label": "Obľúbené hry",
       "placeholder": "Začni písať názov hry...",
       "hint": "Vyber zo zoznamu alebo napíš vlastnú a stlač Enter. Najviac {{max}} hier.",
-      "remove": "Odstrániť {{game}}"
+      "remove": "Odstrániť {{game}}",
+      "duplicate": "{{game}} už v zozname je",
+      "limit": "Viac sa nedá: najviac {{max}} hier. Odstráň jednu a pridaj inú"
     },
     "platforms": "Platformy",
     "genres": "Žánre",

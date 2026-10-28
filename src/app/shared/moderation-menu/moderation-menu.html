@@ -1,8 +1,14 @@
+<!-- Пока идёт запрос, кнопка «выключена», но не атрибутом disabled: он выбрасывает фокус
+     с кнопки на <body>, и клавиатурный пользователь теряет место на странице.
+     disabledInteractive оставляет кнопку фокусируемой и ставит aria-disabled="true" —
+     а matMenuTrigger, увидев aria-disabled, сам не открывает меню ни кликом, ни клавишами.
+     Вторая страховка — проверка busy() в начале каждого действия в moderation-menu.ts. -->
 <button
   mat-icon-button
   type="button"
   [matMenuTriggerFor]="menu"
   [disabled]="busy()"
+  disabledInteractive
   [attr.aria-label]="'moderation.menu' | t: { name: name() }"
 >
   <mat-icon>more_vert</mat-icon>

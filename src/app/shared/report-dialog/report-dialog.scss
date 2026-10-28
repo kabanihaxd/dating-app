@@ -1,3 +1,54 @@
+// Рамка — как у ConfirmDialog (и окна «Это мэтч!»): фон Lobby Indigo, обводка акцента 0.4,
+// мягкое свечение 0.2, скругление 16px. Подложку Material делает прозрачной panelClass
+// 'di-framed-dialog' (передаётся в dialog.open() в moderation-menu.ts).
+// Акцент фиолетовый, а не красный: сама жалоба ничего не разрушает, блок — лишь опция.
+:host {
+  --accent: var(--di-neon-violet);
+  display: block;
+}
+
+.frame {
+  padding: 24px 0 8px;
+  background: var(--di-surface);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 16px;
+  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+// Заголовок как в ConfirmDialog: Roboto 20/600 со значком — в нём имя игрока на любом из 4 языков.
+.title.mat-mdc-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0 24px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--mat-sys-on-surface);
+
+  // Material добавляет ::before для выравнивания по базовой линии — нам он только мешает.
+  &::before {
+    display: none;
+  }
+
+  mat-icon {
+    flex-shrink: 0;
+    color: var(--accent);
+  }
+
+  // Длинный ник без пробелов не должен распирать окно.
+  span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+// mat-dialog-content сам прокручивается, если форма не влезает по высоте (короткий экран).
+.mat-mdc-dialog-content {
+  padding: 12px 24px 0;
+}
+
 .label {
   margin: 0 0 4px;
   color: var(--di-text-muted);
@@ -17,4 +68,27 @@
 .comment {
   width: 100%;
   margin-top: 16px;
+}
+
+// ===== Кнопки — как в ConfirmDialog =====
+.actions.mat-mdc-dialog-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 24px 16px;
+
+  button {
+    margin: 0;
+  }
+}
+
+// Узкий экран — кнопки во всю ширину друг под другом в порядке разметки («Отмена» сверху),
+// чтобы видимый порядок совпадал с порядком Tab.
+@media (max-width: 399.98px) {
+  .actions.mat-mdc-dialog-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }

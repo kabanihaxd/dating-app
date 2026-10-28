@@ -1,5 +1,14 @@
-import { Component, ElementRef, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import {
+  Component,
+  DOCUMENT,
+  DestroyRef,
+  ElementRef,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
   NonNullableFormBuilder,
@@ -22,6 +31,7 @@ import { confirmLeave } from '../../core/guards/leave-dialog';
 import { HasUnsavedChanges } from '../../core/guards/unsaved-changes.guard';
 import { I18n } from '../../core/i18n/i18n';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { NetworkTimeoutError, withNetworkTimeout } from '../../core/profile/network-timeout';
 import { PlatformConnect } from '../../core/profile/platform-connect';
 import { ProfileService } from '../../core/profile/profile';
 import {
@@ -110,6 +120,8 @@ export class Profile implements HasUnsavedChanges {
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  // window через DOCUMENT, а не глобальной переменной, — так принято в Angular (и так проще подменить в тестах).
+  private readonly window = inject(DOCUMENT).defaultView!;
   protected readonly connect = inject(PlatformConnect);
 
   protected readonly maxGames = 20;
@@ -142,8 +154,19 @@ export class Profile implements HasUnsavedChanges {
   protected readonly isNew = signal(false);
   // Человек уже пытался сохранить форму с ошибками — с этого момента показываем список полей, которые надо поправить.
   protected readonly showInvalid = signal(false);
+  // Почему не добавилась набранная игра (дубль или уже 20 штук). Показываем под полем, пока человек не начнёт печатать снова.
+  protected readonly gameRejection = signal<{ key: string; game: string } | null>(null);
+  // Текст для диктора после неудачной отправки — снимок списка полей с ошибками на момент нажатия.
+  // Видимый список под кнопкой обновляется молча, по мере исправления полей; а этот текст
+  // меняется только при «Сохранить», поэтому role="alert" прочитает его один раз, а не на каждое исправление.
+  protected readonly invalidAnnouncement = signal('');
   // Уходим на сайт Steam/Discord после подтверждения — второй раз (в beforeunload) не спрашиваем.
   private leavingForConnect = false;
+  // Страницу уже закрыли (например, ушли с неё посреди сохранения) — тогда никуда не уводим и фокус не трогаем.
+  private destroyed = false;
+  // viewChild — signal со ссылкой на элемент шаблона с меткой #gameInput (поле ввода игр).
+  // Нужен save(): дописать игру, которую набрали, но не подтвердили Enter.
+  private readonly gameInput = viewChild<ElementRef<HTMLInputElement>>('gameInput');
 
   private readonly fb = inject(NonNullableFormBuilder);
   protected readonly form = this.fb.group({
@@ -206,19 +229,50 @@ export class Profile implements HasUnsavedChanges {
   });
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+    // Любая правка — новая попытка: старые сообщения об ошибке («не удалось подключить», «нет сети»)
+    // и текст для диктора уже не про то, что сейчас в форме. takeUntilDestroyed отпишется, когда страницу закроют.
+    this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
+      this.errorKey.set(null);
+      this.invalidAnnouncement.set('');
+    });
     void this.load();
   }
 
   protected addGame(value: string, input: HTMLInputElement): void {
     const name = value.trim();
+    if (!name) {
+      return;
+    }
     const games = this.form.controls.games.value;
-    const isDuplicate = games.some((game) => game.toLowerCase() === name.toLowerCase());
-    if (name && !isDuplicate && games.length < this.maxGames) {
+    const duplicate = games.find((game) => game.toLowerCase() === name.toLowerCase());
+    if (duplicate) {
+      // Такая игра уже есть — набранное стираем (оно ничего не добавит) и говорим почему.
+      this.gameRejection.set({ key: 'profile.games.duplicate', game: duplicate });
+    } else if (games.length >= this.maxGames) {
+      // Лимит: текст в поле оставляем — уберёт одну игру и добавит эту, не набирая заново.
+      this.gameRejection.set({ key: 'profile.games.limit', game: name });
+      return;
+    } else {
       this.form.controls.games.setValue([...games, name]);
       this.form.controls.games.markAsDirty();
+      this.gameRejection.set(null);
     }
     input.value = '';
     this.gameQuery.set('');
+  }
+
+  // Набрали в поле игр текст и сразу нажали «Сохранить» (или Enter в другом поле) — не теряем его.
+  private flushGameInput(): void {
+    const input = this.gameInput()?.nativeElement;
+    if (input?.value.trim()) {
+      this.addGame(input.value, input);
+    }
+  }
+
+  protected onGameTyped(value: string): void {
+    this.gameQuery.set(value);
+    this.gameRejection.set(null);
   }
 
   protected removeGame(name: string): void {
@@ -252,9 +306,10 @@ export class Profile implements HasUnsavedChanges {
     this.form.markAsDirty();
   }
 
-  // Для guard'а и beforeunload: правки есть, и они не уходят прямо сейчас на сервер.
+  // Для guard'а и beforeunload. Пока идёт сохранение, правки тоже считаем несохранёнными:
+  // ответа сервера ещё нет, и при плохой сети запись может не дойти — молча отпускать нельзя.
   hasUnsavedChanges(): boolean {
-    return this.form.dirty && !this.saving();
+    return this.form.dirty || this.saving();
   }
 
   // preventDefault() просит браузер показать своё окно «Покинуть сайт?». Текст окна задаёт сам браузер.
@@ -265,56 +320,125 @@ export class Profile implements HasUnsavedChanges {
   }
 
   protected async save(): Promise<void> {
+    if (this.saving()) {
+      return; // Enter в поле, пока прошлое сохранение ещё в пути, — второй раз не отправляем
+    }
+    this.flushGameInput();
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.errorKey.set(null);
       this.showInvalid.set(true);
+      this.announceInvalid();
       this.focusFirstInvalid();
       return;
     }
+    const wasNew = this.isNew();
+    if (!(await this.persist())) {
+      return;
+    }
+    const saved = this.i18n.translate('profile.saved');
+    if (this.destroyed) {
+      // Пока шло сохранение, человек ушёл на другую страницу (guard его отпустил) —
+      // не утаскиваем обратно в ленту, просто сообщаем, что анкета всё-таки сохранилась.
+      this.snackBar.open(saved, undefined, { duration: 3000 });
+      return;
+    }
+    // Во время сохранения могли что-то поправить — тогда форма осталась «грязной», и уводить
+    // в ленту нельзя (guard спросил бы «уйти без сохранения?»). Остаёмся, как при обычном сохранении.
+    if (wasNew && !this.form.dirty) {
+      // Анкета готова — сразу показываем то, ради чего её заполняли: ленту игроков.
+      this.snackBar.open(saved, undefined, { duration: 3000 });
+      await this.router.navigate(['/feed']);
+      return;
+    }
+    // После сохранения «Сохранить» гаснет (форма снова pristine), и фокус с неё пропал бы
+    // в никуда — переносим его на заголовок страницы, чтобы клавиатура не теряла место.
+    this.host.nativeElement.querySelector<HTMLElement>('h1')?.focus();
+    // onAction() срабатывает, когда нажали кнопку на самом снекбаре.
+    this.snackBar
+      .open(saved, this.i18n.translate('profile.toFeed'), { duration: 5000 })
+      .onAction()
+      .subscribe(() => void this.router.navigate(['/feed']));
+  }
+
+  // Сама запись анкеты: true — сервер подтвердил. Её зовут и «Сохранить», и «Подключить».
+  private async persist(): Promise<boolean> {
     this.saving.set(true);
     this.errorKey.set(null);
     this.showInvalid.set(false);
-    const { contacts, ...profile } = this.form.getRawValue();
+    // Снимок того, что отправили. Пока ждём сервер, человек может печатать дальше —
+    // эти новые правки не должны пропасть, поэтому «всё сохранено» (pristine) ставим,
+    // только если форма и фото не изменились с момента отправки.
+    const submitted = this.form.getRawValue();
+    const photo = this.photo();
+    const snapshot = JSON.stringify([submitted, photo]);
+    const { contacts, ...profile } = submitted;
     try {
-      await this.profiles.save(
-        this.uid,
-        { ...profile, photo: this.photo() },
-        this.trimmed(contacts),
+      await withNetworkTimeout(
+        this.profiles.save(this.uid, { ...profile, photo }, this.trimmed(contacts)),
+        this.window,
       );
-      this.form.markAsPristine();
-      if (this.isNew()) {
-        // Анкета готова — сразу показываем то, ради чего её заполняли: ленту игроков.
-        this.isNew.set(false);
-        this.snackBar.open(this.i18n.translate('profile.saved'), undefined, { duration: 3000 });
-        await this.router.navigate(['/feed']);
-      } else {
-        // После сохранения «Сохранить» гаснет (форма снова pristine), и фокус с неё пропал бы
-        // в никуда — переносим его на заголовок страницы, чтобы клавиатура не теряла место.
-        this.host.nativeElement.querySelector<HTMLElement>('h1')?.focus();
-        // onAction() срабатывает, когда нажали кнопку на самом снекбаре.
-        this.snackBar
-          .open(this.i18n.translate('profile.saved'), this.i18n.translate('profile.toFeed'), {
-            duration: 5000,
-          })
-          .onAction()
-          .subscribe(() => void this.router.navigate(['/feed']));
+      this.isNew.set(false); // анкета теперь есть в базе
+      if (JSON.stringify([this.form.getRawValue(), this.photo()]) === snapshot) {
+        this.form.markAsPristine();
       }
+      return true;
     } catch (error) {
-      this.errorKey.set(firestoreErrorKey(error));
+      // Форма остаётся «грязной»: правки на месте, «Сохранить» активна — можно повторить.
+      const key =
+        error instanceof NetworkTimeoutError ? 'errors.network' : firestoreErrorKey(error);
+      if (this.destroyed) {
+        // Страницу уже закрыли — сообщение под кнопкой никто не увидит, говорим снекбаром.
+        this.snackBar.open(this.i18n.translate(key), undefined, { duration: 5000 });
+      } else {
+        this.errorKey.set(key);
+      }
+      return false;
     } finally {
       this.saving.set(false);
     }
   }
 
-  // Уходим на сайт Steam/Discord. Страница перезагрузится, поэтому несохранённые правки пропадут —
-  // предупреждаем тем же окном, что и guard при переходе на другую страницу.
+  // Уходим на сайт Steam/Discord, и страница перезагрузится. Чтобы анкета не пропала:
+  // - есть что сохранять и всё заполнено верно — сначала сохраняем, потом уходим;
+  // - есть ошибки — сохранить нельзя, поэтому предупреждаем тем же окном, что и guard.
+  // На первом заходе (isNew) «сохранять» есть что, даже если ничего не трогали: имя из Google-аккаунта.
   protected async connectPlatform(field: ContactField): Promise<void> {
+    if (this.saving()) {
+      return;
+    }
+    this.flushGameInput();
+    if ((this.form.dirty || this.isNew()) && this.form.valid) {
+      if (!(await this.persist())) {
+        return; // не сохранилось — остаёмся, ошибка уже под кнопкой
+      }
+    }
+    // Ещё грязная: либо ошибки в полях, либо что-то поправили, пока шло сохранение.
     if (this.form.dirty && !(await confirmLeave(this.dialog, this.i18n))) {
       return;
     }
     this.leavingForConnect = true;
-    this.connect.start(field);
+    try {
+      this.connect.start(field);
+    } catch (error) {
+      // start() может упасть (например, браузер запретил sessionStorage) — тогда мы никуда не ушли,
+      // и beforeunload снова должен защищать правки.
+      console.error(error);
+      this.leavingForConnect = false;
+      this.errorKey.set('profile.connect.failed');
+    }
+  }
+
+  // Видимый список полей с ошибками обновляется молча; диктору — один снимок на каждое нажатие «Сохранить».
+  // Если текст совпал с прошлым, role="alert" не заметил бы «изменения», поэтому сначала очищаем,
+  // а новый текст ставим чуть позже, отдельным обновлением страницы.
+  private announceInvalid(): void {
+    const text = this.i18n.translate('profile.errors.fixFields', {
+      count: this.invalidLabels().length,
+      fields: this.invalidLabels().join(', '),
+    });
+    this.invalidAnnouncement.set('');
+    setTimeout(() => this.invalidAnnouncement.set(text), 100);
   }
 
   // Красная рамка видна не всем (а экранному диктору не видна совсем), поэтому после неудачной отправки
@@ -335,20 +459,32 @@ export class Profile implements HasUnsavedChanges {
 
   // Вернулись с платформы: подставляем ссылку и сразу сохраняем её, чтобы не пришлось жать «Сохранить».
   private async finishConnect(): Promise<void> {
+    const contacts = this.form.controls.contacts;
+    // Ссылка уже стоит в поле, но в базу ещё не записана.
+    let linkInForm = false;
     try {
       const result = await this.connect.finish();
       if (!result) {
         return;
       }
-      const contacts = this.form.controls.contacts;
       contacts.controls[result.field].setValue(result.link);
-      await this.profiles.saveContacts(this.uid, this.trimmed(contacts.getRawValue()));
+      linkInForm = true;
+      await withNetworkTimeout(
+        this.profiles.saveContacts(this.uid, this.trimmed(contacts.getRawValue())),
+        this.window,
+      );
       const platform = this.i18n.translate(`profile.contacts.${result.field}`);
       this.snackBar.open(this.i18n.translate('profile.connect.done', { platform }), undefined, {
         duration: 3000,
       });
     } catch (error) {
       console.error(error);
+      if (linkInForm) {
+        // Ссылку получили, а записать не смогли. Помечаем контакты «изменёнными» —
+        // тогда загорится «Сохранить», и ссылку можно сохранить вручную, не подключаясь заново.
+        contacts.markAsDirty();
+      }
+      // Ошибку ставим ПОСЛЕ setValue: иначе подписка «любая правка стирает ошибку» сразу бы её убрала.
       this.errorKey.set('profile.connect.failed');
     }
   }

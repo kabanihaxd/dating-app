@@ -179,13 +179,21 @@ export class NotificationService {
   }
 
   // Вызывает страница «Мэтчи»: всё, что там видно, считается просмотренным.
-  markMatchesSeen(): void {
+  // Возвращает прошлую отметку — по ней страница помечает мэтчи «Новый».
+  markMatchesSeen(): number {
     const uid = this.auth.user()?.uid;
-    const now = Date.now();
+    // Отметку читаем и из localStorage: эффект в конструкторе мог ещё не успеть её загрузить
+    // (страницу открыли сразу по ссылке /matches).
+    const stored = uid ? Number(this.storage()?.getItem(`${SEEN_KEY}-${uid}`) ?? 0) : 0;
+    const previous = Math.max(this.matchesSeenAt(), stored || 0);
+    // Время мэтча ставит сервер, а Date.now() — часы этого компьютера; они могут отставать.
+    // Берём максимум, чтобы только что увиденный мэтч не остался «новым» из-за разницы часов.
+    const now = Math.max(Date.now(), ...this.matches().map((match) => match.createdAt));
     this.matchesSeenAt.set(now);
     if (uid) {
       this.storage()?.setItem(`${SEEN_KEY}-${uid}`, String(now));
     }
+    return previous;
   }
 
   private watchLikesToMe(uid: string): () => void {
@@ -226,10 +234,17 @@ export class NotificationService {
           first = false;
           return;
         }
+        // Я и так на странице «Мэтчи» — новая карточка появится у меня на глазах:
+        // всплывашка «Смотреть» не нужна, а значок в меню не должен расти.
+        const onMatchesPage = this.isOnMatchesPage();
+        let added = false;
         for (const change of snapshot.docChanges()) {
           const other = (change.doc.get('users') as string[]).find((user) => user !== uid)!;
-          if (change.type === 'added' && change.doc.get('createdBy') !== uid) {
-            this.notify('notifications.matched', other, '/matches');
+          if (change.type === 'added') {
+            added = true;
+            if (change.doc.get('createdBy') !== uid && !onMatchesPage) {
+              this.notify('notifications.matched', other, '/matches');
+            }
           }
           const message = toSummary(change.doc, uid).lastMessage;
           if (
@@ -243,6 +258,9 @@ export class NotificationService {
               text: shorten(message.text),
             });
           }
+        }
+        if (added && onMatchesPage) {
+          this.markMatchesSeen();
         }
       },
       (error) => {
@@ -283,6 +301,11 @@ export class NotificationService {
       .open(text, this.i18n.translate('notifications.view'), { duration: 6000 })
       .onAction()
       .subscribe(() => this.router.navigateByUrl(link));
+  }
+
+  // router.url — текущий адрес; ?query и #hash отрезаем, сравниваем только путь.
+  private isOnMatchesPage(): boolean {
+    return this.router.url.split(/[?#]/)[0] === '/matches';
   }
 
   private storage(): Storage | null {

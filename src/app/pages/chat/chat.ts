@@ -1,5 +1,6 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
   afterRenderEffect,
   computed,
@@ -20,7 +21,11 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { AuthService } from '../../core/auth/auth';
 import { FirebaseError } from 'firebase/app';
 import { ChatMessage, ChatService, MAX_MESSAGE_LENGTH } from '../../core/chat/chat';
-import { firestoreErrorKey, isPermissionDenied } from '../../core/firebase/firestore-errors';
+import {
+  firestoreErrorKey,
+  isNetworkErrorKey,
+  isPermissionDenied,
+} from '../../core/firebase/firestore-errors';
 import { I18n } from '../../core/i18n/i18n';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { matchScore } from '../../core/matching/match-score';
@@ -35,6 +40,20 @@ import { StateMessage } from '../../shared/state-message/state-message';
 // ended — чат был открыт, но мэтч пропал прямо во время разговора (собеседник разорвал мэтч
 // или заблокировал). Переписку оставляем на экране «замороженной», а писать уже нельзя.
 type ChatState = 'loading' | 'ready' | 'ended' | 'notFound' | 'error';
+
+// Одна «порция» озвучки для живой области. key — id последнего озвучиваемого сообщения:
+// шаблон рисует порцию через @for с track по key, поэтому каждая новая порция — это НОВЫЙ
+// элемент в DOM. Программа чтения с экрана замечает вставку и читает её, даже если текст
+// дословно совпадает с прошлым («ок», «ок») — простая замена одинакового текста была бы «тишиной».
+interface Announcement {
+  key: string;
+  lines: string[];
+}
+
+// Сколько ждём перехода на /matches после своего «Разорвать мэтч»/«Заблокировать».
+// Если за это время перехода не было — действие, видимо, не удалось (ошибку покажет само меню),
+// и чат снова должен реагировать на настоящее завершение.
+const LEAVING_TIMEOUT_MS = 15000;
 
 @Component({
   selector: 'app-chat',
@@ -85,13 +104,15 @@ export class Chat {
   protected readonly partnerUid = signal<string | null>(null);
   protected readonly commonGames = signal<string[]>([]);
   private readonly messages = signal<ChatMessage[]>([]);
-  // Идёт ли сейчас отправка — пока да, второй Enter/нажатие кнопки ничего не делает.
-  protected readonly sending = signal(false);
+  // Идёт ли сейчас отправка — пока да, второй Enter/нажатие кнопки ничего не делает (см. send).
+  // Кнопку по нему НЕ выключаем: выключенная кнопка теряет фокус, и на телефоне закрывается клавиатура.
+  private readonly sending = signal(false);
   // Сенсорный ли экран — запоминаем при открытии, чтобы решить, показывать ли подсказку про Enter.
   protected readonly touch = this.isTouch();
-  // Текст для программы чтения с экрана: последнее ВХОДЯЩЕЕ сообщение («Аня: привет»).
+  // Озвучка для программы чтения с экрана: новые ВХОДЯЩИЕ сообщения («Аня: привет»).
   // Свои сообщения не озвучиваем — человек их только что сам набрал.
-  protected readonly announcement = signal('');
+  // Массив из 0 или 1 элемента — так шаблон может пересоздать элемент по key (см. Announcement).
+  protected readonly announcement = signal<Announcement[]>([]);
 
   // Имя собеседника для подписей; если анкета не загрузилась — нейтральное «Игрок».
   protected readonly partnerName = computed(
@@ -120,10 +141,26 @@ export class Chat {
   });
 
   private readonly list = viewChild<ElementRef<HTMLElement>>('list');
+  private readonly input = viewChild<ElementRef<HTMLTextAreaElement>>('input');
   private markReadFailed = false;
   // id сообщений, которые уже были на экране, — чтобы озвучивать только действительно новые.
-  // null — первый снимок ещё не пришёл (историю при открытии чата не зачитываем).
+  // null — «точки отсчёта» ещё нет (историю при открытии чата не зачитываем).
   private seenIds: Set<string> | null = null;
+  // Время самого нового из уже виденных сообщений. Подстраховка к seenIds: если сервер дослал
+  // СТАРЫЕ сообщения, которых не было в кэше, они не новые — их не озвучиваем.
+  private seenUntil = 0;
+  // Чат, для которого сейчас всё настроено: по нему effect понимает, что сменился именно мэтч,
+  // а не просто нажали «Попробовать ещё раз».
+  private loadedMatchId: string | null = null;
+  // Я сам разрываю мэтч или блокирую собеседника: исчезновение мэтча — ожидаемое следствие,
+  // показывать «Чат завершён» (и озвучивать это) не нужно — сейчас уйдём на /matches.
+  private leaving = false;
+  private leavingTimer: ReturnType<typeof setTimeout> | undefined;
+  // Пока я «ухожу», признаки завершения глушим. Если уход не удался — их надо перепроверить.
+  private endSuppressed = false;
+  // Идёт ли проверка «а мэтч точно удалён?» и какой снимок переписки применить, если нет.
+  private verifying = false;
+  private pendingMessages: ChatMessage[] | null = null;
   // «Спробувати ще раз» увеличивает счётчик — effect ниже читает его и запускается заново.
   private readonly attempt = signal(0);
 
@@ -131,27 +168,44 @@ export class Chat {
     effect((onCleanup) => {
       const matchId = this.matchId();
       this.attempt();
+      // Перешли в ДРУГОЙ чат (компонент тот же): всё, что относилось к прошлому собеседнику,
+      // стираем — иначе недописанный текст «утёк» бы в чужую переписку, а в шапке мелькнуло бы
+      // старое имя. При повторе того же чата черновик, наоборот, сохраняем.
+      if (matchId !== this.loadedMatchId) {
+        this.loadedMatchId = matchId;
+        this.draft.reset();
+        this.partner.set(null);
+        this.commonGames.set([]);
+        this.stopLeaving();
+      }
       this.state.set('loading');
       this.messages.set([]);
       this.partnerUid.set(null);
       this.markReadFailed = false;
       this.seenIds = null;
-      this.announcement.set('');
+      this.seenUntil = 0;
+      this.announcement.set([]);
       this.sending.set(false);
+      this.verifying = false;
+      this.pendingMessages = null;
+      this.endSuppressed = false;
+      // Прокрутку отдельно сбрасывать не нужно: в состоянии loading список удаляется из DOM,
+      // а новый после загрузки сам прокручивается в самый низ (afterRenderEffect ниже).
       this.notifications.activeChat.set(matchId);
 
       void this.loadPartner(matchId);
       // Подписка на сообщения: новые приходят сами, пока страница открыта.
       const unsubscribe = this.chat.watchMessages(
         matchId,
-        (messages) => this.onMessages(messages),
-        (error) => this.fail(error),
+        (messages, fromCache) => this.onMessages(matchId, messages, fromCache),
+        (error) => this.fail(matchId, error),
       );
       // Подписка на сам мэтч: если собеседник разорвёт его посреди разговора, узнаем сразу.
       const unsubscribeMatch = this.chat.watchMatch(
         matchId,
         () => this.end(),
-        (error) => console.error(error),
+        // Ошибка доступа обычно значит «мэтч удалён», но проверяем это отдельным запросом.
+        (error) => (isPermissionDenied(error) ? this.verifyEnded(matchId) : console.error(error)),
       );
       onCleanup(() => {
         unsubscribe();
@@ -185,6 +239,9 @@ export class Chat {
         list.scrollTop = list.scrollHeight;
       }
     });
+
+    // Таймер «ухода» не должен сработать, когда страницы уже нет.
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.leavingTimer));
   }
 
   protected async send(): Promise<void> {
@@ -192,6 +249,9 @@ export class Chat {
     if (!text || this.draft.invalid || this.sending() || this.state() !== 'ready') {
       return;
     }
+    // Запоминаем, в какой чат отправляем: пока ждём сервер, человек может перейти в другой чат,
+    // и тогда ответ (успех или ошибка) к открытому сейчас чату уже не относится.
+    const matchId = this.matchId();
     // Поле очищаем сразу, не дожидаясь сервера: Firestore и так мгновенно покажет сообщение
     // в списке (из локального кэша). Если отправка не удалась — возвращаем текст в поле.
     // sending снимается, как только сообщение появилось в списке (см. onMessages) или запись
@@ -199,20 +259,46 @@ export class Chat {
     // и человек не смог бы отправить второе сообщение офлайн.
     this.sending.set(true);
     this.draft.reset();
+    // Фокус остаётся в поле ввода: на телефоне клавиатура не закрывается, можно писать дальше.
+    this.input()?.nativeElement.focus();
     try {
-      await this.chat.send(this.matchId(), this.me, text);
+      await this.chat.send(matchId, this.me, text);
     } catch (error) {
-      console.error(error);
-      if (this.isMatchGone(error)) {
-        // Нет доступа или документа — мэтча уже нет. Это не «проблема с сетью», а конец чата.
-        this.end();
-      } else {
-        this.draft.setValue(text);
-        this.snackBar.open(this.i18n.translate('chat.sendError'), undefined, { duration: 4000 });
+      if (matchId !== this.matchId()) {
+        return;
       }
-    } finally {
+      // Нет доступа или документа — ВОЗМОЖНО, мэтча уже нет. Но правила могут отказать и при живом
+      // мэтче (например, текст не прошёл проверку) — поэтому спрашиваем сервер, есть ли мэтч.
+      if (this.isMatchGone(error) && !(await this.matchStillExists(matchId))) {
+        if (matchId === this.matchId()) {
+          this.end();
+          this.sending.set(false);
+        }
+        return;
+      }
+      if (matchId !== this.matchId()) {
+        return;
+      }
+      // Текст возвращаем, только если человек ещё не начал писать новое сообщение.
+      if (!this.draft.value) {
+        this.draft.setValue(text);
+      }
+      // Нет сети — просим проверить интернет; иначе — нейтральное «не получилось, попробуй ещё раз».
+      const key = isNetworkErrorKey(firestoreErrorKey(error))
+        ? 'chat.sendErrorNetwork'
+        : 'chat.sendError';
+      this.snackBar.open(this.i18n.translate(key), undefined, { duration: 4000 });
+    }
+    if (matchId === this.matchId()) {
       this.sending.set(false);
     }
+  }
+
+  // Кнопка отправки не забирает фокус у поля ввода: если фокус уйдёт на кнопку, на телефоне
+  // спрячется клавиатура. preventDefault у pointerdown отменяет только «перевод фокуса»,
+  // а click (и отправка формы) всё равно происходит.
+  protected keepFocus(event: PointerEvent): void {
+    event.preventDefault();
   }
 
   protected retry(): void {
@@ -222,6 +308,24 @@ export class Chat {
   // Мэтч разорван или собеседник заблокирован — чата больше нет, возвращаемся к списку мэтчей.
   protected leave(): void {
     void this.router.navigateByUrl('/matches');
+  }
+
+  // Я подтвердил разрыв/блокировку в меню «⋮», запрос ещё в пути. Мэтч вот-вот пропадёт —
+  // это не «собеседник ушёл», поэтому плашку «Чат завершён» не показываем. Если же за
+  // LEAVING_TIMEOUT_MS мы так и не ушли со страницы, значит, действие сорвалось — снимаем флаг.
+  protected onRemoving(): void {
+    const matchId = this.matchId();
+    this.leaving = true;
+    clearTimeout(this.leavingTimer);
+    this.leavingTimer = setTimeout(() => {
+      const suppressed = this.endSuppressed;
+      this.stopLeaving();
+      // Пока «уходили», мы проигнорировали признаки завершения. Раз ушли не мы —
+      // проверяем, не завершил ли чат собеседник за это время.
+      if (suppressed && matchId === this.matchId()) {
+        this.verifyEnded(matchId);
+      }
+    }, LEAVING_TIMEOUT_MS);
   }
 
   // На компьютере Enter отправляет, Shift+Enter — перенос строки (как в мессенджерах).
@@ -242,37 +346,120 @@ export class Chat {
     return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   }
 
+  private stopLeaving(): void {
+    clearTimeout(this.leavingTimer);
+    this.leaving = false;
+    this.endSuppressed = false;
+  }
+
   // Новый снимок переписки. Здесь три задачи: не трогать «замороженный» завершённый чат;
   // заметить, что сообщения начали исчезать (их стирают перед удалением мэтча);
   // и подготовить озвучку для новых входящих.
-  private onMessages(messages: ChatMessage[]): void {
-    if (this.state() === 'ended') {
+  private onMessages(matchId: string, messages: ChatMessage[], fromCache: boolean): void {
+    if (matchId !== this.matchId() || this.state() === 'ended') {
       return;
     }
     // По одному сообщения в этом приложении никто не удаляет — их стирают только вместе с мэтчем
-    // (разрыв или блокировка). Значит, если сообщений стало меньше, чат завершается: оставляем
-    // на экране то, что было, а не мелькаем пустым экраном «Поздоровайся».
-    if (this.state() === 'ready' && messages.length < this.messages().length) {
-      this.end();
+    // (разрыв или блокировка). Поэтому «сообщений стало меньше» — повод заподозрить конец чата,
+    // но не доказательство (снимок мог прийти из неполного кэша). Пока сервер не ответил,
+    // переписку «замораживаем», а последний снимок откладываем, чтобы применить, если мэтч жив.
+    if (
+      this.state() === 'ready' &&
+      (this.verifying || this.leaving || messages.length < this.messages().length)
+    ) {
+      this.pendingMessages = messages;
+      if (this.leaving) {
+        // Сам ухожу — сообщения стираются из-за моего же разрыва. Просто не показываем это.
+        // Если уход сорвётся, отложенный снимок применит проверка после таймера (onRemoving).
+        this.endSuppressed = true;
+        return;
+      }
+      this.verifyEnded(matchId);
       return;
     }
+    this.applyMessages(messages, fromCache);
+  }
+
+  private applyMessages(messages: ChatMessage[], fromCache: boolean): void {
     this.messages.set(messages);
     this.sending.set(false);
 
     const seen = this.seenIds;
-    if (seen) {
-      const last = messages.filter((m) => m.from !== this.me && !seen.has(m.id)).at(-1);
-      if (last) {
+    if (!seen) {
+      // Первый пустой снимок из кэша — это «кэш ещё пуст», а не «переписки нет». Точку отсчёта
+      // ставим по следующему снимку — иначе вся пришедшая с сервера история была бы «новой»
+      // и программа чтения с экрана зачитала бы её целиком.
+      if (fromCache && messages.length === 0) {
+        return;
+      }
+    } else {
+      // Озвучиваем ВСЕ новые входящие из снимка (их может прийти несколько сразу, например
+      // после восстановления сети), а не только последнее.
+      const fresh = messages.filter(
+        (m) =>
+          m.from !== this.me &&
+          !seen.has(m.id) &&
+          (!m.createdAt || m.createdAt.getTime() >= this.seenUntil),
+      );
+      if (fresh.length) {
         const speaker = this.i18n.translate('chat.speaker.partner', { name: this.partnerName() });
-        this.announcement.set(`${speaker} ${last.text}`);
+        this.announcement.set([
+          { key: fresh.at(-1)!.id, lines: fresh.map((m) => `${speaker} ${m.text}`) },
+        ]);
       }
     }
     this.seenIds = new Set(messages.map((m) => m.id));
+    // Берём только ВХОДЯЩИЕ: их время ставит сервер, а у моих неотправленных — примерное время
+    // по часам телефона, которые могут спешить (и тогда «новое» входящее казалось бы старым).
+    for (const m of messages) {
+      if (m.from !== this.me && m.createdAt) {
+        this.seenUntil = Math.max(this.seenUntil, m.createdAt.getTime());
+      }
+    }
+  }
+
+  // Подозрение, что чат завершён (сообщения исчезли, ошибка доступа). Спрашиваем сервер:
+  // мэтча нет — завершаем; есть — это была ложная тревога, применяем отложенный снимок переписки.
+  private verifyEnded(matchId: string): void {
+    if (this.verifying) {
+      return;
+    }
+    this.verifying = true;
+    void this.matchStillExists(matchId).then((exists) => {
+      if (matchId !== this.matchId()) {
+        return;
+      }
+      this.verifying = false;
+      const pending = this.pendingMessages;
+      this.pendingMessages = null;
+      if (!exists) {
+        this.end();
+      } else if (pending && this.state() === 'ready') {
+        this.applyMessages(pending, false);
+      }
+    });
+  }
+
+  // Есть ли мэтч на сервере. Если проверить не удалось (нет сети) — считаем, что есть:
+  // ошибочно «завершить» живой чат хуже, чем показать на минуту устаревшую переписку.
+  // Настоящее удаление всё равно придёт через подписку watchMatch, когда появится сеть.
+  private async matchStillExists(matchId: string): Promise<boolean> {
+    try {
+      return await this.chat.matchExists(matchId);
+    } catch (error) {
+      console.error(error);
+      return true;
+    }
   }
 
   // Чат завершён посреди разговора. Срабатывает только для уже открытого чата: если мэтча нет
   // с самого начала, это решает loadPartner (состояние notFound).
+  // Если я сам сейчас разрываю мэтч — молчим: через мгновение уйдём на /matches.
   private end(): void {
+    if (this.leaving) {
+      this.endSuppressed = true;
+      return;
+    }
     if (this.state() === 'ready') {
       this.state.set('ended');
       this.sending.set(false);
@@ -291,9 +478,7 @@ export class Chat {
     try {
       partnerUid = await this.chat.loadPartner(matchId, this.me);
     } catch (error) {
-      if (matchId === this.matchId()) {
-        this.fail(error);
-      }
+      this.fail(matchId, error);
       return;
     }
     if (!partnerUid) {
@@ -318,14 +503,30 @@ export class Chat {
   }
 
   // Ошибка доступа — мэтча нет или он чужой (так решают firestore.rules). Остальное — повод повторить.
-  // Если чат уже был открыт, ошибка доступа значит одно: мэтч удалили — чат завершён.
-  private fail(error: unknown): void {
-    // Завершённый чат «заморожен»: ошибки отписавшихся подписок ему уже не важны.
-    if (this.state() === 'ended') {
+  // Если чат уже был открыт, ошибка доступа — повод проверить, не удалили ли мэтч.
+  private fail(matchId: string, error: unknown): void {
+    // Ответ от прошлого чата или от «замороженного» завершённого — уже не важен.
+    if (matchId !== this.matchId() || this.state() === 'ended') {
       return;
     }
     if (this.state() === 'ready' && isPermissionDenied(error)) {
-      this.end();
+      if (this.leaving) {
+        this.endSuppressed = true;
+        return;
+      }
+      // Подписка после ошибки уже не работает. Мэтча нет — чат завершён; есть — честно
+      // показываем ошибку с кнопкой «Попробовать ещё раз», а не «Чат завершён».
+      void this.matchStillExists(matchId).then((exists) => {
+        if (matchId !== this.matchId() || this.state() !== 'ready') {
+          return;
+        }
+        if (exists) {
+          this.errorKey.set(firestoreErrorKey(error));
+          this.state.set('error');
+        } else {
+          this.end();
+        }
+      });
       return;
     }
     if (isPermissionDenied(error)) {

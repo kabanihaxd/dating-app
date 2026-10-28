@@ -1,4 +1,14 @@
-import { Component, ElementRef, computed, effect, inject, signal, untracked } from '@angular/core';
+import {
+  Component,
+  DOCUMENT,
+  ElementRef,
+  afterRenderEffect,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -34,6 +44,15 @@ interface MatchView {
   contacts: { field: ContactField; value: string; isLink: boolean }[];
 }
 
+// Запись кэша карточек по uid — одно из трёх состояний. Это «размеченное объединение»
+// (discriminated union): по полю state TypeScript сам понимает, какие ещё поля есть у записи.
+// view — карточка готова; deleted — анкеты нет, показывать нечего;
+// error — не удалось загрузить (сеть, сбой). Это НЕ «удалён»: такую карточку можно перезапросить.
+type CardEntry =
+  | { state: 'view'; view: MatchView }
+  | { state: 'deleted' }
+  | { state: 'error'; error: unknown };
+
 @Component({
   selector: 'app-matches',
   imports: [
@@ -54,6 +73,7 @@ export class Matches {
   private readonly snackBar = inject(MatSnackBar);
   private readonly i18n = inject(I18n);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly document = inject(DOCUMENT);
 
   // Сам список мэтчей, превью последнего сообщения и «непрочитано» берём из живой подписки
   // уведомлений (onSnapshot), поэтому всё это обновляется на странице само, без перезагрузки.
@@ -63,52 +83,128 @@ export class Matches {
   // Моя анкета нужна, чтобы посчитать общие игры. undefined — ещё грузится, null — анкеты нет.
   private readonly myProfile = signal<UserProfile | null | undefined>(undefined);
   // Кэш карточек по uid: анкету и контакты каждого игрока читаем один раз, а не на каждый
-  // новый снимок мэтчей (новое сообщение тоже меняет снимок). null — анкеты нет или контакты закрыты.
-  private readonly views = signal(new Map<string, MatchView | null>());
+  // новый снимок мэтчей (новое сообщение тоже меняет снимок). Нет записи — ещё не загружена.
+  private readonly cards = signal(new Map<string, CardEntry>());
   // uid, за которыми уже отправлен запрос, — чтобы не запрашивать одного и того же дважды.
   private readonly requested = new Set<string>();
+  // uid, чей запрос сейчас «в полёте». Нужен, чтобы во время повтора показать загрузку,
+  // а не ту же самую ошибку.
+  private readonly inFlight = signal(new Set<string>());
   // Карточки, убранные через «⋮», прячем сразу, не дожидаясь, пока снимок из базы догонит.
   private readonly removedUids = signal(new Set<string>());
-  // Первая партия карточек догружена. Дальше новые мэтчи просто «доезжают» в сетку,
-  // а не возвращают всю страницу в скелетон.
+  // Первая партия карточек догружена. Это «защёлка»: один раз стала true — и всё. Дальше новые
+  // мэтчи просто «доезжают» в сетку, а не возвращают всю страницу в скелетон.
   private readonly firstBatchLoaded = signal(false);
   private readonly profileErrorKey = signal<string | null>(null);
   // Счётчик повторов: увеличили — эффект ниже снова запускает sync() и дозапрашивает упавших.
   private readonly attempt = signal(0);
+  // Когда я в прошлый раз заходил на «Мэтчи» — запоминаем ДО того, как отметить всё просмотренным.
+  // Мэтчи новее этого момента получают метку «Новый».
+  private readonly seenBefore: number;
 
   // Три серые заготовки карточек на время загрузки.
   protected readonly skeletons = [0, 1, 2];
 
-  // Ошибка — либо при чтении моей анкеты, либо у живой подписки на мэтчи.
-  protected readonly errorKey = computed(() => {
-    const subscriptionError = this.notifications.matchesError();
-    return (
-      this.profileErrorKey() ?? (subscriptionError ? firestoreErrorKey(subscriptionError) : null)
-    );
+  // Мэтчи, которые сейчас должны быть на странице: без скрытых (блокировки) и убранных через «⋮».
+  private readonly shownList = computed(() => {
+    const hidden = this.notifications.hidden();
+    const removed = this.removedUids();
+    return this.notifications
+      .matchList()
+      .filter((match) => !hidden.has(match.otherUid) && !removed.has(match.otherUid));
   });
 
+  // uid карточек, которые не удалось загрузить.
+  private readonly failedUids = computed(() => {
+    const cards = this.cards();
+    return this.shownList()
+      .map((match) => match.otherUid)
+      .filter((uid) => cards.get(uid)?.state === 'error');
+  });
+  protected readonly failedCount = computed(() => this.failedUids().length);
+  // Повтор для упавших карточек уже идёт — кнопка «Попробовать ещё раз» ждёт результата.
+  protected readonly retrying = computed(() => {
+    const inFlight = this.inFlight();
+    return this.failedUids().some((uid) => inFlight.has(uid));
+  });
+
+  // Состав — из живого списка мэтчей, данные карточки — из кэша. Если мэтч разорвали или меня
+  // заблокировали, пока страница открыта, — карточка исчезает сама.
+  // Порядок: сначала чаты с непрочитанным, потом по свежести — последнее сообщение или сам мэтч.
+  protected readonly visibleMatches = computed(() => {
+    const cards = this.cards();
+    const unread = this.notifications.unreadChats();
+    const last = this.notifications.lastMessages();
+    const activity = (match: LiveMatch) => Math.max(match.createdAt, last.get(match.id)?.at ?? 0);
+    return [...this.shownList()]
+      .sort(
+        (a, b) => Number(unread.has(b.id)) - Number(unread.has(a.id)) || activity(b) - activity(a),
+      )
+      .flatMap((match) => {
+        const entry = cards.get(match.otherUid);
+        return entry?.state === 'view' ? [entry.view] : [];
+      });
+  });
+
+  // id мэтчей, случившихся после моего прошлого захода, — им метка «Новый».
+  protected readonly newMatchIds = computed(
+    () =>
+      new Set(
+        this.notifications
+          .matchList()
+          .filter((match) => match.createdAt > this.seenBefore)
+          .map((match) => match.id),
+      ),
+  );
+
+  // Ни одной карточки показать нельзя, а упавшие есть — это ошибка страницы, а не «мэтчей пока нет».
+  private readonly allFailed = computed(
+    () => this.failedCount() > 0 && this.visibleMatches().length === 0,
+  );
+
+  // Ошибка — при чтении моей анкеты, у живой подписки на мэтчи или у всех карточек сразу.
+  protected readonly errorKey = computed(() => {
+    const profileError = this.profileErrorKey();
+    const subscriptionError = this.notifications.matchesError();
+    if (profileError) {
+      return profileError;
+    }
+    if (subscriptionError) {
+      return firestoreErrorKey(subscriptionError);
+    }
+    if (this.allFailed() && !this.retrying()) {
+      const entry = this.cards().get(this.failedUids()[0]);
+      return firestoreErrorKey(entry?.state === 'error' ? entry.error : null);
+    }
+    return null;
+  });
+
+  // У каждого мэтча из живого списка уже есть запись в кэше (готова, удалена или ошибка).
+  private readonly allSettled = computed(() => {
+    const cards = this.cards();
+    return this.notifications.matchList().every((match) => cards.has(match.otherUid));
+  });
+
+  // Скелетон: пока не пришли подписка, моя анкета или первая партия карточек.
+  // И ещё при повторе после «не загрузилась ни одна» — чтобы было видно, что загрузка идёт.
   protected readonly loading = computed(
     () =>
       !this.notifications.matchesReady() ||
       this.myProfile() === undefined ||
-      !this.firstBatchLoaded(),
+      !this.firstBatchLoaded() ||
+      (this.allFailed() && this.retrying()),
   );
 
-  // Состав и порядок — из живого списка мэтчей, данные карточки — из кэша.
-  // Если мэтч разорвали или меня заблокировали, пока страница открыта, — карточка исчезает сама.
-  protected readonly visibleMatches = computed(() => {
-    const hidden = this.notifications.hidden();
-    const removed = this.removedUids();
-    const views = this.views();
-    return this.notifications.matchList().flatMap((match) => {
-      const view = views.get(match.otherUid);
-      return view && !hidden.has(match.otherUid) && !removed.has(match.otherUid) ? [view] : [];
-    });
-  });
+  // Где сейчас фокус: uid карточки и сам элемент. Обычные поля, а не сигналы, — шаблон их не читает.
+  private focusedUid: string | null = null;
+  private focusedEl: HTMLElement | null = null;
+  // Список карточек на прошлой отрисовке — чтобы понять, какая исчезла и кто был её соседом.
+  private previousList: MatchView[] = [];
 
   constructor() {
     // Открыл страницу — значит, новые мэтчи увидел: значок в меню гаснет.
-    this.notifications.markMatchesSeen();
+    // Метод возвращает прошлую отметку — по ней ставим метки «Новый».
+    this.seenBefore = this.notifications.markMatchesSeen();
     void this.loadMyProfile();
 
     // Пришёл новый снимок мэтчей — догружаем анкеты только новых людей, а ушедших забываем.
@@ -121,10 +217,33 @@ export class Matches {
       // untracked: сигналы, которые читает sync(), не должны перезапускать этот эффект.
       untracked(() => void this.sync(list));
     });
+
+    // Защёлка первой партии. Сверяем с ТЕКУЩИМ живым списком, а не с тем, что был, когда
+    // стартовал sync(): пока он грузил, мог прийти новый мэтч — и пустое состояние
+    // «мэтчей пока нет» мигнуло бы на долю секунды.
+    effect(() => {
+      if (
+        this.notifications.matchesReady() &&
+        this.myProfile() !== undefined &&
+        this.allSettled()
+      ) {
+        this.firstBatchLoaded.set(true);
+      }
+    });
+
+    // afterRenderEffect срабатывает ПОСЛЕ того, как Angular обновил DOM: так видно настоящее
+    // положение дел — какие карточки исчезли и где оказался фокус.
+    afterRenderEffect(() => {
+      const list = this.visibleMatches();
+      untracked(() => this.keepFocus(list));
+    });
   }
 
-  // Кнопка «Попробовать ещё раз» на ошибке загрузки.
+  // Кнопка «Попробовать ещё раз» на ошибке загрузки (страницы или отдельных карточек).
   protected retry(): void {
+    if (this.retrying()) {
+      return; // повтор уже идёт — второй клик ничего не добавит
+    }
     this.profileErrorKey.set(null);
     if (this.notifications.matchesError()) {
       this.notifications.retryMatches();
@@ -132,24 +251,48 @@ export class Matches {
     if (this.myProfile() === undefined) {
       void this.loadMyProfile();
     }
-    // Тех, кого не удалось загрузить, запросим снова.
-    const failed = [...this.views()].filter(([, view]) => !view).map(([uid]) => uid);
-    failed.forEach((uid) => this.requested.delete(uid));
-    this.views.update((views) => new Map([...views].filter(([, view]) => view)));
+    // Перезапрашиваем только упавшие карточки. Запись «ошибка» не стираем, пока не придёт
+    // новый ответ: иначе строка с кнопкой исчезла бы прямо из-под фокуса.
+    this.failedUids().forEach((uid) => this.requested.delete(uid));
     this.attempt.update((n) => n + 1);
   }
 
-  // Мэтч разорван или человек заблокирован — убираем карточку и переносим фокус. Иначе он
-  // «провалится» в начало страницы вместе с исчезнувшей кнопкой «⋮». Куда: на имя следующей
-  // карточки, если её нет — предыдущей, а если карточек не осталось — на заголовок страницы.
+  // Мэтч разорван или человек заблокирован через «⋮» — убираем карточку и переносим фокус.
   protected remove(uid: string): void {
     const list = this.visibleMatches();
-    const index = list.findIndex((match) => match.uid === uid);
-    const target = list[index + 1] ?? list[index - 1];
     this.removedUids.update((removed) => new Set(removed).add(uid));
-    // Заголовок соседней карточки и h1 уже есть в DOM, поэтому фокус можно ставить сразу.
-    const id = target ? target.headingId : 'matches-title';
-    this.host.nativeElement.querySelector<HTMLElement>(`#${id}`)?.focus();
+    this.focusNeighbour(list, uid);
+  }
+
+  // Фокус вошёл в карточку — запоминаем, в какую и на какой элемент.
+  protected onFocusIn(event: FocusEvent, uid: string): void {
+    this.focusedUid = uid;
+    this.focusedEl = event.target instanceof HTMLElement ? event.target : null;
+  }
+
+  // Фокус ушёл из карточки. relatedTarget — элемент, куда он ушёл: если он вне карточки — забываем.
+  // relatedTarget = null бывает в двух случаях: щёлкнули по пустому месту или элемент пропал
+  // из DOM. Различаем их чуть позже (setTimeout): если элемент на месте, а фокус на body,
+  // значит, щёлкнули мимо, и возвращать фокус в карточку нельзя.
+  protected onFocusOut(event: FocusEvent, uid: string): void {
+    const card = event.currentTarget as HTMLElement;
+    const next = event.relatedTarget;
+    if (next instanceof Node) {
+      if (!card.contains(next) && this.focusedUid === uid) {
+        this.forgetFocus();
+      }
+      return;
+    }
+    const element = event.target as HTMLElement;
+    setTimeout(() => {
+      if (
+        this.focusedUid === uid &&
+        element.isConnected &&
+        this.document.activeElement === this.document.body
+      ) {
+        this.forgetFocus();
+      }
+    });
   }
 
   // Буфер обмена может быть недоступен (нет разрешения, старый браузер, не https) —
@@ -164,6 +307,57 @@ export class Matches {
       console.error(error);
       this.snackBar.open(this.i18n.translate('matches.copyFailed'), undefined, { duration: 4000 });
     }
+  }
+
+  // Карточка с фокусом исчезла сама (собеседник разорвал мэтч или заблокировал меня) или
+  // переехала из-за сортировки. В обоих случаях браузер сбрасывает фокус на body, и тот,
+  // кто ходит клавиатурой, теряется. Возвращаем фокус туда, где ему разумно быть.
+  private keepFocus(list: MatchView[]): void {
+    const previous = this.previousList;
+    this.previousList = list;
+    const uid = this.focusedUid;
+    if (!uid) {
+      return;
+    }
+    const active = this.document.activeElement;
+    const lost = !active || active === this.document.body;
+    if (list.some((match) => match.uid === uid)) {
+      // Карточка на месте, но её переставили — возвращаем фокус на тот же элемент.
+      if (lost && this.focusedEl?.isConnected) {
+        this.focusedEl.focus();
+      }
+      return;
+    }
+    // Карточка исчезла. Пока идёт анимация ухода, она ещё в DOM — и фокус может быть внутри.
+    // Если же фокус уже в другом месте (например, его перенёс remove()), — не трогаем.
+    const card = this.host.nativeElement.querySelector(`article[data-uid="${uid}"]`);
+    if (!lost && !card?.contains(active)) {
+      this.forgetFocus();
+      return;
+    }
+    // Соседей ищем в прошлом списке, но только среди тех, кто остался на странице.
+    const current = new Set(list.map((match) => match.uid));
+    this.forgetFocus();
+    this.focusNeighbour(
+      previous.filter((match) => match.uid === uid || current.has(match.uid)),
+      uid,
+    );
+  }
+
+  // Куда переносить фокус, когда карточка uid уходит из списка list: на имя следующей карточки,
+  // если её нет — предыдущей, а если карточек не осталось — на заголовок страницы.
+  // Иначе фокус «провалится» в начало страницы вместе с исчезнувшей карточкой.
+  private focusNeighbour(list: MatchView[], uid: string): void {
+    const index = list.findIndex((match) => match.uid === uid);
+    const target = index < 0 ? undefined : (list[index + 1] ?? list[index - 1]);
+    // Заголовок соседней карточки и h1 уже есть в DOM, поэтому фокус можно ставить сразу.
+    const id = target ? target.headingId : 'matches-title';
+    this.host.nativeElement.querySelector<HTMLElement>(`#${id}`)?.focus();
+  }
+
+  private forgetFocus(): void {
+    this.focusedUid = null;
+    this.focusedEl = null;
   }
 
   private async loadMyProfile(): Promise<void> {
@@ -182,29 +376,46 @@ export class Matches {
     const gone = [...this.requested].filter((uid) => !current.has(uid));
     if (gone.length) {
       gone.forEach((uid) => this.requested.delete(uid));
-      this.views.update((views) => new Map([...views].filter(([uid]) => current.has(uid))));
+      this.cards.update((cards) => new Map([...cards].filter(([uid]) => current.has(uid))));
       this.removedUids.update((removed) => new Set([...removed].filter((uid) => current.has(uid))));
     }
 
     const fresh = list.filter((match) => !this.requested.has(match.otherUid));
     fresh.forEach((match) => this.requested.add(match.otherUid));
+    this.setInFlight(fresh, true);
     // Анкеты и контакты новых мэтчей — параллельно. Контакты нам отдают, потому что мэтч есть
-    // (см. firestore.rules). Мэтч могли разорвать прямо сейчас — тогда контакты уже закрыты;
-    // такой мэтч просто пропускаем, а не ломаем из-за него всю страницу.
+    // (см. firestore.rules). Одна упавшая карточка не ломает всю страницу: она попадает в кэш
+    // как «ошибка», и её можно перезапросить кнопкой.
     await Promise.all(
       fresh.map(async (match) => {
-        const { profile, contacts } = await this.profiles
-          .load(match.otherUid)
-          .catch(() => ({ profile: null, contacts: null }));
+        let entry: CardEntry;
+        try {
+          const { profile, contacts } = await this.profiles.load(match.otherUid);
+          const view = this.toView(match, profile, contacts);
+          entry = view ? { state: 'view', view } : { state: 'deleted' };
+        } catch (error) {
+          console.error(error);
+          entry = { state: 'error', error };
+        }
+        this.setInFlight([match], false);
         // Пока грузили, мэтч могли разорвать — тогда результат уже не нужен.
         if (this.requested.has(match.otherUid)) {
-          this.views.update((views) =>
-            new Map(views).set(match.otherUid, this.toView(match, profile, contacts)),
-          );
+          this.cards.update((cards) => new Map(cards).set(match.otherUid, entry));
         }
       }),
     );
-    this.firstBatchLoaded.set(true);
+  }
+
+  // Отмечаем, что запросы за этими uid ушли (on) или вернулись (off).
+  private setInFlight(matches: LiveMatch[], on: boolean): void {
+    if (!matches.length) {
+      return;
+    }
+    this.inFlight.update((set) => {
+      const next = new Set(set);
+      matches.forEach((match) => (on ? next.add(match.otherUid) : next.delete(match.otherUid)));
+      return next;
+    });
   }
 
   private toView(

@@ -304,6 +304,49 @@ app-player-card {
       vertical-align: -2px;
     }
   }
+
+  // Фокус сюда ставит только код (tabindex="-1"), когда «Вернуть» исчезла под фокусом, —
+  // рамка та же, что у кнопок, чтобы человек с клавиатуры видел, где он.
+  &:focus-visible {
+    outline: 2px solid var(--di-neon-cyan);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+
+  // Полоска «сколько осталось до отправки»: тонкая розовая линия на всю ширину строки
+  // тает справа налево за 4 с (длительность задаёт шаблон). scaleX, а не width: transform
+  // не заставляет браузер заново раскладывать строку на каждом кадре.
+  // held — мышь над строкой или фокус на «Вернуть»: анимация замирает вместе с таймером.
+  .countdown {
+    flex-basis: 100%;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--di-neon-pink);
+    opacity: 0.7;
+    transform-origin: left center;
+    animation: feed-countdown linear forwards;
+
+    &.held {
+      animation-play-state: paused;
+    }
+  }
+}
+
+@keyframes feed-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+// Без анимаций полоска не нужна: глобальное правило сократило бы её до мгновения, и она
+// бы просто исчезла. Остаётся статичный текст «Приглашение отправляется: X · Вернуть».
+@media (prefers-reduced-motion: reduce) {
+  .last-action .countdown {
+    display: none;
+  }
 }
 
 // ===== Подсказка «добавь время игры и жанры» =====

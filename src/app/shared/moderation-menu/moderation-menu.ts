@@ -31,13 +31,25 @@ export class ModerationMenu {
   // Есть ли мэтч — только тогда в меню появляется «Разорвать мэтч».
   readonly matched = input(false);
 
-  // Человек убран (мэтч разорван или заблокирован) — страница сама решает, что делать:
+  // Два события вокруг «убирающих» действий (разрыв мэтча, блок, жалоба с блоком):
+  //
+  // removing — человек нажал «Да» в окне подтверждения, запрос в Firestore ещё НЕ ушёл.
+  // Нужен странице, чтобы заранее понять: сейчас мэтч исчезнет по нашей же воле.
+  // Например, чат слушает свой мэтч и, увидев его удаление, показывает «чат завершён» —
+  // а при собственном разрыве это сообщение лишнее, поэтому по removing чат его глушит.
+  // Если запрос потом упадёт, removed не придёт — странице стоит быть к этому готовой.
+  readonly removing = output<void>();
+
+  // removed — запрос успешно выполнен, человек убран. Страница сама решает, что делать:
   // убрать карточку из списка или уйти из чата.
   readonly removed = output<void>();
 
   protected readonly busy = signal(false);
 
   protected unmatch(): void {
+    if (this.busy()) {
+      return;
+    }
     const name = { name: this.name() };
     this.confirm({
       title: this.i18n.translate('moderation.unmatchTitle', name),
@@ -56,6 +68,9 @@ export class ModerationMenu {
   }
 
   protected block(): void {
+    if (this.busy()) {
+      return;
+    }
     const name = { name: this.name() };
     this.confirm({
       title: this.i18n.translate('moderation.blockTitle', name),
@@ -78,10 +93,17 @@ export class ModerationMenu {
   }
 
   protected report(): void {
+    if (this.busy()) {
+      return;
+    }
     this.dialog
       .open<ReportDialog, ReportDialogData, ReportDialogResult>(ReportDialog, {
         data: { name: this.name() },
-        width: '440px',
+        // Рамку и фон окно рисует само (как ConfirmDialog), подложку Material этот класс
+        // делает прозрачной. Ширина «до 440px, но с отступом 16px от краёв» — для телефонов.
+        panelClass: 'di-framed-dialog',
+        maxWidth: 440,
+        width: 'calc(100vw - 32px)',
       })
       .afterClosed()
       .subscribe((result) => {
@@ -112,8 +134,13 @@ export class ModerationMenu {
   }
 
   // Общая часть всех действий: блокируем кнопку, выполняем, сообщаем результат.
+  // Вызывается уже ПОСЛЕ подтверждения, поэтому removing сообщаем здесь — до первого await,
+  // то есть строго раньше, чем запрос уйдёт в Firestore.
   private async run(action: () => Promise<void>, doneKey: string, removes: boolean): Promise<void> {
     this.busy.set(true);
+    if (removes) {
+      this.removing.emit();
+    }
     try {
       await action();
       this.snackBar.open(this.i18n.translate(doneKey, { name: this.name() }), undefined, {

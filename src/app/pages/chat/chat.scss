@@ -1,16 +1,3 @@
-.empty {
-  text-align: center;
-  color: var(--di-text-muted);
-  animation: di-fade-up 0.4s ease-out;
-
-  mat-icon {
-    font-size: 48px;
-    width: 48px;
-    height: 48px;
-    color: var(--di-neon-pink);
-  }
-}
-
 // Чат занимает всё место под шапкой: сверху собеседник, снизу поле ввода,
 // а прокручивается только список сообщений между ними.
 // Высоту не высчитываем «магическим числом»: app.scss, когда открыт чат, превращает страницу
@@ -93,9 +80,20 @@
   padding: 16px;
 }
 
+// Пустой чат: приветствие по центру списка и общие игры как повод начать разговор.
 .empty {
   margin: auto;
   max-width: 360px;
+  text-align: center;
+  color: var(--di-text-muted);
+  animation: di-fade-up 0.3s ease-out;
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: var(--di-neon-pink);
+  }
 }
 
 .muted {

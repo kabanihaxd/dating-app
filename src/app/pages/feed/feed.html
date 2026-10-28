@@ -182,7 +182,9 @@
 
   @if (results().length) {
     @if (view() === 'deck') {
-      <section class="deck" [attr.aria-label]="'feed.view.deck' | t">
+      <!-- Имя области — «Колода игроков», а не название кнопки вида («По одному»):
+           скринридер перечисляет области страницы, и имя должно говорить, что внутри. -->
+      <section class="deck" [attr.aria-label]="'feed.deckLabel' | t">
         <!-- Колода: текущий игрок и следующий, выглядывающий из-за него. Когда текущий улетает,
              следующий плавно выезжает вперёд — это тот же элемент (track по uid), меняется
              только класс peek. -->
@@ -191,6 +193,7 @@
             <app-player-card
               class="slot"
               [class.peek]="i === 1"
+              [attr.data-uid]="item.player.uid"
               [attr.aria-hidden]="i === 1 ? 'true' : null"
               [attr.inert]="i === 1 ? '' : null"
               animate.enter="deck-in"
@@ -254,6 +257,7 @@
             animate.enter="di-enter"
             [animate.leave]="leaveClass(result.player.uid)"
             [style.--i]="$index"
+            [attr.data-uid]="result.player.uid"
             [player]="result.player"
             [age]="result.age"
             [match]="result.match"
@@ -334,6 +338,7 @@
       </app-state-message>
     } @else {
       <app-state-message icon="search_off" tone="cyan">
+        <h2>{{ 'feed.emptyFilteredTitle' | t }}</h2>
         <p>{{ 'feed.emptyFiltered' | t }}</p>
         <button mat-stroked-button type="button" (click)="resetFilters()">
           <mat-icon aria-hidden="true">filter_alt_off</mat-icon>
@@ -349,23 +354,59 @@
 }
 
 <!-- Строка «последнее действие»: подтверждение лайка/пропуска и «Вернуть» (у лайка — пока он ждёт отправки).
-     ng-template — кусок шаблона, который вставляется в нескольких местах (колода, сетка, «пусто»). -->
+     ng-template — кусок шаблона, который вставляется в нескольких местах (колода, сетка, «пусто»).
+     Мышь над строкой или фокус внутри неё ставят таймер лайка на паузу (onLinePointer, onFocusIn /
+     onLineFocusOut). tabindex="-1": если «Вернуть» исчезнет, пока на ней фокус, он останется
+     здесь же, на строке, а не упадёт на <body> и не прыгнет к карточке. -->
 <ng-template #lastLine>
   @if (lastAction(); as last) {
-    <p class="last-action">
+    <p
+      class="last-action"
+      tabindex="-1"
+      (pointerenter)="onLinePointer($event, true)"
+      (pointerleave)="onLinePointer($event, false)"
+      (focusout)="onLineFocusOut($event)"
+    >
       @switch (last.kind) {
-        @case ('liked') {
+        @case ('sending') {
+          <!-- Лайк ещё не записан: честно «отправляется», а не «отправлено». -->
           <mat-icon class="pink" aria-hidden="true">favorite</mat-icon>
-          <span>{{ 'feed.last.liked' | t: { name: last.player.name } }}</span>
+          <span>{{ 'feed.last.sending' | t: { name: last.player.name } }}</span>
           <!-- Пока лайк ждёт отправки (несколько секунд), его можно отменить. -->
           @if (last.undoable) {
             <ng-container
               [ngTemplateOutlet]="undoButton"
-              [ngTemplateOutletContext]="{ label: 'feed.last.undoLikeName', name: last.player.name }"
+              [ngTemplateOutletContext]="{
+                label: 'feed.last.undoLikeName',
+                name: last.player.name,
+              }"
             />
+            <!-- Полоска «сколько осталось»: CSS-анимация длиной в таймер. @for с одним элементом
+                 и track по uid — приём, чтобы для НОВОГО лайка Angular создал новую полоску
+                 (и анимация началась сначала), а не продолжил старую. held — пауза, как у таймера.
+                 aria-hidden: это картинка; скринридеру хватает «Можно вернуть». -->
+            @for (uid of [last.player.uid]; track uid) {
+              <span
+                class="countdown"
+                aria-hidden="true"
+                [class.held]="lineHeld()"
+                [style.animation-duration.ms]="likeUndoMs"
+              ></span>
+            }
           }
           @if (last.consentNote) {
             <!-- Только при первом лайке: объясняем, что ничего личного ещё не ушло. -->
+            <span class="consent">
+              <mat-icon aria-hidden="true">lock</mat-icon>
+              {{ 'feed.last.consent' | t }}
+            </span>
+          }
+        }
+        @case ('liked') {
+          <!-- Сервер подтвердил запись — теперь «Приглашение отправлено». Отменить уже нельзя. -->
+          <mat-icon class="pink" aria-hidden="true">favorite</mat-icon>
+          <span>{{ 'feed.last.liked' | t: { name: last.player.name } }}</span>
+          @if (last.consentNote) {
             <span class="consent">
               <mat-icon aria-hidden="true">lock</mat-icon>
               {{ 'feed.last.consent' | t }}

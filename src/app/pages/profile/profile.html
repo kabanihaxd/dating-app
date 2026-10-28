@@ -122,14 +122,17 @@
             </mat-chip-row>
           }
         </mat-chip-grid>
-        <!-- Enter или запятая добавляют набранную игру; можно выбрать и из подсказок. -->
+        <!-- Набранная игра добавляется по Enter и когда фокус уходит с поля (matChipInputAddOnBlur),
+             так что «напечатал и нажал Сохранить» её не теряет. Запятая НЕ разделитель: она бывает
+             в названиях («Warhammer 40,000»). Можно выбрать и из подсказок. -->
         <input
           #gameInput
           data-field="games"
           [placeholder]="'profile.games.placeholder' | t"
           [matChipInputFor]="chipGrid"
+          matChipInputAddOnBlur
           [matAutocomplete]="auto"
-          (input)="gameQuery.set(gameInput.value)"
+          (input)="onGameTyped(gameInput.value)"
           (matChipInputTokenEnd)="addGame($event.value, gameInput)"
         />
         <mat-autocomplete
@@ -137,10 +140,23 @@
           (optionSelected)="addGame($event.option.value, gameInput)"
         >
           @for (game of suggestions(); track game) {
-            <mat-option [value]="game">{{ game }}</mat-option>
+            <!-- preventDefault на mousedown: клик по подсказке не уводит фокус с поля.
+                 Иначе сработал бы addOnBlur и добавил недописанный текст («Hal») рядом с выбранной игрой. -->
+            <mat-option [value]="game" (mousedown)="$event.preventDefault()">{{ game }}</mat-option>
           }
         </mat-autocomplete>
-        <mat-hint>{{ 'profile.games.hint' | t: { max: maxGames } }}</mat-hint>
+        <mat-hint>
+          <!-- Живая область: диктор вежливо (polite) прочитает, почему игра не добавилась.
+               Сама область есть всегда — иначе её появление вместе с текстом диктор мог бы пропустить. -->
+          <span aria-live="polite">
+            @if (gameRejection(); as rejection) {
+              {{ rejection.key | t: { game: rejection.game, max: maxGames } }}
+            }
+          </span>
+          @if (!gameRejection()) {
+            {{ 'profile.games.hint' | t: { max: maxGames } }}
+          }
+        </mat-hint>
         @if (form.controls.games.hasError('required')) {
           <mat-error>{{ 'profile.errors.minOne' | t }}</mat-error>
         }
@@ -218,6 +234,7 @@
                 mat-stroked-button
                 type="button"
                 class="connect-btn"
+                [disabled]="saving()"
                 (click)="connectPlatform(field)"
               >
                 <mat-icon>link</mat-icon>
@@ -235,18 +252,25 @@
   <!-- Липкая панель внизу экрана, как кнопки в ленте: «Сохранить» всегда под рукой, даже посреди длинной формы.
        Ошибки показываем здесь же — там, куда человек только что нажал. -->
   <div class="action-bar">
-    <!-- role="alert" — экранный диктор прочитает текст сразу, как только он появится или изменится. -->
-    <div class="messages" role="alert">
+    <div class="messages">
       @if (showInvalid() && invalidLabels().length) {
+        <!-- Список БЕЗ живой области: он меняется на каждое исправленное поле, и диктор
+             не должен твердить его заново. Озвучивает снимок ниже — один раз на нажатие «Сохранить». -->
         <p class="form-error">
           {{
             'profile.errors.fixFields'
               | t: { count: invalidLabels().length, fields: invalidLabels().join(', ') }
           }}
         </p>
-      } @else if (errorKey(); as key) {
-        <p class="form-error">{{ key | t }}</p>
       }
+      <!-- role="alert" — экранный диктор прочитает текст сразу, как только он появится или изменится.
+           Ошибка сохранения меняется только от попытки к попытке, поэтому её можно объявлять так. -->
+      <div role="alert">
+        @if (!(showInvalid() && invalidLabels().length) && errorKey(); as key) {
+          <p class="form-error">{{ key | t }}</p>
+        }
+        <span class="sr-only">{{ invalidAnnouncement() }}</span>
+      </div>
     </div>
     <div class="bar-row">
       @if (dirty()) {

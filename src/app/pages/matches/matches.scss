@@ -57,6 +57,29 @@ h1,
     overflow-wrap: anywhere;
   }
 
+  // Имя и метка «Новый» в одну строку; узкой карточке метка переносится под имя.
+  .name-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 4px;
+  }
+
+  // Метка «Новый» — pill в розовом (Pulse Pink): по правилу Dark-on-Neon текст тёмный и жирный,
+  // белый на розовом не проходит контраст. Свечение — «розовый зов», как у метки «нравишься».
+  .new-pill {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--di-bg);
+    background: var(--di-neon-pink);
+    box-shadow: 0 0 12px rgba(255, 46, 136, 0.45);
+    white-space: nowrap;
+  }
+
   // Имя занимает всё свободное место — кнопка «⋮» уезжает к правому краю.
   .who {
     flex: 1;
@@ -201,6 +224,34 @@ h1,
     flex-shrink: 0;
     background: var(--di-neon-pink);
     box-shadow: 0 0 8px var(--di-neon-pink);
+  }
+}
+
+// Строка «Не удалось загрузить мэтчи: N · Попробовать ещё раз» над сеткой.
+// Пунктир — как у всех состояний ошибки/пустоты в системе (DESIGN.md), цвет — ошибки Material.
+.load-failed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-bottom: 16px;
+  padding: 6px 8px 6px 14px;
+  border: 1px dashed var(--mat-sys-error);
+  border-radius: 16px;
+
+  > mat-icon {
+    color: var(--mat-sys-error);
+    flex-shrink: 0;
+  }
+
+  > span {
+    flex: 1 1 12em;
+  }
+
+  // aria-disabled не гасит кнопку сам — показываем «занято» вручную.
+  button[aria-disabled='true'] {
+    opacity: 0.6;
+    cursor: progress;
   }
 }
 

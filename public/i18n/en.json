@@ -77,7 +77,7 @@
     "count": "Players found: {{count}}",
     "emptyTitle": "No other players yet",
     "empty": "Invite your gamer friends — they'll appear here once they sign up.",
-    "emptyFiltered": "No players match these filters. Try a wider age range or fewer filters.",
+    "emptyFiltered": "Try a wider age range or fewer filters.",
     "noProfile": {
       "title": "Fill in your profile first",
       "text": "To find your player 2, we need to know your games and platforms.",
@@ -125,7 +125,7 @@
       "deck": "One by one",
       "grid": "Grid"
     },
-    "keysHint": "← skip · → player 2 · Z undo",
+    "keysHint": "← skip · → player 2 · Z / Backspace undo",
     "likeHint": "Player 2? sends an invite. Your contacts unlock only if they like you back.",
     "last": {
       "liked": "Invite sent: {{name}}",
@@ -134,7 +134,8 @@
       "restored": "{{name}} is back in the feed",
       "undoName": "Undo skip: {{name}}",
       "consent": "Your contacts stay hidden until they like you back.",
-      "undoLikeName": "Undo invite: {{name}}"
+      "undoLikeName": "Undo invite: {{name}}",
+      "sending": "Sending invite: {{name}}"
     },
     "matchDialog": {
       "title": "It's a match!",
@@ -171,9 +172,13 @@
       "undo": "Couldn't bring {{name}} back to the feed."
     },
     "announce": {
-      "liked": "Invite sent to {{name}}. Undo available",
-      "skipped": "Skipped {{name}}. Undo available"
-    }
+      "skipped": "Skipped {{name}}. Undo available",
+      "sending": "Sending invite: {{name}}. Undo available"
+    },
+    "matchToast": "It's a match: {{name}}!",
+    "inviteCopyFailed": "Couldn't copy. Here's the link: {{url}}",
+    "deckLabel": "Player deck",
+    "emptyFilteredTitle": "No players found"
   },
   "auth": {
     "loginTitle": "Log in",
@@ -220,7 +225,9 @@
     "copyNickname": "Copy {{platform}} nickname ({{name}})",
     "copiedNickname": "{{platform}} nickname copied",
     "copyFailed": "Couldn't copy. Select the nickname and copy it manually.",
-    "openProfileHint": "{{platform}}, {{name}}, opens in a new tab"
+    "openProfileHint": "{{platform}}, {{name}}, opens in a new tab",
+    "loadFailed": "Couldn't load matches: {{count}}",
+    "new": "New match"
   },
   "chat": {
     "back": "Back to matches",
@@ -231,7 +238,7 @@
     "empty": "No messages yet. Say hi and start the conversation!",
     "emptyGames": "Something to talk about — your games in common:",
     "notFound": "Chat not found: the match may have been removed, or the link is wrong.",
-    "sendError": "Couldn't send the message. Check your connection and try again.",
+    "sendError": "Couldn't send the message. Try again.",
     "speaker": {
       "me": "You:",
       "partner": "{{name}}:"
@@ -240,7 +247,8 @@
     "ended": {
       "title": "This chat has ended",
       "text": "The match is no longer active, so new messages can't be sent."
-    }
+    },
+    "sendErrorNetwork": "Couldn't send the message: no connection to the server. Check your internet and try again."
   },
   "profile": {
     "title": "Profile",
@@ -267,7 +275,9 @@
       "label": "Favorite games",
       "placeholder": "Start typing a game title...",
       "hint": "Pick from the list or type your own and press Enter. Up to {{max}} games.",
-      "remove": "Remove {{game}}"
+      "remove": "Remove {{game}}",
+      "duplicate": "{{game}} is already on the list",
+      "limit": "That's the max: {{max}} games. Remove one to add another"
     },
     "platforms": "Platforms",
     "genres": "Genres",
