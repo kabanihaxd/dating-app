@@ -7,16 +7,15 @@
     "logout": "Odhlásiť sa"
   },
   "common": {
-    "loading": "Načítava sa…"
+    "loading": "Načítava sa…",
+    "cancel": "Zrušiť"
   },
   "moderation": {
     "menu": "Akcie: {{name}}",
     "unmatch": "Zrušiť match",
     "report": "Nahlásiť",
     "block": "Zablokovať",
-    "unmatchConfirm": "Zrušiť match s {{name}}? Konverzácia bude vymazaná.",
-    "blockConfirm": "Zablokovať {{name}}? Už sa navzájom neuvidíte, match aj konverzácia budú vymazané.",
-    "reportTitle": "Nahlásiť {{name}}",
+    "reportTitle": "Nahlásenie: {{name}}",
     "reason": "Čo sa stalo?",
     "reasonRequired": "Vyber dôvod",
     "reasons": {
@@ -30,11 +29,18 @@
     "alsoBlock": "Zároveň zablokovať",
     "cancel": "Zrušiť",
     "send": "Odoslať",
-    "unmatched": "Match s {{name}} bol zrušený",
-    "blocked": "{{name}} je zablokovaný/á",
+    "unmatched": "Match zrušený: {{name}}",
+    "blocked": "Zablokované: {{name}}",
     "reported": "Nahlásenie odoslané. Ďakujeme!",
-    "reportedBlocked": "Nahlásenie odoslané, {{name}} je zablokovaný/á",
-    "error": "Akciu sa nepodarilo vykonať. Skús to znova"
+    "reportedBlocked": "Nahlásenie odoslané. Zablokované: {{name}}",
+    "error": "Akciu sa nepodarilo vykonať. Skús to znova",
+    "unmatchTitle": "{{name}}: zrušiť match?",
+    "unmatchText": "Konverzácia sa vymaže a už neuvidíte svoje kontakty.",
+    "unmatchAction": "Zrušiť match",
+    "blockTitle": "{{name}}: zablokovať?",
+    "blockTextFeed": "V zozname hráčov sa už navzájom neuvidíte.",
+    "blockTextMatched": "Match, konverzácia aj kontakty sa vymažú a už sa navzájom neuvidíte.",
+    "blockAction": "Zablokovať"
   },
   "notifications": {
     "liked": "{{name}} ti dáva lajk! Lajkni späť a je z toho match",
@@ -119,7 +125,7 @@
       "deck": "Po jednom",
       "grid": "Mriežka"
     },
-    "keysHint": "← preskočiť · → player 2",
+    "keysHint": "← preskočiť · → player 2 · Z vrátiť späť",
     "likeHint": "Player 2? je pozvánka. Kontakty sa zobrazia, len ak ti dajú lajk späť.",
     "last": {
       "liked": "Pozvánka odoslaná: {{name}}",
@@ -127,7 +133,8 @@
       "undo": "Vrátiť späť",
       "restored": "{{name}} je späť vo výbere",
       "undoName": "Vrátiť preskočeného: {{name}}",
-      "consent": "Kontakty sa zobrazia, len ak ti dajú lajk späť."
+      "consent": "Kontakty sa zobrazia, len ak ti dajú lajk späť.",
+      "undoLikeName": "Vrátiť späť pozvánku: {{name}}"
     },
     "matchDialog": {
       "title": "Je to zhoda!",
@@ -162,6 +169,10 @@
       "like": "Pozvánka sa neodoslala: {{name}}.",
       "skip": "Nepodarilo sa preskočiť: {{name}}.",
       "undo": "Nepodarilo sa vrátiť do výberu: {{name}}."
+    },
+    "announce": {
+      "liked": "Pozvánka odoslaná: {{name}}. Dá sa vrátiť späť",
+      "skipped": "Preskočené: {{name}}. Dá sa vrátiť späť"
     }
   },
   "auth": {
@@ -202,11 +213,14 @@
     "contacts": "Kontakty",
     "noContacts": "Hráč ešte nepridal kontakty.",
     "openProfile": "Otvoriť profil",
-    "copy": "Kopírovať",
-    "copied": "Skopírované",
     "write": "Napísať správu",
     "you": "Ty",
-    "unread": "Nová správa"
+    "unread": "Nová správa",
+    "chatWith": "Chat: {{name}}",
+    "copyNickname": "Kopírovať prezývku ({{platform}}, {{name}})",
+    "copiedNickname": "Prezývka ({{platform}}) skopírovaná",
+    "copyFailed": "Nepodarilo sa skopírovať. Označ prezývku a skopíruj ju ručne.",
+    "openProfileHint": "{{platform}}, {{name}}, otvorí sa na novej karte"
   },
   "chat": {
     "back": "Späť na matche",
@@ -214,10 +228,19 @@
     "placeholder": "Napíš správu…",
     "send": "Odoslať",
     "hint": "Enter — odoslať, Shift+Enter — nový riadok",
-    "empty": "Zatiaľ tu nič nie je. Napíš {{name}} ako prvý!",
+    "empty": "Zatiaľ tu nie sú žiadne správy. Pozdrav sa a začni rozhovor!",
     "emptyGames": "Téma na rozhovor — vaše spoločné hry:",
     "notFound": "Chat sa nenašiel: match mohol byť zrušený alebo je odkaz nesprávny.",
-    "sendError": "Správu sa nepodarilo odoslať. Skontroluj pripojenie a skús to znova."
+    "sendError": "Správu sa nepodarilo odoslať. Skontroluj pripojenie a skús to znova.",
+    "speaker": {
+      "me": "Ty:",
+      "partner": "{{name}}:"
+    },
+    "messageTo": "Správa, komu: {{name}}",
+    "ended": {
+      "title": "Tento chat sa skončil",
+      "text": "Match už nie je aktívny, takže nové správy sa nedajú odoslať."
+    }
   },
   "profile": {
     "title": "Profil",
@@ -256,8 +279,7 @@
       "button": "Pripojiť",
       "reconnect": "Pripojiť znova",
       "done": "{{platform}} je pripojený",
-      "failed": "Platformu sa nepodarilo pripojiť. Skús to znova",
-      "unsavedWarning": "V profile máš neuložené zmeny — stratia sa. Pokračovať?"
+      "failed": "Platformu sa nepodarilo pripojiť. Skús to znova"
     },
     "contacts": {
       "discord": "Discord",
@@ -274,7 +296,20 @@
       "underage": "Stránka je len pre dospelých (18+)",
       "minOne": "Vyber aspoň jednu možnosť",
       "invalidContact": "Prezývka (2–37 znakov) alebo odkaz https:// na {{site}}",
-      "invalidForm": "Skontroluj polia označené červenou"
+      "fixFields": "Oprav polia ({{count}}): {{fields}}"
+    },
+    "firstRun": {
+      "title": "Vytvor si profil hráča",
+      "subtitle": "Pridaj svoje hry a platformy. Hráči sa ti zobrazia hneď po uložení.",
+      "save": "Uložiť a nájsť hráčov"
+    },
+    "toFeed": "Na hráčov",
+    "unsaved": "Neuložené zmeny",
+    "leave": {
+      "title": "Odísť bez uloženia?",
+      "text": "Zmeny v profile nie sú uložené a stratia sa.",
+      "stay": "Zostať",
+      "leave": "Odísť"
     }
   },
   "catalog": {

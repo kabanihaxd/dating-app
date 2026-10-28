@@ -27,9 +27,17 @@ export interface LastMessage {
 // То, что уведомлениям нужно знать про один мэтч.
 interface MatchSummary {
   id: string;
+  otherUid: string; // второй участник мэтча
   createdAt: number;
   lastMessage: LastMessage | null;
   readAt: number; // когда Я последний раз открывал этот чат; 0 — ни разу
+}
+
+// Мэтч для страницы «Мэтчи»: кто второй и когда случился. Живой — пропадает, если мэтч разорвали.
+export interface LiveMatch {
+  id: string;
+  otherUid: string;
+  createdAt: number;
 }
 
 // Уведомления в реальном времени. getDocs читает базу один раз, а onSnapshot «подписывается»:
@@ -50,6 +58,12 @@ export class NotificationService {
   private readonly blockedMe = signal(new Set<string>());
   private readonly matches = signal<MatchSummary[]>([]);
   private readonly matchesSeenAt = signal(0);
+  // Пришёл ли первый снимок мэтчей и не упала ли подписка. До первого снимка список пустой —
+  // но это «ещё не знаем», а не «мэтчей нет», и страница должна показывать скелетон, а не пустоту.
+  private readonly matchesLoaded = signal(false);
+  private readonly matchesFailed = signal<unknown>(null);
+  // Счётчик попыток: увеличили — эффект ниже переподписывается на мэтчи заново.
+  private readonly matchesAttempt = signal(0);
 
   // Какой чат сейчас открыт (id мэтча). Ставит страница чата: о сообщениях в нём всплывашка не нужна.
   readonly activeChat = signal<string | null>(null);
@@ -88,6 +102,17 @@ export class NotificationService {
     );
   });
 
+  // Живой список мэтчей, новые — первыми. Страница «Мэтчи» строит карточки из него,
+  // поэтому карточка исчезает сама, когда собеседник разрывает мэтч.
+  readonly matchList = computed<LiveMatch[]>(() =>
+    this.matches()
+      .map(({ id, otherUid, createdAt }) => ({ id, otherUid, createdAt }))
+      .sort((a, b) => b.createdAt - a.createdAt),
+  );
+  readonly matchesReady = this.matchesLoaded.asReadonly();
+  // Ошибка подписки на мэтчи (например, нет сети при первом чтении) — или null.
+  readonly matchesError = this.matchesFailed.asReadonly();
+
   // Сколько у меня мэтчей — для итогов в конце ленты.
   readonly matchCount = computed(() => this.matches().length);
 
@@ -119,7 +144,6 @@ export class NotificationService {
         this.watchSet('skips', 'from', uid, this.mySkips),
         this.watchSet('blocks', 'from', uid, this.blockedByMe),
         this.watchSet('blocks', 'to', uid, this.blockedMe),
-        this.watchMatches(uid),
       ];
       onCleanup(() => {
         unsubscribers.forEach((unsubscribe) => unsubscribe());
@@ -128,9 +152,30 @@ export class NotificationService {
         this.mySkips.set(new Set());
         this.blockedByMe.set(new Set());
         this.blockedMe.set(new Set());
-        this.matches.set([]);
       });
     });
+
+    // Мэтчи — отдельным эффектом: так их можно переподписать (retryMatches) после ошибки,
+    // не трогая остальные подписки.
+    effect((onCleanup) => {
+      const uid = this.auth.user()?.uid;
+      this.matchesAttempt(); // читаем сигнал только ради зависимости
+      if (!uid) {
+        return;
+      }
+      const unsubscribe = this.watchMatches(uid);
+      onCleanup(() => {
+        unsubscribe();
+        this.matches.set([]);
+        this.matchesLoaded.set(false);
+        this.matchesFailed.set(null);
+      });
+    });
+  }
+
+  // Кнопка «Попробовать ещё раз» на странице «Мэтчи», если подписка на мэтчи упала.
+  retryMatches(): void {
+    this.matchesAttempt.update((n) => n + 1);
   }
 
   // Вызывает страница «Мэтчи»: всё, что там видно, считается просмотренным.
@@ -175,6 +220,8 @@ export class NotificationService {
         // мэтча (например, собеседник прочитал чат и обновил своё readAt).
         const previous = new Map(this.matches().map((m) => [m.id, m.lastMessage?.at ?? 0]));
         this.matches.set(snapshot.docs.map((match) => toSummary(match, uid)));
+        this.matchesLoaded.set(true);
+        this.matchesFailed.set(null);
         if (first) {
           first = false;
           return;
@@ -198,7 +245,10 @@ export class NotificationService {
           }
         }
       },
-      (error) => console.error(error),
+      (error) => {
+        console.error(error);
+        this.matchesFailed.set(error);
+      },
     );
   }
 
@@ -250,8 +300,10 @@ function toSummary(match: DocumentSnapshot, uid: string): MatchSummary {
   const millis = (field: string) =>
     (match.get(field, { serverTimestamps: 'estimate' }) as Timestamp | undefined)?.toMillis() ?? 0;
   const lastMessage = match.get('lastMessage') as { from: string; text: string } | undefined;
+  const users = (match.get('users') as string[] | undefined) ?? [];
   return {
     id: match.id,
+    otherUid: users.find((user) => user !== uid) ?? '',
     createdAt: millis('createdAt'),
     lastMessage: lastMessage
       ? { from: lastMessage.from, text: lastMessage.text, at: millis('lastMessage.createdAt') }

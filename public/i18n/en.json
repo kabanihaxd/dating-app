@@ -7,15 +7,14 @@
     "logout": "Log out"
   },
   "common": {
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "cancel": "Cancel"
   },
   "moderation": {
     "menu": "Actions: {{name}}",
     "unmatch": "Unmatch",
     "report": "Report",
     "block": "Block",
-    "unmatchConfirm": "Unmatch {{name}}? Your chat will be deleted.",
-    "blockConfirm": "Block {{name}}? You won't see each other anymore; the match and chat will be deleted.",
     "reportTitle": "Report {{name}}",
     "reason": "What happened?",
     "reasonRequired": "Choose a reason",
@@ -31,10 +30,17 @@
     "cancel": "Cancel",
     "send": "Send",
     "unmatched": "Unmatched {{name}}",
-    "blocked": "{{name}} blocked",
+    "blocked": "{{name}} is blocked",
     "reported": "Report sent. Thank you!",
-    "reportedBlocked": "Report sent, {{name}} blocked",
-    "error": "Couldn't complete the action. Please try again"
+    "reportedBlocked": "Report sent. {{name}} is blocked",
+    "error": "Couldn't complete the action. Please try again",
+    "unmatchTitle": "Unmatch {{name}}?",
+    "unmatchText": "Your chat will be deleted and you'll no longer see each other's contacts.",
+    "unmatchAction": "Unmatch {{name}}",
+    "blockTitle": "Block {{name}}?",
+    "blockTextFeed": "You won't see each other in the feed anymore.",
+    "blockTextMatched": "Your match, chat and contacts will be removed, and you won't see each other anymore.",
+    "blockAction": "Block {{name}}"
   },
   "notifications": {
     "liked": "{{name}} liked you! Like back to make it a match",
@@ -119,7 +125,7 @@
       "deck": "One by one",
       "grid": "Grid"
     },
-    "keysHint": "← skip · → player 2",
+    "keysHint": "← skip · → player 2 · Z undo",
     "likeHint": "Player 2? sends an invite. Your contacts unlock only if they like you back.",
     "last": {
       "liked": "Invite sent: {{name}}",
@@ -127,7 +133,8 @@
       "undo": "Undo",
       "restored": "{{name}} is back in the feed",
       "undoName": "Undo skip: {{name}}",
-      "consent": "Your contacts stay hidden until they like you back."
+      "consent": "Your contacts stay hidden until they like you back.",
+      "undoLikeName": "Undo invite: {{name}}"
     },
     "matchDialog": {
       "title": "It's a match!",
@@ -162,6 +169,10 @@
       "like": "Invite not sent: {{name}}.",
       "skip": "Couldn't skip {{name}}.",
       "undo": "Couldn't bring {{name}} back to the feed."
+    },
+    "announce": {
+      "liked": "Invite sent to {{name}}. Undo available",
+      "skipped": "Skipped {{name}}. Undo available"
     }
   },
   "auth": {
@@ -202,11 +213,14 @@
     "contacts": "Contacts",
     "noContacts": "This player hasn't added any contacts yet.",
     "openProfile": "Open profile",
-    "copy": "Copy",
-    "copied": "Copied",
     "write": "Send a message",
     "you": "You",
-    "unread": "New message"
+    "unread": "New message",
+    "chatWith": "Chat with {{name}}",
+    "copyNickname": "Copy {{platform}} nickname ({{name}})",
+    "copiedNickname": "{{platform}} nickname copied",
+    "copyFailed": "Couldn't copy. Select the nickname and copy it manually.",
+    "openProfileHint": "{{platform}}, {{name}}, opens in a new tab"
   },
   "chat": {
     "back": "Back to matches",
@@ -214,10 +228,19 @@
     "placeholder": "Type a message…",
     "send": "Send",
     "hint": "Enter to send, Shift+Enter for a new line",
-    "empty": "Nothing here yet. Say hi to {{name}} first!",
+    "empty": "No messages yet. Say hi and start the conversation!",
     "emptyGames": "Something to talk about — your games in common:",
     "notFound": "Chat not found: the match may have been removed, or the link is wrong.",
-    "sendError": "Couldn't send the message. Check your connection and try again."
+    "sendError": "Couldn't send the message. Check your connection and try again.",
+    "speaker": {
+      "me": "You:",
+      "partner": "{{name}}:"
+    },
+    "messageTo": "Message to {{name}}",
+    "ended": {
+      "title": "This chat has ended",
+      "text": "The match is no longer active, so new messages can't be sent."
+    }
   },
   "profile": {
     "title": "Profile",
@@ -256,8 +279,7 @@
       "button": "Connect",
       "reconnect": "Reconnect",
       "done": "{{platform}} connected",
-      "failed": "Couldn't connect the platform. Please try again",
-      "unsavedWarning": "Your profile has unsaved changes — they will be lost. Continue?"
+      "failed": "Couldn't connect the platform. Please try again"
     },
     "contacts": {
       "discord": "Discord",
@@ -274,7 +296,20 @@
       "underage": "This site is for adults only (18+)",
       "minOne": "Pick at least one option",
       "invalidContact": "A username (2–37 characters) or an https:// link to {{site}}",
-      "invalidForm": "Check the fields marked in red"
+      "fixFields": "Fix these fields ({{count}}): {{fields}}"
+    },
+    "firstRun": {
+      "title": "Build your player profile",
+      "subtitle": "Add your games and platforms. Players to match with appear right after you save.",
+      "save": "Save and find players"
+    },
+    "toFeed": "See players",
+    "unsaved": "Unsaved changes",
+    "leave": {
+      "title": "Leave without saving?",
+      "text": "Your profile changes haven't been saved and will be lost.",
+      "stay": "Stay",
+      "leave": "Leave"
     }
   },
   "catalog": {

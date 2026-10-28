@@ -8,6 +8,7 @@ import { AuthService } from '../../core/auth/auth';
 import { I18n } from '../../core/i18n/i18n';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ModerationService } from '../../core/moderation/moderation';
+import { confirmDialog } from '../confirm-dialog/confirm-dialog';
 import { ReportDialog, ReportDialogData, ReportDialogResult } from '../report-dialog/report-dialog';
 
 // Кнопка «⋮» с действиями над другим игроком: разорвать мэтч, пожаловаться, заблокировать.
@@ -37,23 +38,43 @@ export class ModerationMenu {
   protected readonly busy = signal(false);
 
   protected unmatch(): void {
-    if (confirm(this.i18n.translate('moderation.unmatchConfirm', { name: this.name() }))) {
-      void this.run(
-        () => this.moderation.unmatch(this.me, this.otherUid()),
-        'moderation.unmatched',
-        true,
-      );
-    }
+    const name = { name: this.name() };
+    this.confirm({
+      title: this.i18n.translate('moderation.unmatchTitle', name),
+      message: this.i18n.translate('moderation.unmatchText'),
+      confirm: this.i18n.translate('moderation.unmatchAction', name),
+      icon: 'heart_broken',
+    }).subscribe((ok) => {
+      if (ok) {
+        void this.run(
+          () => this.moderation.unmatch(this.me, this.otherUid()),
+          'moderation.unmatched',
+          true,
+        );
+      }
+    });
   }
 
   protected block(): void {
-    if (confirm(this.i18n.translate('moderation.blockConfirm', { name: this.name() }))) {
-      void this.run(
-        () => this.moderation.block(this.me, this.otherUid()),
-        'moderation.blocked',
-        true,
-      );
-    }
+    const name = { name: this.name() };
+    this.confirm({
+      title: this.i18n.translate('moderation.blockTitle', name),
+      // Последствия зависят от того, где открыто меню: в ленте мэтча и чата ещё нет —
+      // и упоминать их значит пугать тем, чего не случится.
+      message: this.i18n.translate(
+        this.matched() ? 'moderation.blockTextMatched' : 'moderation.blockTextFeed',
+      ),
+      confirm: this.i18n.translate('moderation.blockAction', name),
+      icon: 'block',
+    }).subscribe((ok) => {
+      if (ok) {
+        void this.run(
+          () => this.moderation.block(this.me, this.otherUid()),
+          'moderation.blocked',
+          true,
+        );
+      }
+    });
   }
 
   protected report(): void {
@@ -78,6 +99,16 @@ export class ModerationMenu {
           result.block,
         );
       });
+  }
+
+  // Оба действия (разрыв и блок) необратимы, поэтому окно — «опасное»: красная кнопка,
+  // фокус на «Отмене». Кнопка отмены берёт перевод из того же раздела moderation.
+  private confirm(data: { title: string; message: string; confirm: string; icon: string }) {
+    return confirmDialog(this.dialog, {
+      ...data,
+      cancel: this.i18n.translate('moderation.cancel'),
+      destructive: true,
+    });
   }
 
   // Общая часть всех действий: блокируем кнопку, выполняем, сообщаем результат.

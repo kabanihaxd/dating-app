@@ -348,7 +348,7 @@
   <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
 }
 
-<!-- Строка «последнее действие»: подтверждение лайка/пропуска и «Вернуть» для пропуска.
+<!-- Строка «последнее действие»: подтверждение лайка/пропуска и «Вернуть» (у лайка — пока он ждёт отправки).
      ng-template — кусок шаблона, который вставляется в нескольких местах (колода, сетка, «пусто»). -->
 <ng-template #lastLine>
   @if (lastAction(); as last) {
@@ -357,6 +357,13 @@
         @case ('liked') {
           <mat-icon class="pink" aria-hidden="true">favorite</mat-icon>
           <span>{{ 'feed.last.liked' | t: { name: last.player.name } }}</span>
+          <!-- Пока лайк ждёт отправки (несколько секунд), его можно отменить. -->
+          @if (last.undoable) {
+            <ng-container
+              [ngTemplateOutlet]="undoButton"
+              [ngTemplateOutletContext]="{ label: 'feed.last.undoLikeName', name: last.player.name }"
+            />
+          }
           @if (last.consentNote) {
             <!-- Только при первом лайке: объясняем, что ничего личного ещё не ушло. -->
             <span class="consent">
@@ -368,17 +375,10 @@
         @case ('skipped') {
           <mat-icon aria-hidden="true">close</mat-icon>
           <span>{{ 'feed.last.skipped' | t: { name: last.player.name } }}</span>
-          <button
-            mat-button
-            type="button"
-            class="undo"
-            [attr.aria-label]="'feed.last.undoName' | t: { name: last.player.name }"
-            [disabled]="restoring() === last.player.uid"
-            (click)="undoSkip(last.player)"
-          >
-            <mat-icon aria-hidden="true">undo</mat-icon>
-            {{ 'feed.last.undo' | t }}
-          </button>
+          <ng-container
+            [ngTemplateOutlet]="undoButton"
+            [ngTemplateOutletContext]="{ label: 'feed.last.undoName', name: last.player.name }"
+          />
         }
         @case ('restored') {
           <mat-icon class="cyan" aria-hidden="true">undo</mat-icon>
@@ -387,4 +387,22 @@
       }
     </p>
   }
+</ng-template>
+
+<!-- Кнопка «Вернуть» — одна для лайка и пропуска. undoLast() сам знает, что отменять.
+     aria-keyshortcuts сообщает скринридеру горячие клавиши (несколько — через пробел).
+     let-label / let-name — значения из ngTemplateOutletContext. -->
+<ng-template #undoButton let-label="label" let-name="name">
+  <button
+    mat-button
+    type="button"
+    class="undo"
+    aria-keyshortcuts="Z Backspace"
+    [attr.aria-label]="label | t: { name }"
+    [disabled]="!!restoring()"
+    (click)="undoLast()"
+  >
+    <mat-icon aria-hidden="true">undo</mat-icon>
+    {{ 'feed.last.undo' | t }}
+  </button>
 </ng-template>

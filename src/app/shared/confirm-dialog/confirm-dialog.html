@@ -1,0 +1,23 @@
+<div class="frame">
+  <!-- mat-dialog-title сам связывает заголовок с окном через aria-labelledby. -->
+  <h2 mat-dialog-title class="title">
+    @if (data.icon) {
+      <mat-icon aria-hidden="true">{{ data.icon }}</mat-icon>
+    }
+    <span>{{ data.title }}</span>
+  </h2>
+
+  <mat-dialog-content class="content">
+    <p class="message">{{ data.message }}</p>
+  </mat-dialog-content>
+
+  <mat-dialog-actions class="actions">
+    <!-- cdkFocusInitial — при открытии фокус на безопасной кнопке. Esc тоже закрывает без ответа. -->
+    <button mat-stroked-button type="button" mat-dialog-close cdkFocusInitial>
+      {{ data.cancel ?? ('common.cancel' | t) }}
+    </button>
+    <button mat-flat-button type="button" [mat-dialog-close]="true" class="confirm">
+      {{ data.confirm }}
+    </button>
+  </mat-dialog-actions>
+</div>

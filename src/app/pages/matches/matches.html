@@ -1,11 +1,17 @@
-<h2>{{ 'matches.title' | t }}</h2>
+<!-- Единственный h1 страницы. tabindex="-1": сюда можно поставить фокус из кода (когда убрали последнюю
+     карточку), но по Tab заголовок не попадается. -->
+<h1 id="matches-title" tabindex="-1">{{ 'matches.title' | t }}</h1>
 <p class="subtitle">{{ 'matches.subtitle' | t }}</p>
 
-@if (loading()) {
-  <!-- Скелетон: заготовки карточек мэтчей (аватар, имя, превью чата, контакты). -->
-  <div class="grid" aria-busy="true" [attr.aria-label]="'common.loading' | t">
+@if (errorKey(); as key) {
+  <app-error-state [errorKey]="key" (retry)="retry()" />
+} @else if (loading()) {
+  <!-- Скелетон: заготовки карточек мэтчей (аватар, имя, превью чата, контакты).
+       Серые плашки скрыты от скринридера — он услышит только «Загрузка…» из role="status". -->
+  <p class="sr-only" role="status">{{ 'common.loading' | t }}</p>
+  <div class="grid" aria-hidden="true">
     @for (i of skeletons; track i) {
-      <div class="card skeleton-card" aria-hidden="true">
+      <div class="card skeleton-card">
         <header>
           <span class="skeleton avatar-sk"></span>
           <div class="who">
@@ -19,8 +25,6 @@
       </div>
     }
   </div>
-} @else if (errorKey(); as key) {
-  <app-error-state [errorKey]="key" (retry)="retry()" />
 } @else if (!visibleMatches().length) {
   <app-state-message icon="favorite_border">
     <p>{{ 'matches.empty' | t }}</p>
@@ -28,22 +32,31 @@
   </app-state-message>
 } @else {
   <div class="grid">
-    <!-- Карточки появляются «лесенкой», а при разрыве мэтча или блокировке плавно тают. -->
+    <!-- Карточки появляются «лесенкой», а при разрыве мэтча или блокировке плавно тают.
+         aria-labelledby: скринридер называет карточку по имени игрока («статья: Аня, 24»). -->
     @for (match of visibleMatches(); track match.uid) {
-      <article class="card" animate.enter="di-enter" animate.leave="di-leave" [style.--i]="$index">
+      @let name = match.profile.name;
+      <article
+        class="card"
+        animate.enter="di-enter"
+        animate.leave="di-leave"
+        [style.--i]="$index"
+        [attr.aria-labelledby]="match.headingId"
+      >
         <header>
+          <!-- alt="": имя и так написано рядом, повторять его скринридеру незачем. -->
           @if (match.profile.photo; as src) {
-            <img [src]="src" [alt]="match.profile.name" />
+            <img [src]="src" alt="" />
           } @else {
-            <div class="avatar"><mat-icon>person</mat-icon></div>
+            <div class="avatar" aria-hidden="true"><mat-icon>person</mat-icon></div>
           }
           <div class="who">
-            <h3>{{ match.profile.name }}, {{ match.age }}</h3>
+            <h2 [id]="match.headingId" tabindex="-1">{{ name }}, {{ match.age }}</h2>
             <p class="muted"><mat-icon inline>place</mat-icon> {{ match.profile.city }}</p>
           </div>
           <app-moderation-menu
             [otherUid]="match.uid"
-            [name]="match.profile.name"
+            [name]="name"
             [matched]="true"
             (removed)="remove(match.uid)"
           />
@@ -58,12 +71,14 @@
           </div>
         }
 
-        <!-- Превью чата: последнее сообщение и розовая точка, если оно не прочитано. -->
+        <!-- Превью чата: последнее сообщение и розовая точка, если оно не прочитано.
+             Скрытый текст делает имя ссылки понятным вне карточки: «Чат: Аня. Ты: привет. Новое сообщение». -->
         @let last = notifications.lastMessages().get(match.id);
         @let unread = notifications.unreadChats().has(match.id);
         <a class="chat-link" [class.unread]="unread" [routerLink]="['/chat', match.id]">
           <mat-icon>chat</mat-icon>
           <span class="preview">
+            <span class="sr-only">{{ 'matches.chatWith' | t: { name } }}. </span>
             @if (last) {
               @if (last.from === me) {
                 <span class="muted">{{ 'matches.you' | t }}:</span>
@@ -74,7 +89,8 @@
             }
           </span>
           @if (unread) {
-            <span class="dot" [attr.aria-label]="'matches.unread' | t"></span>
+            <span class="dot" aria-hidden="true"></span>
+            <span class="sr-only">. {{ 'matches.unread' | t }}</span>
           }
         </a>
 
@@ -82,20 +98,24 @@
         @if (match.contacts.length) {
           <ul class="contacts">
             @for (contact of match.contacts; track contact.field) {
+              @let platform = 'profile.contacts.' + contact.field | t;
               <li>
-                <span class="platform">{{ 'profile.contacts.' + contact.field | t }}</span>
+                <span class="platform">{{ platform }}</span>
                 <!-- Ссылку (уже проверенную при сохранении) делаем кликабельной, ник — копируем. -->
                 @if (contact.isLink) {
                   <a [href]="contact.value" target="_blank" rel="noopener noreferrer">
-                    {{ 'matches.openProfile' | t }} <mat-icon inline>open_in_new</mat-icon>
+                    {{ 'matches.openProfile' | t }}
+                    <span class="sr-only">({{ 'matches.openProfileHint' | t: { platform, name } }})</span>
+                    <mat-icon inline>open_in_new</mat-icon>
                   </a>
                 } @else {
                   <span class="nickname">{{ contact.value }}</span>
                   <button
                     mat-icon-button
                     type="button"
-                    (click)="copy(contact.value)"
-                    [attr.aria-label]="'matches.copy' | t"
+                    class="copy"
+                    (click)="copy(contact.value, platform)"
+                    [attr.aria-label]="'matches.copyNickname' | t: { platform, name }"
                   >
                     <mat-icon>content_copy</mat-icon>
                   </button>

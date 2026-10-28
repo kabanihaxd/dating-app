@@ -1,6 +1,7 @@
 import {
   Component,
   DOCUMENT,
+  DestroyRef,
   Injector,
   afterNextRender,
   computed,
@@ -51,6 +52,9 @@ const SKELETON_CARDS = 6;
 const SETTLE_MS = 400;
 // Сколько ждать сервер при «Вернуть». Без сети запрос висел бы вечно, а человек — ждал.
 const UNDO_TIMEOUT_MS = 8000;
+// Сколько лайк «ждёт» перед отправкой. Всё это время в строке «последнее действие» есть
+// «Вернуть»: промахнулся пальцем — успеешь передумать, и второй человек ничего не узнает.
+const LIKE_UNDO_MS = 4000;
 // Ключи localStorage: фильтры и вид ленты переживают переход на другую страницу и перезагрузку.
 // Фильтры — у каждого аккаунта свои (к ключу добавляется uid): следующий человек на этом
 // компьютере не должен получить чужой город и возраст.
@@ -71,13 +75,28 @@ interface FeedItem {
 }
 
 // Последнее действие — строка под колодой: «Приглашение отправлено: Alex» или «Пропущено: Alex · Вернуть».
-// Это и подтверждение (особенно когда анимации выключены), и место для отмены пропуска.
+// Это и подтверждение (особенно когда анимации выключены), и место для отмены лайка или пропуска.
 interface LastAction {
   kind: 'liked' | 'skipped' | 'restored';
   player: Player;
   // Первый лайк на этом аккаунте — под строкой объясняем, что контакты пока скрыты.
   consentNote?: boolean;
+  // Можно ли ещё отменить: пропуск — всегда, лайк — только пока он ждёт отправки.
+  undoable?: boolean;
 }
+
+// Лайк, который ещё не ушёл на сервер. send — отправить сейчас (время вышло, человек уходит
+// со страницы), cancel — отменить («Вернуть»).
+interface PendingLike {
+  send: () => void;
+  cancel: () => void;
+}
+
+// Поля ввода и списки, где буквы и Backspace — это набор текста или поиск по пунктам,
+// а не наша горячая клавиша «Вернуть».
+const TEXT_ENTRY =
+  'input, textarea, select, [contenteditable]:not([contenteditable="false"]), ' +
+  '[role="combobox"], [role="listbox"], [role="option"], [role="menu"], [role="menuitem"]';
 
 @Component({
   selector: 'app-feed',
@@ -98,8 +117,14 @@ interface LastAction {
   ],
   templateUrl: './feed.html',
   styleUrl: './feed.scss',
-  // Стрелки ← / → в режиме «по одному» — пропустить / лайкнуть.
-  host: { '(document:keydown)': 'onKeydown($event)' },
+  // Стрелки ← / → в режиме «по одному» — пропустить / лайкнуть, Z или Backspace — вернуть.
+  // visibilitychange и pagehide — человек сворачивает вкладку или закрывает её: отложенные
+  // лайки отправляем сразу, иначе они потерялись бы вместе со страницей.
+  host: {
+    '(document:keydown)': 'onKeydown($event)',
+    '(document:visibilitychange)': 'onVisibilityChange()',
+    '(window:pagehide)': 'flushLikes()',
+  },
 })
 export class Feed {
   private readonly auth = inject(AuthService);
@@ -129,6 +154,16 @@ export class Feed {
   private readonly swipeDirections = new Map<string, Direction>();
   // Незавершённые сохранения пропусков: «Вернуть» сначала дождётся записи, потом удалит её.
   private readonly pendingSkips = new Map<string, Promise<void>>();
+  // Отложенные лайки: uid → как отправить или отменить. Каждый лайк ждёт LIKE_UNDO_MS.
+  private readonly pendingLikes = new Map<string, PendingLike>();
+  // Игроки, убранные через «⋮» (заблокированы). Убираем сразу, не дожидаясь, пока блокировка
+  // придёт из Firestore в notifications.hidden, — тогда фокус точно попадёт на следующую карточку.
+  private readonly removedUids = signal(new Set<string>());
+  // Игрок, которого только что вернули, — он встаёт первым, даже если сортировка за это время
+  // поменялась (например, кто-то лайкнул меня и поднялся наверх).
+  private readonly frontUid = signal<string | null>(null);
+  // Страницу уже закрыли — окно «Это мэтч!» поверх другой страницы не открываем.
+  private destroyed = false;
 
   protected readonly view = signal<View>(readStorage(STORAGE.view) === 'grid' ? 'grid' : 'deck');
   protected readonly filtersOpen = signal(readStorage(STORAGE.filtersOpen) === '1');
@@ -163,7 +198,9 @@ export class Feed {
     if (!last) {
       return '';
     }
-    const text = this.i18n.translate(`feed.last.${last.kind}`, { name: last.player.name });
+    // Пока действие можно отменить, говорим об этом и скринридеру: «…Можно вернуть».
+    const key = last.undoable ? `feed.announce.${last.kind}` : `feed.last.${last.kind}`;
+    const text = this.i18n.translate(key, { name: last.player.name });
     // Два целых предложения, а не склейка обрывков — так переводчику проще и порядок слов свой.
     return last.consentNote ? `${text}. ${this.i18n.translate('feed.last.consent')}` : text;
   });
@@ -172,8 +209,10 @@ export class Feed {
   // Заблокированные (в любую сторону) пропадают сразу: hidden обновляется в реальном времени.
   protected readonly remaining = computed(() => {
     const hidden = this.notifications.hidden();
+    const removed = this.removedUids();
     return this.players().filter(
-      (player) => !this.swiped().has(player.uid) && !hidden.has(player.uid),
+      (player) =>
+        !this.swiped().has(player.uid) && !hidden.has(player.uid) && !removed.has(player.uid),
     );
   });
 
@@ -228,6 +267,7 @@ export class Feed {
     const to = Math.max(a, b);
     const cityQuery = city.trim().toLowerCase();
     const likedMe = this.notifications.likedMe();
+    const front = this.frontUid();
 
     return this.remaining()
       .map((player) => ({
@@ -244,7 +284,12 @@ export class Feed {
           (!platform || player.platforms.includes(platform)) &&
           (!cityQuery || player.city.toLowerCase().includes(cityQuery)),
       )
-      .sort((a, b) => Number(b.likedMe) - Number(a.likedMe) || b.match.percent - a.match.percent);
+      .sort(
+        (a, b) =>
+          Number(b.player.uid === front) - Number(a.player.uid === front) ||
+          Number(b.likedMe) - Number(a.likedMe) ||
+          b.match.percent - a.match.percent,
+      );
   });
 
   // В колоде рисуем двух: текущего и следующего «выглядывающего» из-за него.
@@ -259,6 +304,12 @@ export class Feed {
       this.announcement.set(this.i18n.translate('feed.count', { count: this.results().length }));
     });
     void this.load();
+    // Уход со страницы (другой маршрут) уничтожает компонент — отложенные лайки отправляем сразу.
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      clearTimeout(this.settleTimer);
+      this.flushLikes();
+    });
   }
 
   // Кнопка «Спробувати ще раз» на ошибке загрузки.
@@ -292,13 +343,65 @@ export class Feed {
     this.snackBar.open(this.i18n.translate('feed.inviteCopied'), undefined, { duration: 4000 });
   }
 
+  // Лайк не уходит сразу: LIKE_UNDO_MS он ждёт в pendingLikes, и пока можно нажать «Вернуть».
+  // Исключение — игрок уже лайкнул меня: это мгновенный мэтч, отправляем сразу и показываем
+  // «Это мэтч!» — окно само всё объясняет, а отменять мэтч «на всякий случай» незачем.
   protected like(player: Player): void {
-    this.swipe(player, 'like', async () => {
-      const matched = await this.swipes.like(this.uid, player.uid);
-      if (matched) {
-        this.showMatch(player);
-      }
-    });
+    if (this.notifications.likedMe().has(player.uid)) {
+      this.swipe(player, 'like', () => this.sendLike(player));
+      return;
+    }
+    this.swipe(
+      player,
+      'like',
+      // Promise, который завершится, когда лайк реально сохранится (или отменится).
+      // Ошибку сохранения swipe() обработает как обычно: вернёт карточку и покажет сообщение.
+      () =>
+        new Promise<void>((resolve, reject) => {
+          const send = () => {
+            clearTimeout(timer);
+            this.pendingLikes.delete(player.uid);
+            this.likeSent(player.uid);
+            this.sendLike(player).then(resolve, reject);
+          };
+          const timer = setTimeout(send, LIKE_UNDO_MS);
+          this.pendingLikes.set(player.uid, {
+            send,
+            cancel: () => {
+              clearTimeout(timer);
+              this.pendingLikes.delete(player.uid);
+              resolve(); // ничего не отправили — и ошибки нет
+            },
+          });
+        }),
+      true,
+    );
+  }
+
+  // Отменить ещё не отправленный лайк: таймер выключаем, карточку возвращаем.
+  // Сервер ничего не знает, поэтому ждать нечего — всё происходит мгновенно.
+  protected undoLike(player: Player): void {
+    const pending = this.pendingLikes.get(player.uid);
+    if (!pending) {
+      return;
+    }
+    pending.cancel();
+    // Пояснение о скрытых контактах человек уже прочитал — заново его не показываем.
+    this.restoreCard(player);
+  }
+
+  // Отправить все отложенные лайки прямо сейчас: человек уходит со страницы или сворачивает её.
+  // Копия списка — send() удаляет запись из pendingLikes, пока мы по нему идём.
+  protected flushLikes(): void {
+    for (const pending of [...this.pendingLikes.values()]) {
+      pending.send();
+    }
+  }
+
+  protected onVisibilityChange(): void {
+    if (this.document.visibilityState === 'hidden') {
+      this.flushLikes();
+    }
   }
 
   protected skip(player: Player): void {
@@ -327,19 +430,7 @@ export class Feed {
         return;
       }
       await withTimeout(this.swipes.unskip(this.uid, player.uid), UNDO_TIMEOUT_MS);
-      this.swipeDirections.delete(player.uid);
-      this.swiped.update((uids) => {
-        const next = new Set(uids);
-        next.delete(player.uid);
-        return next;
-      });
-      // Пока шёл запрос, человек мог свайпнуть дальше — тогда строку не перезаписываем
-      // и фокус у него не отбираем.
-      if (this.lastAction()?.player.uid === player.uid) {
-        this.lastAction.set({ kind: 'restored', player });
-        this.announcement.set(this.lastActionText());
-        this.focusCard(player.uid);
-      }
+      this.restoreCard(player);
     } catch (error) {
       this.showError('undo', player, error);
     } finally {
@@ -348,16 +439,50 @@ export class Feed {
   }
 
   // Игрока убрали через «⋮» (заблокировали). Карточка исчезнет, а с ней — фокус из меню.
+  // Убираем её сами и сразу: если ждать, пока блокировка придёт из Firestore, в колоде
+  // следующая карточка ещё «выглядывает» (inert) — фокус на неё не встанет и упадёт на <body>.
   protected onRemoved(player: Player): void {
     const index = this.results().findIndex((item) => item.player.uid === player.uid);
-    this.focusAfterSwipe(index, player.uid);
+    this.removedUids.update((uids) => new Set(uids).add(player.uid));
+    this.focusAfterSwipe(index);
+  }
+
+  // «Вернуть» из строки «последнее действие» или с клавиатуры: отменяет последний лайк
+  // (пока он не отправлен) или последний пропуск.
+  protected undoLast(): void {
+    const last = this.lastAction();
+    if (!last?.undoable) {
+      return;
+    }
+    if (last.kind === 'liked') {
+      this.undoLike(last.player);
+    } else if (last.kind === 'skipped') {
+      void this.undoSkip(last.player);
+    }
   }
 
   // ← пропустить, → лайкнуть. Только в колоде и только когда фокус «на колоде»: на самой
   // странице, на карточке или её кнопках. Стрелка на ссылке в шапке или в поле ввода — не наша.
   protected onKeydown(event: KeyboardEvent): void {
-    const current = this.current();
     const target = event.target as HTMLElement | null;
+    // Z или Backspace — «Вернуть», в обоих видах. event.code, а не event.key: code — это
+    // физическая клавиша, и на русской раскладке (где на её месте «я») она тоже сработает.
+    // В полях ввода и списках эти клавиши заняты набором текста — там не перехватываем.
+    if (
+      (event.code === 'KeyZ' || event.key === 'Backspace') &&
+      !event.repeat &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !this.dialog.openDialogs.length &&
+      !target?.closest(TEXT_ENTRY) &&
+      this.lastAction()?.undoable
+    ) {
+      event.preventDefault();
+      this.undoLast();
+      return;
+    }
+    const current = this.current();
     const onDeck =
       !target ||
       target === this.document.body ||
@@ -387,7 +512,13 @@ export class Feed {
 
   // Общая часть лайка и пропуска. Карточку убираем СРАЗУ, не дожидаясь сервера, —
   // интерфейс отвечает мгновенно. Если сохранить не вышло, карточка возвращается.
-  private swipe(player: Player, direction: Direction, action: () => Promise<void>): void {
+  // delayed — лайк отложен и его можно отменить (см. like()).
+  private swipe(
+    player: Player,
+    direction: Direction,
+    action: () => Promise<void>,
+    delayed = false,
+  ): void {
     if (this.settling() || this.swiped().has(player.uid)) {
       return;
     }
@@ -408,7 +539,12 @@ export class Feed {
       this.consentNoteSeen.set(true);
       writeStorage(this.consentKey, '1');
     }
-    this.lastAction.set({ kind: direction === 'like' ? 'liked' : 'skipped', player, consentNote });
+    this.lastAction.set({
+      kind: direction === 'like' ? 'liked' : 'skipped',
+      player,
+      consentNote,
+      undoable: direction === 'skip' || delayed,
+    });
     this.announcement.set(this.lastActionText());
     this.focusAfterSwipe(index);
 
@@ -431,6 +567,46 @@ export class Feed {
     });
   }
 
+  // Сохраняем лайк. Если тот человек лайкнул меня раньше (или успел, пока лайк ждал), — мэтч.
+  private async sendLike(player: Player): Promise<void> {
+    const matched = await this.swipes.like(this.uid, player.uid);
+    if (matched && !this.destroyed) {
+      this.showMatch(player);
+    }
+  }
+
+  // Лайк ушёл на сервер — «Вернуть» из строки пропадает, «Приглашение отправлено» остаётся.
+  // Если фокус стоял на этой кнопке, переводим его на карточку: иначе он упал бы на <body>.
+  private likeSent(uid: string): void {
+    const last = this.lastAction();
+    if (last?.kind !== 'liked' || last.player.uid !== uid || !last.undoable) {
+      return;
+    }
+    const hadFocus = !!this.document.activeElement?.closest('.last-action');
+    this.lastAction.set({ ...last, undoable: false });
+    if (hadFocus && !this.destroyed) {
+      this.focusAfterSwipe(0);
+    }
+  }
+
+  // Общий конец «Вернуть» для лайка и пропуска: карточка снова в ленте, и первой.
+  private restoreCard(player: Player): void {
+    this.swipeDirections.delete(player.uid);
+    this.frontUid.set(player.uid);
+    this.swiped.update((uids) => {
+      const next = new Set(uids);
+      next.delete(player.uid);
+      return next;
+    });
+    // Пока шёл запрос (у пропуска), человек мог свайпнуть дальше — тогда строку
+    // не перезаписываем и фокус у него не отбираем.
+    if (this.lastAction()?.player.uid === player.uid) {
+      this.lastAction.set({ kind: 'restored', player });
+      this.announcement.set(this.lastActionText());
+      this.focusCard(player.uid);
+    }
+  }
+
   private settle(): void {
     clearTimeout(this.settleTimer);
     this.settling.set(true);
@@ -440,9 +616,8 @@ export class Feed {
   // Нажатая кнопка исчезла вместе с карточкой — без этого фокус упал бы на <body>, и человеку
   // с клавиатуры пришлось бы заново проходить через шапку и фильтры.
   // Переводим фокус на заголовок карточки, вставшей на освободившееся место.
-  // exclude — uid карточки, которая вот-вот пропадёт, но ещё есть в results (блокировка).
-  private focusAfterSwipe(index: number, exclude?: string): void {
-    const list = this.results().filter((item) => item.player.uid !== exclude);
+  private focusAfterSwipe(index: number): void {
+    const list = this.results();
     const next = list[Math.min(Math.max(index, 0), list.length - 1)];
     if (next) {
       this.focusCard(next.player.uid);
@@ -479,7 +654,7 @@ export class Feed {
       .open<MatchDialog, MatchDialogData, MatchDialogResult>(MatchDialog, {
         data: { me, player, match: matchScore(me, player) },
         autoFocus: 'first-tabbable',
-        panelClass: 'di-match-dialog',
+        panelClass: 'di-framed-dialog',
         maxWidth: '440px',
         width: 'calc(100vw - 32px)',
       })

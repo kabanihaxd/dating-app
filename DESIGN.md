@@ -266,10 +266,10 @@ The default "one by one" feed view. A grid view stays available through the tool
 - **Column:** max 440px, centred.
 - **Next player:** peeks from behind the current card, 12px up, scaled 0.94, at 45% opacity, inert and hidden from assistive tech. When the current card flies off, the same element glides forward (0.35s, `cubic-bezier(0.16, 1, 0.3, 1)`).
 - **Action bar:** Skip (stroked) and Like (pink), each 48px tall. It is sticky to the bottom of the viewport with a Void Black fade behind it, so it sits under the thumb on phones.
-- **Keyboard:** ← skips and → likes. A hint line appears only on fine-pointer devices.
+- **Keyboard:** ← skips and → likes (deck only). Z or Backspace undoes the last like or skip in both views, except while typing in a field or list; the Undo button carries `aria-keyshortcuts`. A hint line ("← skip · → player 2 · Z undo") appears only on fine-pointer devices.
 - **Mis-tap guard:** for 400ms after a swipe, further swipes are ignored, so a double tap can't hit an unseen player.
 - **Focus:** moves to the next card's name, or to the page title when the list empties.
-- **Last action line:** "Invite sent: X" or "Skipped: X · Undo". On the first like per account a 12px line with a lock icon follows: "Your contacts stay hidden until they like you back." It sits in the action bar (in a sticky pill in the grid, above the state message when the feed is empty) and is mirrored in a polite live region.
+- **Last action line:** "Invite sent: X · Undo" or "Skipped: X · Undo". A like waits 4s before it is written, and Undo shows only during that window; it then becomes plain "Invite sent: X" (focus on the Undo button moves to the current card's name). A like on someone who already liked you is written at once and opens the Match Dialog, with no Undo. Pending likes are sent immediately when the feed is left or the tab is hidden. Undo returns the card to the front and focuses its name. The live region says "Invite sent to X. Undo available". On the first like per account a 12px line with a lock icon follows: "Your contacts stay hidden until they like you back." It sits in the action bar (in a sticky pill in the grid, above the state message when the feed is empty) and is mirrored in a polite live region.
 - **Toolbar:** a "Filters" stroked button (cyan when active, with a cyan count badge in dark text) controls a collapsible filter panel. Then a polite-live result count, then the view toggle (icon plus label, icons only under 600px). Filters, panel state and view persist in localStorage.
 
 - **End of feed:** never a dead end. Inside the cyan state message it shows a title and "new players arrive as they sign up". Then comes a left-aligned list, each row only when non-zero: likes waiting for a reply (pink heart), chats with new messages (pink), matches with a "suggest a game for tonight" nudge (cyan gamepad). Counts use the "Label: N" form, so no plural rules are needed in RU/UK/SK. Primary "Go to matches" (pink, dark text) appears when matches exist; stroked "Improve profile" is always there.
@@ -282,6 +282,14 @@ The default "one by one" feed view. A grid view stays available through the tool
 - **Contacts unlocked:** a cyan-bordered row (12px radius, `lock_open` icon) says the two players can now see each other's gaming contacts, with a cyan "See contacts" text button that opens Matches. It rises in last.
 - **Buttons:** primary "Send a message" (pink, dark text, focused first) opens the chat; "Keep browsing" closes the dialog. Under 400px they stack full-width, primary on top.
 - **Frame:** the dialog draws its own frame (Lobby Indigo, pink 0.4 border, pink ambient glow), so the overlay pane (`.di-match-dialog`) has a transparent Material surface. Under reduced motion it uses fades only.
+
+### Confirm Dialog
+The one way to ask "are you sure?" (`shared/confirm-dialog`); the browser `confirm()` is never used.
+- **Frame:** same self-drawn frame as the match dialog (`.di-framed-dialog` makes the Material surface transparent), 16px radius, max 400px. The accent is violet, or `--mat-sys-error` for destructive actions (border at 0.4, ambient glow at 0.2).
+- **Title:** Roboto 20/600 with an optional icon. It is Roboto, not Orbitron, because it carries a name and a question in four languages.
+- **Text:** one line about the consequence, worded for the context. Blocking from the feed never mentions a match or chat.
+- **Buttons:** stroked Cancel (focused first; Esc and backdrop also cancel) and a filled confirm labelled with the action itself, never "OK". The destructive confirm is coloured through Material button tokens. Below 400px the buttons stack.
+- Used for unmatch, block, leaving the profile with unsaved edits, and leaving for a platform's sign-in page.
 
 ### Inputs / Fields
 - **Style:** Angular Material form fields (outline/fill per Material defaults) on the dark violet theme.
@@ -297,6 +305,9 @@ The default "one by one" feed view. A grid view stays available through the tool
 - **Theirs:** Void Black fill, cyan border at 35%, tail bottom-left, left-aligned, max 75% width.
 - **Mine:** Pulse Pink at 22% fill, no border, tail bottom-right, right-aligned.
 - Both preserve line breaks (`pre-wrap`) and break long words. An 11px timestamp sits right-aligned. A bubble pops in from its tail corner (0.2s).
+- Each bubble carries a visually hidden speaker label ("You:" / "{name}:"). Only incoming messages are announced, through a separate polite live region.
+- **Layout:** the chat fills the space between the header (and the offline banner) and the bottom as a flex column, and resizes with the soft keyboard (`interactive-widget=resizes-content`). Below 600px it is full-bleed. On touch screens Enter adds a new line; on desktop Enter sends.
+- **Ended:** when the match disappears (unmatch or block by either side), the list freezes and a neutral "This chat has ended" bar with "Back to matches" replaces the composer. It never blames anyone.
 
 ### State Message
 The shared empty/info/error block: Lobby Indigo, a 1px **dashed** accent border, 16px radius, 40px vertical padding, centred Haze Grey text and a 48px accent icon. Its heading (an `h2`, set globally in `styles.scss`) is 20px/600 in the primary text colour in every state: empty, end of feed, error, 404. The accent is a variable: pink by default, cyan for neutral info, `--mat-sys-error` for errors.

@@ -34,7 +34,7 @@ html {
 }
 
 // Окно «Это мэтч!» рисует свою неоновую рамку само — стандартную подложку Material убираем.
-.di-match-dialog {
+.di-framed-dialog {
   --mat-dialog-container-color: transparent;
   --mat-dialog-container-elevation-shadow: none;
 }

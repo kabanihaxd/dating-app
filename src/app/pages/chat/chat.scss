@@ -11,14 +11,25 @@
   }
 }
 
-// Чат занимает весь экран под шапкой: сверху собеседник, снизу поле ввода,
+// Чат занимает всё место под шапкой: сверху собеседник, снизу поле ввода,
 // а прокручивается только список сообщений между ними.
-// 112px — шапка сайта (64) + отступы страницы (24 + 24). dvh учитывает панель адреса на телефоне.
+// Высоту не высчитываем «магическим числом»: app.scss, когда открыт чат, превращает страницу
+// в колонку высотой с экран (100dvh), где шапка и плашка «нет сети» берут сколько им нужно,
+// а <main> — весь остаток. Здесь :host и .chat просто растягиваются на этот остаток (flex: 1).
+// min-height: 0 обязателен: без него flex-элемент не сжимается меньше своего содержимого,
+// и длинная переписка растянула бы страницу вместо прокрутки внутри списка.
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .chat {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 112px);
-  min-height: 360px;
+  flex: 1;
+  min-height: 0;
   background: var(--di-surface);
   border: 1px solid rgba(255, 46, 136, 0.4);
   border-radius: 16px;
@@ -33,9 +44,17 @@
   padding: 8px 16px 8px 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 
-  h2 {
+  // h1 по смыслу, но размером как имя в шапке, а не как заголовок страницы.
+  // min-width: 0 + ellipsis — длинное имя не выталкивает кнопку «⋮» за край.
+  h1 {
     margin: 0;
+    min-width: 0;
     font-size: 18px;
+    font-weight: 500;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   // Кнопка «⋮» — у правого края шапки.
@@ -100,6 +119,7 @@
 
 // «Пузырь» сообщения: чужие — слева, мои — справа и в цвет бренда.
 .message {
+  position: relative;
   align-self: flex-start;
   max-width: 75%;
   padding: 8px 12px;
@@ -134,7 +154,8 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 12px 12px 8px 16px;
+  // Снизу — не меньше 8px и не меньше «безопасной зоны» экрана (полоска жестов на iPhone).
+  padding: 12px 12px max(8px, env(safe-area-inset-bottom)) 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 
   mat-form-field {
@@ -147,14 +168,74 @@
   }
 }
 
-// На телефоне подсказку про Enter прячем: там отправляют кнопкой.
+// Прокручиваемый список фокусируется с клавиатуры — показываем это неоновой рамкой внутри.
+.messages:focus-visible {
+  outline: 2px solid var(--di-neon-cyan);
+  outline-offset: -2px;
+}
+
+// Чат завершён: вместо поля ввода — спокойная плашка без «виноватых» и кнопка к мэтчам.
+.ended {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--di-text-muted);
+  animation: di-fade-up 0.3s ease-out;
+
+  > mat-icon {
+    flex-shrink: 0;
+    color: var(--di-neon-violet);
+  }
+
+  .ended-text {
+    flex: 1 1 220px;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  .ended-title {
+    margin-bottom: 2px;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface);
+  }
+}
+
+// Текст только для программ чтения с экрана: на экране не виден, но остаётся в дереве доступности.
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// На телефоне чат во всю ширину и до низа экрана: без рамки и скруглений —
+// каждый пиксель отдаём переписке (отступы страницы убирает app.scss).
 @media (max-width: 600px) {
-  mat-hint {
-    display: none;
+  .chat {
+    border-width: 1px 0 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .message {
     max-width: 85%;
+  }
+}
+
+// Браузеры без :has() (см. app.scss) не растянут страницу под чат — для них старая формула:
+// экран минус шапка (64) и отступы страницы (24 + 24).
+@supports not selector(:has(*)) {
+  .chat {
+    flex: none;
+    height: calc(100dvh - 112px);
+    min-height: 360px;
   }
 }
 

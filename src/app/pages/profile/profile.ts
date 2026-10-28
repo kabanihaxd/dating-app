@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
@@ -10,12 +10,16 @@ import {
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth';
 import { firestoreErrorKey } from '../../core/firebase/firestore-errors';
+import { confirmLeave } from '../../core/guards/leave-dialog';
+import { HasUnsavedChanges } from '../../core/guards/unsaved-changes.guard';
 import { I18n } from '../../core/i18n/i18n';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { PlatformConnect } from '../../core/profile/platform-connect';
@@ -54,6 +58,21 @@ function contactValidator(domains: readonly string[]) {
     isValidContact(control.value.trim(), domains) ? null : { contact: true };
 }
 
+// Поля формы в том порядке, в каком они стоят на странице, и ключи их подписей.
+// По этому списку ищем ПЕРВОЕ поле с ошибкой (на него уйдёт фокус) и собираем текст «Поправь поля: Город, Платформы».
+// Путь 'contacts.discord' — вложенное поле: form.get() понимает такие пути через точку.
+const FIELD_LABELS: readonly (readonly [path: string, labelKey: string])[] = [
+  ['name', 'profile.name'],
+  ['birthDate', 'profile.birthDate'],
+  ['city', 'profile.city'],
+  ['bio', 'profile.bio'],
+  ['games', 'profile.games.label'],
+  ['platforms', 'profile.platforms'],
+  ['genres', 'profile.genres'],
+  ['playTimes', 'profile.playTimes'],
+  ...CONTACT_FIELDS.map((field) => [`contacts.${field}`, `profile.contacts.${field}`] as const),
+];
+
 // Дата N лет назад в формате 'YYYY-MM-DD' — ограничение max для календаря.
 function yearsAgo(years: number): string {
   const date = new Date();
@@ -77,12 +96,20 @@ function yearsAgo(years: number): string {
   ],
   templateUrl: './profile.html',
   styleUrl: './profile.scss',
+  host: {
+    // beforeunload — событие браузера перед закрытием вкладки или перезагрузкой.
+    // Роутер (и наш canDeactivate guard) про такой уход не знает, поэтому ловим его здесь.
+    '(window:beforeunload)': 'onBeforeUnload($event)',
+  },
 })
-export class Profile {
+export class Profile implements HasUnsavedChanges {
   private readonly auth = inject(AuthService);
   private readonly profiles = inject(ProfileService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly i18n = inject(I18n);
+  private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly connect = inject(PlatformConnect);
 
   protected readonly maxGames = 20;
@@ -111,6 +138,12 @@ export class Profile {
   protected readonly photo = signal<string | null>(null);
   protected readonly photoErrorKey = signal<string | null>(null);
   protected readonly gameQuery = signal('');
+  // Первый заход: анкеты в базе ещё нет. Тогда страница — «собери профиль», а после сохранения ведём в ленту.
+  protected readonly isNew = signal(false);
+  // Человек уже пытался сохранить форму с ошибками — с этого момента показываем список полей, которые надо поправить.
+  protected readonly showInvalid = signal(false);
+  // Уходим на сайт Steam/Discord после подтверждения — второй раз (в beforeunload) не спрашиваем.
+  private leavingForConnect = false;
 
   private readonly fb = inject(NonNullableFormBuilder);
   protected readonly form = this.fb.group({
@@ -135,6 +168,33 @@ export class Profile {
   protected readonly games = toSignal(this.form.controls.games.valueChanges, {
     initialValue: this.form.controls.games.value,
   });
+
+  // form.events — поток ВСЕХ событий формы: смена значения, статуса, touched, dirty/pristine.
+  // Сама форма не signal, поэтому computed ниже не узнал бы о markAsDirty/markAsPristine.
+  // Читая formEvent(), computed подписывается на этот поток и пересчитывается после каждого события.
+  private readonly formEvent = toSignal(this.form.events);
+
+  // Есть несохранённые правки — от этого зависят значок «не сохранено» и кнопка «Сохранить».
+  protected readonly dirty = computed(() => {
+    this.formEvent();
+    return this.form.dirty;
+  });
+
+  // Подписи полей с ошибками, в порядке страницы: ['Город', 'Платформы'].
+  // Подписи идут списком после двоеточия, поэтому падеж не важен — в любом языке это просто перечень.
+  protected readonly invalidLabels = computed(() => {
+    this.formEvent();
+    this.i18n.lang(); // сменили язык — пересобираем подписи на новом
+    return FIELD_LABELS.filter(([path]) => this.form.get(path)?.invalid).map(([, key]) =>
+      this.i18n.translate(key),
+    );
+  });
+
+  // Кнопку «Сохранить» гасим, пока нечего сохранять. Исключение — первый заход:
+  // даже нетронутую форму можно отправить, тогда появится список того, что нужно заполнить.
+  protected readonly saveDisabled = computed(
+    () => this.saving() || (!this.isNew() && !this.dirty()),
+  );
 
   // Подсказки: популярные игры, которые подходят под набранный текст и ещё не выбраны.
   protected readonly suggestions = computed(() => {
@@ -192,14 +252,29 @@ export class Profile {
     this.form.markAsDirty();
   }
 
+  // Для guard'а и beforeunload: правки есть, и они не уходят прямо сейчас на сервер.
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
+  // preventDefault() просит браузер показать своё окно «Покинуть сайт?». Текст окна задаёт сам браузер.
+  protected onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasUnsavedChanges() && !this.leavingForConnect) {
+      event.preventDefault();
+    }
+  }
+
   protected async save(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      this.errorKey.set('profile.errors.invalidForm');
+      this.errorKey.set(null);
+      this.showInvalid.set(true);
+      this.focusFirstInvalid();
       return;
     }
     this.saving.set(true);
     this.errorKey.set(null);
+    this.showInvalid.set(false);
     const { contacts, ...profile } = this.form.getRawValue();
     try {
       await this.profiles.save(
@@ -208,7 +283,23 @@ export class Profile {
         this.trimmed(contacts),
       );
       this.form.markAsPristine();
-      this.snackBar.open(this.i18n.translate('profile.saved'), undefined, { duration: 3000 });
+      if (this.isNew()) {
+        // Анкета готова — сразу показываем то, ради чего её заполняли: ленту игроков.
+        this.isNew.set(false);
+        this.snackBar.open(this.i18n.translate('profile.saved'), undefined, { duration: 3000 });
+        await this.router.navigate(['/feed']);
+      } else {
+        // После сохранения «Сохранить» гаснет (форма снова pristine), и фокус с неё пропал бы
+        // в никуда — переносим его на заголовок страницы, чтобы клавиатура не теряла место.
+        this.host.nativeElement.querySelector<HTMLElement>('h1')?.focus();
+        // onAction() срабатывает, когда нажали кнопку на самом снекбаре.
+        this.snackBar
+          .open(this.i18n.translate('profile.saved'), this.i18n.translate('profile.toFeed'), {
+            duration: 5000,
+          })
+          .onAction()
+          .subscribe(() => void this.router.navigate(['/feed']));
+      }
     } catch (error) {
       this.errorKey.set(firestoreErrorKey(error));
     } finally {
@@ -216,12 +307,30 @@ export class Profile {
     }
   }
 
-  // Уходим на сайт Steam/Discord. Страница перезагрузится, поэтому несохранённые правки пропадут — предупреждаем.
-  protected connectPlatform(field: ContactField): void {
-    if (this.form.dirty && !confirm(this.i18n.translate('profile.connect.unsavedWarning'))) {
+  // Уходим на сайт Steam/Discord. Страница перезагрузится, поэтому несохранённые правки пропадут —
+  // предупреждаем тем же окном, что и guard при переходе на другую страницу.
+  protected async connectPlatform(field: ContactField): Promise<void> {
+    if (this.form.dirty && !(await confirmLeave(this.dialog, this.i18n))) {
       return;
     }
+    this.leavingForConnect = true;
     this.connect.start(field);
+  }
+
+  // Красная рамка видна не всем (а экранному диктору не видна совсем), поэтому после неудачной отправки
+  // переводим фокус на первое поле с ошибкой: диктор прочитает его подпись и текст ошибки.
+  // Нужные элементы помечены в шаблоне атрибутом data-field="путь поля".
+  private focusFirstInvalid(): void {
+    const first = FIELD_LABELS.find(([path]) => this.form.get(path)?.invalid);
+    const element =
+      first && this.host.nativeElement.querySelector<HTMLElement>(`[data-field="${first[0]}"]`);
+    if (!element) {
+      return;
+    }
+    // preventScroll + scrollIntoView: сами ставим поле в центр экрана, чтобы его не закрыла
+    // липкая панель с кнопкой внизу. Список чипов (mat-chip-listbox) на focus() сам передаёт фокус чипу.
+    element.focus({ preventScroll: true });
+    element.scrollIntoView({ block: 'center' });
   }
 
   // Вернулись с платформы: подставляем ссылку и сразу сохраняем её, чтобы не пришлось жать «Сохранить».
@@ -269,6 +378,7 @@ export class Profile {
     this.loadErrorKey.set(null);
     try {
       const { profile, contacts } = await this.profiles.load(this.uid);
+      this.isNew.set(!profile);
       if (profile) {
         // patchValue заполняет только известные форме поля, лишние (updatedAt) пропускает.
         const { photo, ...fields } = profile;

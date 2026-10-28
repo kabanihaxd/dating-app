@@ -48,6 +48,24 @@ export class ChatService {
     return users.includes(me) ? users.find((uid) => uid !== me)! : null;
   }
 
+  // Подписка на сам документ мэтча: onGone вызывается, когда мэтча больше нет —
+  // собеседник разорвал мэтч или заблокировал. Удалённый документ приходит либо как snapshot
+  // без данных (exists() === false), либо как ошибка доступа: правила читают resource.data,
+  // а у удалённого документа его нет. Оба случая для чата значат одно и то же — «чат завершён».
+  watchMatch(matchId: string, onGone: () => void, onError: (error: unknown) => void): () => void {
+    return onSnapshot(
+      doc(this.db, 'matches', matchId),
+      (snapshot) => {
+        // fromCache: без сети Firestore может ответить «документа нет» просто потому, что его нет
+        // в локальном кэше. Верим только ответу сервера.
+        if (!snapshot.exists() && !snapshot.metadata.fromCache) {
+          onGone();
+        }
+      },
+      (error) => (isPermissionDenied(error) ? onGone() : onError(error)),
+    );
+  }
+
   // Подписка на последние сообщения: onMessages вызывается сразу и потом при каждом новом сообщении.
   // Возвращает функцию отписки — её нужно вызвать при уходе со страницы.
   watchMessages(

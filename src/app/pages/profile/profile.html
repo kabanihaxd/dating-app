@@ -1,6 +1,7 @@
 <section class="profile-card">
-  <h2>{{ 'profile.title' | t }}</h2>
-  <p class="subtitle">{{ 'profile.subtitle' | t }}</p>
+  <!-- Первый заход (анкеты ещё нет) — приветствие и обещание: после сохранения сразу откроется лента. -->
+  <h1 tabindex="-1">{{ (isNew() ? 'profile.firstRun.title' : 'profile.title') | t }}</h1>
+  <p class="subtitle">{{ (isNew() ? 'profile.firstRun.subtitle' : 'profile.subtitle') | t }}</p>
 
   @if (loading()) {
     <!-- Скелетон: круг фото и полосы полей формы. -->
@@ -13,9 +14,10 @@
   } @else if (loadErrorKey(); as key) {
     <app-error-state [errorKey]="key" (retry)="retry()" />
   } @else {
-    <form [formGroup]="form" (ngSubmit)="save()">
+    <!-- id нужен кнопке «Сохранить»: она стоит в липкой панели ВНЕ формы и ссылается на неё через form="profile-form". -->
+    <form id="profile-form" [formGroup]="form" (ngSubmit)="save()">
       <!-- ===== О себе ===== -->
-      <h3>{{ 'profile.sections.about' | t }}</h3>
+      <h2>{{ 'profile.sections.about' | t }}</h2>
 
       <div class="photo">
         @if (photo(); as src) {
@@ -42,7 +44,8 @@
             </button>
           }
           @if (photoErrorKey(); as key) {
-            <p class="field-error">{{ key | t }}</p>
+            <!-- role="alert": фото выбирают в системном окне, глазами ошибку легко пропустить — диктор прочитает сразу. -->
+            <p class="field-error" role="alert">{{ key | t }}</p>
           }
         </div>
       </div>
@@ -50,7 +53,7 @@
       <div class="row">
         <mat-form-field appearance="outline">
           <mat-label>{{ 'profile.name' | t }}</mat-label>
-          <input matInput formControlName="name" autocomplete="given-name" />
+          <input matInput formControlName="name" data-field="name" autocomplete="given-name" />
           @if (form.controls.name.hasError('required')) {
             <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
           } @else if (form.controls.name.hasError('maxlength')) {
@@ -60,7 +63,13 @@
 
         <mat-form-field appearance="outline">
           <mat-label>{{ 'profile.birthDate' | t }}</mat-label>
-          <input matInput type="date" formControlName="birthDate" [max]="maxBirthDate" />
+          <input
+            matInput
+            type="date"
+            formControlName="birthDate"
+            data-field="birthDate"
+            [max]="maxBirthDate"
+          />
           @if (form.controls.birthDate.hasError('required')) {
             <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
           } @else if (form.controls.birthDate.hasError('underage')) {
@@ -71,7 +80,7 @@
 
       <mat-form-field appearance="outline">
         <mat-label>{{ 'profile.city' | t }}</mat-label>
-        <input matInput formControlName="city" autocomplete="address-level2" />
+        <input matInput formControlName="city" data-field="city" autocomplete="address-level2" />
         @if (form.controls.city.hasError('required')) {
           <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
         } @else if (form.controls.city.hasError('maxlength')) {
@@ -84,6 +93,7 @@
         <textarea
           matInput
           formControlName="bio"
+          data-field="bio"
           rows="4"
           [placeholder]="'profile.bioPlaceholder' | t"
         ></textarea>
@@ -94,7 +104,7 @@
       </mat-form-field>
 
       <!-- ===== Игровой профиль ===== -->
-      <h3>{{ 'profile.sections.gaming' | t }}</h3>
+      <h2>{{ 'profile.sections.gaming' | t }}</h2>
 
       <mat-form-field appearance="outline">
         <mat-label>{{ 'profile.games.label' | t }}</mat-label>
@@ -115,6 +125,7 @@
         <!-- Enter или запятая добавляют набранную игру; можно выбрать и из подсказок. -->
         <input
           #gameInput
+          data-field="games"
           [placeholder]="'profile.games.placeholder' | t"
           [matChipInputFor]="chipGrid"
           [matAutocomplete]="auto"
@@ -136,12 +147,19 @@
       </mat-form-field>
 
       @for (group of chipGroups; track group.control) {
+        @let groupControl = form.controls[group.control];
+        @let groupError = groupControl.touched && groupControl.invalid;
         <div class="chip-group">
           <p class="group-label">{{ 'profile.' + group.control | t }}</p>
+          <!-- У списка чипов нет mat-form-field, который сам связал бы ошибку с полем.
+               Связываем вручную: aria-describedby → id текста ошибки, aria-invalid — «здесь ошибка». -->
           <mat-chip-listbox
             multiple
             [formControlName]="group.control"
+            [attr.data-field]="group.control"
             [attr.aria-label]="'profile.' + group.control | t"
+            [attr.aria-invalid]="groupError || null"
+            [attr.aria-describedby]="groupError ? group.control + '-error' : null"
           >
             @for (option of group.options; track option) {
               <mat-chip-option [value]="option">{{
@@ -149,14 +167,16 @@
               }}</mat-chip-option>
             }
           </mat-chip-listbox>
-          @if (form.controls[group.control].touched && form.controls[group.control].invalid) {
-            <p class="field-error">{{ 'profile.errors.minOne' | t }}</p>
+          @if (groupError) {
+            <p class="field-error" [id]="group.control + '-error'">
+              {{ 'profile.errors.minOne' | t }}
+            </p>
           }
         </div>
       }
 
       <!-- ===== Контакты ===== -->
-      <h3>{{ 'profile.sections.contacts' | t }}</h3>
+      <h2>{{ 'profile.sections.contacts' | t }}</h2>
       <p class="hint"><mat-icon inline>lock</mat-icon> {{ 'profile.contactsHint' | t }}</p>
 
       <div class="contacts" formGroupName="contacts">
@@ -169,6 +189,7 @@
               <input
                 matInput
                 [formControlName]="field"
+                [attr.data-field]="'contacts.' + field"
                 [placeholder]="'profile.contactPlaceholder' | t"
               />
               <!-- Вписана правильная ссылка (а не ник) — можно сразу открыть и проверить, куда ведёт. -->
@@ -206,14 +227,43 @@
           </div>
         }
       </div>
-
-      @if (errorKey(); as key) {
-        <p class="form-error" role="alert">{{ key | t }}</p>
-      }
-
-      <button mat-flat-button type="submit" class="save-btn" [disabled]="saving()">
-        {{ (saving() ? 'profile.saving' : 'profile.save') | t }}
-      </button>
     </form>
   }
 </section>
+
+@if (!loading() && !loadErrorKey()) {
+  <!-- Липкая панель внизу экрана, как кнопки в ленте: «Сохранить» всегда под рукой, даже посреди длинной формы.
+       Ошибки показываем здесь же — там, куда человек только что нажал. -->
+  <div class="action-bar">
+    <!-- role="alert" — экранный диктор прочитает текст сразу, как только он появится или изменится. -->
+    <div class="messages" role="alert">
+      @if (showInvalid() && invalidLabels().length) {
+        <p class="form-error">
+          {{
+            'profile.errors.fixFields'
+              | t: { count: invalidLabels().length, fields: invalidLabels().join(', ') }
+          }}
+        </p>
+      } @else if (errorKey(); as key) {
+        <p class="form-error">{{ key | t }}</p>
+      }
+    </div>
+    <div class="bar-row">
+      @if (dirty()) {
+        <span class="unsaved">
+          <span class="dot" aria-hidden="true"></span>
+          {{ 'profile.unsaved' | t }}
+        </span>
+      }
+      <button
+        mat-flat-button
+        type="submit"
+        form="profile-form"
+        class="save-btn"
+        [disabled]="saveDisabled()"
+      >
+        {{ (saving() ? 'profile.saving' : isNew() ? 'profile.firstRun.save' : 'profile.save') | t }}
+      </button>
+    </div>
+  </div>
+}

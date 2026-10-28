@@ -26,78 +26,112 @@
   @case ('error') {
     <app-error-state [errorKey]="errorKey()" (retry)="retry()" />
   }
-  @case ('ready') {
+  @default {
+    <!-- ready — обычный чат; ended — мэтч разорван посреди разговора: переписка остаётся
+         на экране «замороженной», а вместо поля ввода — сообщение о завершении. -->
     <section class="chat">
       <header class="chat-header">
         <a mat-icon-button routerLink="/matches" [attr.aria-label]="'chat.back' | t">
           <mat-icon>arrow_back</mat-icon>
         </a>
+        <!-- alt="" — картинка декоративная: имя и так написано рядом в заголовке. -->
         @if (partner()?.photo; as src) {
-          <img [src]="src" [alt]="partner()?.name" />
+          <img [src]="src" alt="" />
         } @else {
-          <div class="avatar"><mat-icon>person</mat-icon></div>
+          <div class="avatar" aria-hidden="true"><mat-icon>person</mat-icon></div>
         }
-        <h2>{{ partner()?.name ?? ('chat.unknown' | t) }}</h2>
+        <!-- Имя собеседника — главный заголовок страницы (h1): по нему программа чтения с экрана
+             понимает, где она. Размер задаёт CSS, а не уровень заголовка. -->
+        <h1 id="chat-title">{{ partnerName() }}</h1>
         @if (partnerUid(); as uid) {
           <app-moderation-menu
             class="menu"
             [otherUid]="uid"
             [name]="partner()?.name ?? ''"
-            [matched]="true"
+            [matched]="state() === 'ready'"
             (removed)="leave()"
           />
         }
       </header>
 
-      <!-- role="log" + aria-live: программа чтения с экрана сама озвучит новое сообщение. -->
-      <div class="messages" #list role="log" aria-live="polite">
+      <!-- Список сообщений сам ничего не озвучивает (иначе программа чтения с экрана повторяла бы
+           и мои только что отправленные сообщения). Новые входящие озвучивает .sr-only ниже.
+           tabindex="0" — чтобы прокручиваемую переписку можно было листать с клавиатуры. -->
+      <div class="messages" #list role="region" aria-labelledby="chat-title" tabindex="0">
         @for (message of messageViews(); track message.id) {
           <!-- Новое сообщение «выпрыгивает» из своего угла: своё справа, чужое слева. -->
           <div class="message" [class.mine]="message.mine" animate.enter="pop-in">
+            <!-- Кто говорит: глазами это видно по стороне и цвету пузыря, а на слух — нет. -->
+            <span class="sr-only">{{
+              message.mine
+                ? ('chat.speaker.me' | t)
+                : ('chat.speaker.partner' | t: { name: partnerName() })
+            }}</span>
             <p>{{ message.text }}</p>
-            <time>{{ message.time }}</time>
+            <time [attr.datetime]="message.datetime">{{ message.time }}</time>
           </div>
         } @empty {
-          <div class="empty">
-            <mat-icon>waving_hand</mat-icon>
-            <p>{{ 'chat.empty' | t: { name: partner()?.name ?? '' } }}</p>
-            @if (commonGames().length) {
-              <p class="muted">{{ 'chat.emptyGames' | t }}</p>
-              <div class="tags">
-                @for (game of commonGames(); track game) {
-                  <span class="tag">{{ game }}</span>
-                }
-              </div>
-            }
-          </div>
+          @if (state() === 'ready') {
+            <div class="empty">
+              <mat-icon aria-hidden="true">waving_hand</mat-icon>
+              <p>{{ 'chat.empty' | t }}</p>
+              @if (commonGames().length) {
+                <p class="muted">{{ 'chat.emptyGames' | t }}</p>
+                <div class="tags">
+                  @for (game of commonGames(); track game) {
+                    <span class="tag">{{ game }}</span>
+                  }
+                </div>
+              }
+            </div>
+          }
         }
       </div>
 
-      <form class="composer" (ngSubmit)="send()">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <textarea
-            matInput
-            [formControl]="draft"
-            cdkTextareaAutosize
-            cdkAutosizeMinRows="1"
-            cdkAutosizeMaxRows="5"
-            [maxlength]="maxLength"
-            [placeholder]="'chat.placeholder' | t"
-            [attr.aria-label]="'chat.placeholder' | t"
-            (keydown.enter)="onEnter($event)"
-          ></textarea>
-          <mat-hint>{{ 'chat.hint' | t }}</mat-hint>
-        </mat-form-field>
-        <button
-          mat-icon-button
-          type="submit"
-          class="send"
-          [disabled]="!draft.value.trim()"
-          [attr.aria-label]="'chat.send' | t"
-        >
-          <mat-icon>send</mat-icon>
-        </button>
-      </form>
+      <!-- Живая область: сюда попадает последнее входящее сообщение, и программа чтения
+           с экрана зачитывает его сама («Аня: привет»). -->
+      <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
+
+      @if (state() === 'ready') {
+        <form class="composer" (ngSubmit)="send()">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <textarea
+              matInput
+              [formControl]="draft"
+              cdkTextareaAutosize
+              cdkAutosizeMinRows="1"
+              cdkAutosizeMaxRows="5"
+              [maxlength]="maxLength"
+              [placeholder]="'chat.placeholder' | t"
+              [attr.aria-label]="'chat.messageTo' | t: { name: partnerName() }"
+              (keydown.enter)="onEnter($event)"
+            ></textarea>
+            <!-- Подсказка про Enter нужна только с физической клавиатурой: на телефоне отправляют кнопкой. -->
+            @if (!touch) {
+              <mat-hint>{{ 'chat.hint' | t }}</mat-hint>
+            }
+          </mat-form-field>
+          <button
+            mat-icon-button
+            type="submit"
+            class="send"
+            [disabled]="!draft.value.trim() || sending()"
+            [attr.aria-label]="'chat.send' | t"
+          >
+            <mat-icon>send</mat-icon>
+          </button>
+        </form>
+      } @else {
+        <!-- role="status" — появление этой плашки программа чтения с экрана озвучит сама. -->
+        <div class="ended" role="status">
+          <mat-icon aria-hidden="true">forum</mat-icon>
+          <div class="ended-text">
+            <p class="ended-title">{{ 'chat.ended.title' | t }}</p>
+            <p>{{ 'chat.ended.text' | t }}</p>
+          </div>
+          <a mat-flat-button routerLink="/matches">{{ 'chat.back' | t }}</a>
+        </div>
+      }
     </section>
   }
 }

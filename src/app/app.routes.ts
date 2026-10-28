@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/auth/auth.guards';
+import { unsavedChangesGuard } from './core/guards/unsaved-changes.guard';
 
 // loadComponent = lazy loading: код страницы скачивается только когда пользователь на неё заходит.
 // canActivate — guards: проверка перед входом на страницу.
@@ -29,6 +30,8 @@ export const routes: Routes = [
   {
     path: 'profile',
     canActivate: [authGuard],
+    // canDeactivate — проверка перед УХОДОМ: не дадим молча потерять несохранённую анкету.
+    canDeactivate: [unsavedChangesGuard],
     loadComponent: () => import('./pages/profile/profile').then((m) => m.Profile),
   },
   { path: '**', loadComponent: () => import('./pages/not-found/not-found').then((m) => m.NotFound) },
