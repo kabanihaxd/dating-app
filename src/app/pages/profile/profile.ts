@@ -13,13 +13,13 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AuthService } from '../../core/auth/auth';
+import { firestoreErrorKey } from '../../core/firebase/firestore-errors';
 import { I18n } from '../../core/i18n/i18n';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { PlatformConnect } from '../../core/profile/platform-connect';
-import { ProfileService, profileErrorKey } from '../../core/profile/profile';
+import { ProfileService } from '../../core/profile/profile';
 import {
   CONTACT_FIELDS,
   ContactField,
@@ -37,6 +37,7 @@ import {
   isValidContact,
 } from '../../core/profile/profile.model';
 import { resizeImage } from '../../core/profile/resize-image';
+import { ErrorState } from '../../shared/error-state/error-state';
 
 const MIN_AGE = 18;
 const MAX_PHOTO_FILE_SIZE = 15 * 1024 * 1024; // 15 МБ — больше не тянем в браузер даже для сжатия
@@ -71,8 +72,8 @@ function yearsAgo(years: number): string {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatProgressSpinnerModule,
     TranslatePipe,
+    ErrorState,
   ],
   templateUrl: './profile.html',
   styleUrl: './profile.scss',
@@ -102,6 +103,11 @@ export class Profile {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly errorKey = signal<string | null>(null);
+  // Ошибка ЗАГРУЗКИ — отдельно от ошибки сохранения. Если анкета не загрузилась, форму не показываем:
+  // иначе пустая форма и «Зберегти» затёрли бы настоящий профиль.
+  protected readonly loadErrorKey = signal<string | null>(null);
+  // Строки-заготовки скелетона: ширина полей формы (в %).
+  protected readonly skeletonFields = [100, 100, 70, 100, 85];
   protected readonly photo = signal<string | null>(null);
   protected readonly photoErrorKey = signal<string | null>(null);
   protected readonly gameQuery = signal('');
@@ -204,7 +210,7 @@ export class Profile {
       this.form.markAsPristine();
       this.snackBar.open(this.i18n.translate('profile.saved'), undefined, { duration: 3000 });
     } catch (error) {
-      this.errorKey.set(profileErrorKey(error));
+      this.errorKey.set(firestoreErrorKey(error));
     } finally {
       this.saving.set(false);
     }
@@ -253,7 +259,14 @@ export class Profile {
     return this.auth.user()!.uid;
   }
 
+  // Кнопка «Спробувати ще раз» на ошибке загрузки.
+  protected retry(): void {
+    void this.load();
+  }
+
   private async load(): Promise<void> {
+    this.loading.set(true);
+    this.loadErrorKey.set(null);
     try {
       const { profile, contacts } = await this.profiles.load(this.uid);
       if (profile) {
@@ -269,7 +282,7 @@ export class Profile {
         this.form.controls.contacts.patchValue(contacts);
       }
     } catch (error) {
-      this.errorKey.set(profileErrorKey(error));
+      this.loadErrorKey.set(firestoreErrorKey(error));
       return;
     } finally {
       this.loading.set(false);

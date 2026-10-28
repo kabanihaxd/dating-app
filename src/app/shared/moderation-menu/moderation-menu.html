@@ -3,7 +3,7 @@
   type="button"
   [matMenuTriggerFor]="menu"
   [disabled]="busy()"
-  [attr.aria-label]="'moderation.menu' | t"
+  [attr.aria-label]="'moderation.menu' | t: { name: name() }"
 >
   <mat-icon>more_vert</mat-icon>
 </button>

@@ -12,36 +12,6 @@ h2 {
   margin: 0;
 }
 
-.center {
-  display: flex;
-  justify-content: center;
-  padding: 48px 0;
-}
-
-.form-error {
-  color: var(--mat-sys-error);
-  text-align: center;
-}
-
-.notice {
-  text-align: center;
-  padding: 40px 16px;
-  background: var(--di-surface);
-  border: 1px dashed rgba(255, 46, 136, 0.4);
-  border-radius: 16px;
-
-  mat-icon {
-    font-size: 48px;
-    width: 48px;
-    height: 48px;
-    color: var(--di-neon-pink);
-  }
-
-  p {
-    color: var(--di-text-muted);
-  }
-}
-
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -183,4 +153,52 @@ h2 {
     background: var(--di-neon-pink);
     box-shadow: 0 0 8px var(--di-neon-pink);
   }
+}
+
+// Заготовка карточки мэтча — те же размеры, что у настоящей, но без неонового свечения.
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-color: rgba(255, 46, 136, 0.15);
+  box-shadow: none;
+
+  .who {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .avatar-sk {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .chat-sk {
+    height: 44px;
+    margin-top: 4px;
+    border-radius: 12px;
+  }
+
+  .line {
+    height: 14px;
+  }
+}
+
+.w40 {
+  width: 40%;
+}
+
+.w60 {
+  width: 60%;
+}
+
+.w70 {
+  width: 70%;
+}
+
+.w80 {
+  width: 80%;
 }

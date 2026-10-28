@@ -88,6 +88,15 @@ export class NotificationService {
     );
   });
 
+  // Сколько у меня мэтчей — для итогов в конце ленты.
+  readonly matchCount = computed(() => this.matches().length);
+
+  // Мои лайки, на которые ещё не ответили: мэтча с этим человеком нет. id мэтча — два uid через '_'.
+  readonly waitingLikes = computed(() => {
+    const matched = new Set(this.matches().flatMap((match) => match.id.split('_')));
+    return [...this.myLikes()].filter((uid) => !matched.has(uid) && !this.hidden().has(uid)).length;
+  });
+
   // Значок «Мэтчи»: новые мэтчи (после последнего захода на страницу) + чаты с непрочитанным.
   readonly matchesBadge = computed(
     () =>

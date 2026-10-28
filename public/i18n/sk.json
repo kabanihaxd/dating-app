@@ -6,8 +6,11 @@
     "login": "Prihlásiť sa",
     "logout": "Odhlásiť sa"
   },
+  "common": {
+    "loading": "Načítava sa…"
+  },
   "moderation": {
-    "menu": "Akcie s hráčom",
+    "menu": "Akcie: {{name}}",
     "unmatch": "Zrušiť match",
     "report": "Nahlásiť",
     "block": "Zablokovať",
@@ -64,13 +67,14 @@
   },
   "feed": {
     "title": "Hráči",
-    "subtitle": "Hráči, s ktorými máš najviac spoločného, sú prví.",
+    "subtitle": "Najprv tí, ktorým sa páčiš, potom tí, s ktorými máš najviac spoločného.",
     "count": "Nájdení hráči: {{count}}",
-    "empty": "Zatiaľ tu nikto nie je. Pozvi kamarátov hráčov!",
-    "emptyFiltered": "Týmto filtrom nikto nevyhovuje. Skús ich zmierniť.",
+    "emptyTitle": "Iní hráči tu zatiaľ nie sú",
+    "empty": "Pozvi kamarátov hráčov — zobrazia sa tu, hneď ako sa zaregistrujú.",
+    "emptyFiltered": "Týmto filtrom nikto nevyhovuje. Rozšír vekový rozsah alebo zruš niektoré filtre.",
     "noProfile": {
       "title": "Najprv si vyplň profil",
-      "text": "Aby sme ti našli spoluhráčov, potrebujeme poznať tvoje hry a platformy.",
+      "text": "Aby sme našli tvojho player 2, potrebujeme poznať tvoje hry a platformy.",
       "cta": "Vyplniť profil"
     },
     "filters": {
@@ -78,22 +82,87 @@
       "platform": "Platforma",
       "city": "Mesto",
       "minAge": "Vek od",
-      "maxAge": "do",
+      "maxAge": "Vek do",
       "any": "Akákoľvek",
-      "reset": "Zrušiť filtre"
+      "reset": "Zrušiť filtre",
+      "toggle": "Filtre",
+      "activeCount": "aktívne: {{count}}",
+      "myGames": "Moje hry",
+      "otherGames": "Hry ostatných hráčov"
     },
     "card": {
-      "match": "{{percent}}% zhoda",
+      "match": "zhoda {{percent}}%",
       "commonGames": "Spoločné hry",
       "otherGames": "Ďalšie hry",
-      "likedMe": "Páčiš sa mu/jej",
-      "like": "Páči sa mi",
-      "skip": "Preskočiť"
+      "likedMe": "Páčiš sa",
+      "like": "Player 2?",
+      "skip": "Preskočiť",
+      "likeName": "Pozvať {{name}} ako player 2",
+      "skipName": "Preskočiť: {{name}}",
+      "why": "Prečo sa zhodujete",
+      "bothPlay": "Spoločný čas hrania",
+      "commonGenres": "Spoločné žánre",
+      "commonPlatform": "spoločná platforma",
+      "platforms": "Platformy",
+      "more": "Zobraziť viac",
+      "less": "Zobraziť menej",
+      "moreGames": "+{{count}} ďalšie",
+      "photoAlt": "Fotka: {{name}}",
+      "matchHint": "Percento zohľadňuje spoločné hry, platformy, žánre a čas hrania. Najviac vážia hry."
     },
-    "allSwiped": "Prezrel si všetky profily. Pozri sa neskôr — pribudnú noví hráči.",
     "toMatches": "Na matche",
-    "matchToast": "Je to match s {{name}}! 🎉",
-    "matchAction": "Napísať"
+    "matchAction": "Napísať",
+    "invite": "Kopírovať odkaz",
+    "inviteCopied": "Odkaz skopírovaný — pošli ho kamarátom",
+    "view": {
+      "label": "Zobrazenie",
+      "deck": "Po jednom",
+      "grid": "Mriežka"
+    },
+    "keysHint": "← preskočiť · → player 2",
+    "likeHint": "Player 2? je pozvánka. Kontakty sa zobrazia, len ak ti dajú lajk späť.",
+    "last": {
+      "liked": "Pozvánka odoslaná: {{name}}",
+      "skipped": "Preskočené: {{name}}",
+      "undo": "Vrátiť späť",
+      "restored": "{{name}} je späť vo výbere",
+      "undoName": "Vrátiť preskočeného: {{name}}",
+      "consent": "Kontakty sa zobrazia, len ak ti dajú lajk späť."
+    },
+    "matchDialog": {
+      "title": "Je to zhoda!",
+      "subtitle": "{{name}} je tvoj player 2",
+      "together": "Spája vás",
+      "write": "Napísať",
+      "later": "Pozerať ďalej",
+      "contacts": "Teraz navzájom vidíte svoje herné kontakty.",
+      "contactsList": "Kontakty odomknuté: {{list}}",
+      "noContacts": "{{name}} zatiaľ nemá herné kontakty — začnite v chate.",
+      "seeContacts": "Zobraziť kontakty"
+    },
+    "end": {
+      "title": "Zatiaľ je to všetko",
+      "text": "Noví hráči pribúdajú, keď sa zaregistrujú — pozri sa neskôr.",
+      "waiting": "Tvoje lajky čakajú na odpoveď: {{count}}",
+      "waitingHint": "Lajk naspäť znamená zhodu — dáme ti vedieť.",
+      "unread": "Chaty s novými správami: {{count}}",
+      "matches": "Zhody: {{count}}",
+      "matchesHint": "Navrhni hru na dnešný večer.",
+      "improve": "Vylepšiť profil",
+      "improveHint": "Viac hier a časov hrania znamená viac zhôd s novými hráčmi."
+    },
+    "hint": {
+      "title": "Pridaj čas hrania a žánre",
+      "text": "— vyššie sa zobrazia hráči, ktorí hrajú v rovnakom čase a podobné žánre.",
+      "cta": "Pridať",
+      "dismiss": "Skryť tip"
+    },
+    "loading": "Načítavajú sa hráči…",
+    "failed": {
+      "like": "Pozvánka sa neodoslala: {{name}}.",
+      "skip": "Nepodarilo sa preskočiť: {{name}}.",
+      "undo": "Nepodarilo sa vrátiť do výberu: {{name}}."
+    }
   },
   "auth": {
     "loginTitle": "Prihlásenie",
@@ -205,10 +274,7 @@
       "underage": "Stránka je len pre dospelých (18+)",
       "minOne": "Vyber aspoň jednu možnosť",
       "invalidContact": "Prezývka (2–37 znakov) alebo odkaz https:// na {{site}}",
-      "invalidForm": "Skontroluj polia označené červenou",
-      "permission": "Žiadny prístup k databáze. Skontroluj pravidlá Firestore",
-      "network": "Žiadne spojenie s databázou",
-      "unknown": "Niečo sa pokazilo. Skús to znova"
+      "invalidForm": "Skontroluj polia označené červenou"
     }
   },
   "catalog": {
@@ -241,6 +307,16 @@
       "weekdays": "Cez týždeň",
       "weekends": "Cez víkend"
     }
+  },
+  "errors": {
+    "title": "Nepodarilo sa načítať",
+    "retry": "Skúsiť znova",
+    "offline": "Žiadne pripojenie na internet. Údaje môžu byť neaktuálne.",
+    "permission": "K týmto údajom nemáš prístup.",
+    "network": "Server je nedostupný. Skontroluj pripojenie.",
+    "quota": "Server je preťažený (vyčerpaný denný limit). Skús to neskôr.",
+    "unauthenticated": "Relácia vypršala. Prihlás sa znova.",
+    "unknown": "Niečo sa pokazilo. Skús to znova."
   },
   "notFound": {
     "title": "404 — Game Over",

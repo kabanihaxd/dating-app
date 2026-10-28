@@ -16,19 +16,22 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AuthService } from '../../core/auth/auth';
 import { ChatMessage, ChatService, MAX_MESSAGE_LENGTH } from '../../core/chat/chat';
+import { firestoreErrorKey, isPermissionDenied } from '../../core/firebase/firestore-errors';
 import { I18n } from '../../core/i18n/i18n';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { matchScore } from '../../core/matching/match-score';
 import { NotificationService } from '../../core/notifications/notifications';
 import { ProfileService } from '../../core/profile/profile';
 import { UserProfile } from '../../core/profile/profile.model';
+import { ErrorState } from '../../shared/error-state/error-state';
 import { ModerationMenu } from '../../shared/moderation-menu/moderation-menu';
+import { StateMessage } from '../../shared/state-message/state-message';
 
-type ChatState = 'loading' | 'ready' | 'notFound';
+// notFound — мэтча нет или он чужой; error — не загрузилось (например, нет сети), можно повторить.
+type ChatState = 'loading' | 'ready' | 'notFound' | 'error';
 
 @Component({
   selector: 'app-chat',
@@ -40,9 +43,10 @@ type ChatState = 'loading' | 'ready' | 'notFound';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatProgressSpinnerModule,
     TranslatePipe,
     ModerationMenu,
+    ErrorState,
+    StateMessage,
   ],
   templateUrl: './chat.html',
   styleUrl: './chat.scss',
@@ -66,6 +70,14 @@ export class Chat {
 
   protected readonly maxLength = MAX_MESSAGE_LENGTH;
   protected readonly state = signal<ChatState>('loading');
+  protected readonly errorKey = signal('errors.unknown');
+  // Пузыри-заготовки для скелетона: чьё сообщение и какой ширины (в %).
+  protected readonly skeletonBubbles = [
+    { mine: false, width: 55 },
+    { mine: true, width: 40 },
+    { mine: false, width: 70 },
+    { mine: true, width: 50 },
+  ];
   protected readonly partner = signal<UserProfile | null>(null);
   protected readonly partnerUid = signal<string | null>(null);
   protected readonly commonGames = signal<string[]>([]);
@@ -92,10 +104,13 @@ export class Chat {
 
   private readonly list = viewChild<ElementRef<HTMLElement>>('list');
   private markReadFailed = false;
+  // «Спробувати ще раз» увеличивает счётчик — effect ниже читает его и запускается заново.
+  private readonly attempt = signal(0);
 
   constructor() {
     effect((onCleanup) => {
       const matchId = this.matchId();
+      this.attempt();
       this.state.set('loading');
       this.messages.set([]);
       this.partnerUid.set(null);
@@ -104,11 +119,10 @@ export class Chat {
 
       void this.loadPartner(matchId);
       // Подписка на сообщения: новые приходят сами, пока страница открыта.
-      // Ошибка доступа — значит, мэтча нет или он чужой (так решают firestore.rules).
       const unsubscribe = this.chat.watchMessages(
         matchId,
         (messages) => this.messages.set(messages),
-        () => this.state.set('notFound'),
+        (error) => this.fail(error),
       );
       onCleanup(() => {
         unsubscribe();
@@ -160,6 +174,10 @@ export class Chat {
     }
   }
 
+  protected retry(): void {
+    this.attempt.update((n) => n + 1);
+  }
+
   // Мэтч разорван или собеседник заблокирован — чата больше нет, возвращаемся к списку мэтчей.
   protected leave(): void {
     void this.router.navigateByUrl('/matches');
@@ -174,11 +192,22 @@ export class Chat {
   }
 
   private async loadPartner(matchId: string): Promise<void> {
-    const partnerUid = await this.chat.loadPartner(matchId, this.me);
-    if (!partnerUid) {
-      this.state.set('notFound');
+    let partnerUid: string | null;
+    try {
+      partnerUid = await this.chat.loadPartner(matchId, this.me);
+    } catch (error) {
+      if (matchId === this.matchId()) {
+        this.fail(error);
+      }
       return;
     }
+    if (!partnerUid) {
+      if (matchId === this.matchId()) {
+        this.state.set('notFound');
+      }
+      return;
+    }
+    // Анкеты нужны только для красоты (имя, фото, общие игры) — без них чат всё равно работает.
     const [partner, myProfile] = await Promise.all([
       this.profiles.loadPublic(partnerUid).catch(() => null),
       this.profiles.loadPublic(this.me).catch(() => null),
@@ -191,5 +220,15 @@ export class Chat {
     this.partnerUid.set(partnerUid);
     this.commonGames.set(partner && myProfile ? matchScore(myProfile, partner).commonGames : []);
     this.state.set('ready');
+  }
+
+  // Ошибка доступа — мэтча нет или он чужой (так решают firestore.rules). Остальное — повод повторить.
+  private fail(error: unknown): void {
+    if (isPermissionDenied(error)) {
+      this.state.set('notFound');
+    } else {
+      this.errorKey.set(firestoreErrorKey(error));
+      this.state.set('error');
+    }
   }
 }

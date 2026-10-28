@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import {
   Timestamp,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -44,6 +45,12 @@ export class SwipeService {
       to: other,
       createdAt: serverTimestamp(),
     });
+  }
+
+  // «Вернуть» пропуск: удаляем документ, и игрок снова появится в ленте. Правила разрешают
+  // удалять только свои пропуски.
+  unskip(me: string, other: string): Promise<void> {
+    return deleteDoc(doc(this.db, 'skips', `${me}_${other}`));
   }
 
   // Ставим лайк и смотрим, не лайкнул ли нас этот человек раньше. Если да — создаём мэтч.

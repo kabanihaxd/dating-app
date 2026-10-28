@@ -3,7 +3,15 @@
   <p class="subtitle">{{ 'profile.subtitle' | t }}</p>
 
   @if (loading()) {
-    <div class="loading"><mat-spinner diameter="40" /></div>
+    <!-- Скелетон: круг фото и полосы полей формы. -->
+    <div class="skeleton-form" aria-busy="true" [attr.aria-label]="'common.loading' | t">
+      <span class="skeleton photo-sk" aria-hidden="true"></span>
+      @for (width of skeletonFields; track $index) {
+        <span class="skeleton field-sk" [style.width.%]="width" aria-hidden="true"></span>
+      }
+    </div>
+  } @else if (loadErrorKey(); as key) {
+    <app-error-state [errorKey]="key" (retry)="retry()" />
   } @else {
     <form [formGroup]="form" (ngSubmit)="save()">
       <!-- ===== О себе ===== -->

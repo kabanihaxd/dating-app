@@ -1,44 +1,84 @@
-h2 {
-  margin: 0;
+.head {
+  margin-bottom: 16px;
+
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
+    border-radius: 4px;
+
+    &:focus-visible {
+      outline: 2px solid var(--di-neon-cyan);
+      outline-offset: 4px;
+    }
+  }
 }
 
-.subtitle,
-.count {
+.subtitle {
+  max-width: 68ch;
+  margin: 6px 0 0;
   color: var(--di-text-muted);
-  margin: 4px 0 20px;
 }
 
-.count {
-  margin: 0 0 12px;
+// На телефоне подзаголовок уступает место карточке: суть ленты и так понятна из неё самой.
+@media (max-width: 600px) {
+  .subtitle {
+    display: none;
+  }
 }
 
-.center {
+// ===== Панель: фильтры · количество · вид =====
+.toolbar {
   display: flex;
-  justify-content: center;
-  padding: 48px 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
 }
 
-.form-error {
-  color: var(--mat-sys-error);
-  text-align: center;
-}
-
-.notice {
-  text-align: center;
-  padding: 40px 16px;
-  background: var(--di-surface);
-  border: 1px dashed rgba(168, 85, 247, 0.4);
-  border-radius: 16px;
-
-  mat-icon {
-    font-size: 48px;
-    width: 48px;
-    height: 48px;
+.filters-toggle {
+  &.active {
+    border-color: var(--di-neon-cyan);
     color: var(--di-neon-cyan);
   }
 
-  p {
-    color: var(--di-text-muted);
+  .badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--di-bg);
+    background: var(--di-neon-cyan);
+  }
+}
+
+.count {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--di-text-muted);
+}
+
+.view {
+  // Подписи у переключателя вида на телефоне прячем — остаются иконки (с aria-label).
+  .view-label {
+    margin-left: 6px;
+  }
+
+  mat-icon {
+    vertical-align: middle;
+  }
+}
+
+@media (max-width: 600px) {
+  .view .view-label {
+    display: none;
   }
 }
 
@@ -48,8 +88,9 @@ h2 {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   column-gap: 12px;
   align-items: start;
+  margin-bottom: 8px;
 
-  button {
+  .reset {
     margin-top: 8px;
     justify-self: start;
   }
@@ -61,8 +102,457 @@ h2 {
   gap: 8px;
 }
 
+// ===== Колода «по одному» =====
+.deck,
+.deck-skeleton {
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+// Улетающая карточка уезжает вбок на 60% — без обрезки на телефоне появлялась бы
+// горизонтальная прокрутка. clip (не hidden) не мешает кнопкам «прилипать» к низу.
+.deck {
+  overflow-x: clip;
+  overflow-clip-margin: 24px;
+}
+
+// Все карточки колоды лежат в одной ячейке сетки друг на друге.
+// В потоке — только текущая: следующая (peek) и улетающая не влияют на высоту.
+.stack {
+  position: relative;
+  display: grid;
+  // Место сверху под «выглядывающую» следующую карточку.
+  padding-top: 12px;
+}
+
+.slot {
+  grid-area: 1 / 1;
+  z-index: 1;
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+
+  // Следующий игрок: чуть меньше и выше, полупрозрачный, обрезан по высоте текущего.
+  // Когда текущий улетает, этот же элемент теряет класс peek и плавно выезжает вперёд.
+  &.peek {
+    position: absolute;
+    // У absolute-элемента с grid-area отсчёт идёт от ячейки сетки (она уже ниже padding-top),
+    // а не от края .stack. Поэтому inset: 0 — ровно под текущей карточкой, а translateY(-12px)
+    // ниже поднимает её в те самые 12px отступа. С inset 12px она пряталась целиком.
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    border-radius: 16px;
+    opacity: 0.45;
+    // Масштаб от верхнего края: тогда верх карточки действительно выглядывает на 12px.
+    transform-origin: 50% 0;
+    transform: translateY(-12px) scale(0.94);
+    pointer-events: none;
+  }
+}
+
+// Новая следующая карточка просто проявляется (её место — позади, двигать нечего).
+@keyframes deck-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.deck-in {
+  animation: deck-in 0.3s ease-out backwards;
+}
+
+// Кнопки колоды прилипают к низу экрана: на телефоне — прямо под большим пальцем.
+.deck-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 -16px;
+  padding: 16px 16px calc(12px + env(safe-area-inset-bottom));
+  // Фон — чтобы карточка, прокручиваясь под кнопками, не просвечивала сквозь них.
+  background: linear-gradient(to top, var(--di-bg) 75%, transparent);
+
+  button {
+    --mat-button-filled-container-height: 48px;
+    --mat-button-outlined-container-height: 48px;
+    font-size: 16px;
+  }
+
+  .like {
+    --mat-button-filled-container-color: var(--di-neon-pink);
+    --mat-button-filled-label-text-color: var(--di-bg);
+    --mat-button-filled-state-layer-color: var(--di-bg);
+    font-weight: 600;
+    box-shadow: 0 0 12px rgba(255, 46, 136, 0.45);
+  }
+
+  .last-action {
+    grid-column: 1 / -1;
+  }
+}
+
+// Подсказка про стрелки — только там, где есть клавиатура и мышь.
+.keys-hint {
+  display: none;
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--di-text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .keys-hint {
+    display: block;
+  }
+}
+
+// ===== Сетка =====
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
+  // Улетающая карточка не должна растягивать страницу вбок (горизонтальная прокрутка).
+  // clip-margin оставляет место для свечения карточек у краёв.
+  overflow-x: clip;
+  overflow-clip-margin: 24px;
+
+  // Сразу после лайка карточки перестраиваются — нажатия на это время отключены,
+  // чтобы палец не попал по кнопке карточки, которая только что въехала на это место.
+  &.settling app-player-card {
+    pointer-events: none;
+  }
+}
+
+// transform работает только с блочными элементами, а тег компонента по умолчанию — inline.
+app-player-card {
+  display: block;
+}
+
+// Строка «последнее действие» в сетке прилипает к низу экрана, чтобы «Вернуть» было под рукой.
+.grid-status {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 calc(8px + env(safe-area-inset-bottom));
+  pointer-events: none;
+
+  .last-action {
+    pointer-events: auto;
+    padding: 4px 8px 4px 16px;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    border-radius: 999px;
+    background: var(--di-surface);
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
+  }
+}
+
+.last-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 36px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--di-text-muted);
+  animation: di-fade-up 0.2s ease-out;
+
+  span {
+    overflow-wrap: anywhere;
+  }
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+
+    &.pink {
+      color: var(--di-neon-pink);
+    }
+
+    &.cyan {
+      color: var(--di-neon-cyan);
+    }
+  }
+
+  .undo {
+    color: var(--di-neon-cyan);
+  }
+
+  // Пояснение о контактах — отдельной строкой под «Приглашение отправлено»: мельче,
+  // с замком. Цвет текста обычный приглушённый: это успокоение, а не тревога.
+  // Замок — в строке текста (inline), а не отдельным flex-элементом: при переносе
+  // на две строки он остаётся перед первым словом, а не уезжает к краю.
+  .consent {
+    flex-basis: 100%;
+    font-size: 12px;
+    line-height: 16px;
+    text-align: center;
+
+    mat-icon {
+      margin-right: 4px;
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      vertical-align: -2px;
+    }
+  }
+}
+
+// ===== Подсказка «добавь время игры и жанры» =====
+// Одна строка над колодой: иконка · текст · «Добавить» · крестик.
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0 0 12px;
+  padding: 6px 4px 6px 14px;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: 12px;
+  background: var(--di-surface);
+
+  > mat-icon {
+    flex-shrink: 0;
+    color: var(--di-neon-cyan);
+  }
+
+  p {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--di-text-muted);
+
+    b {
+      font-weight: 500;
+      color: var(--mat-sys-on-surface);
+    }
+  }
+
+  a {
+    flex-shrink: 0;
+    color: var(--di-neon-cyan);
+  }
+}
+
+// ===== Конец ленты =====
+// Список «что уже происходит» — по левому краю, чтобы строки с числами читались столбиком.
+.end-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 360px;
+  margin: 20px auto 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  mat-icon {
+    flex-shrink: 0;
+
+    &.pink {
+      color: var(--di-neon-pink);
+    }
+
+    &.cyan {
+      color: var(--di-neon-cyan);
+    }
+  }
+
+  b {
+    display: block;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface);
+  }
+}
+
+.end-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+
+  .like {
+    --mat-button-filled-container-color: var(--di-neon-pink);
+    --mat-button-filled-label-text-color: var(--di-bg);
+    --mat-button-filled-state-layer-color: var(--di-bg);
+    font-weight: 600;
+    box-shadow: 0 0 12px rgba(255, 46, 136, 0.45);
+  }
+}
+
+.end-hint {
+  max-width: 360px;
+  margin: 12px auto 0;
+  font-size: 13px;
+}
+
+// Перед «пусто» строка стоит отдельно — чтобы последнего пропущенного можно было вернуть.
+app-state-message {
+  margin-top: 8px;
+}
+
+// Улёт карточки после лайка (вправо, с розовым свечением) и пропуска (влево).
+// forwards — карточка остаётся «улетевшей», пока Angular её не удалит.
+@keyframes fly-like {
+  to {
+    opacity: 0;
+    transform: translateX(60%) rotate(8deg);
+    box-shadow: 0 0 32px rgba(255, 46, 136, 0.6);
+  }
+}
+
+@keyframes fly-skip {
+  to {
+    opacity: 0;
+    transform: translateX(-60%) rotate(-8deg);
+  }
+}
+
+.fly-like {
+  border-radius: 16px;
+  animation: fly-like 0.35s ease-in forwards;
+}
+
+.fly-skip {
+  animation: fly-skip 0.3s ease-in forwards;
+}
+
+// В колоде улетающая карточка выходит из потока: её место сразу занимает следующая.
+.stack .fly-like,
+.stack .fly-skip,
+.stack .di-leave {
+  position: absolute;
+  // Отсчёт от ячейки сетки (см. .peek): 0 — карточка улетает с того же места, без скачка вниз.
+  inset: 0 0 auto;
+  z-index: 3;
+}
+
+// Заготовка карточки — повторяет размеры настоящей (фото 3:2, строки текста, кнопки).
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 16px;
+  overflow: hidden;
+  background: var(--di-surface);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 16px;
+
+  .photo {
+    aspect-ratio: 3 / 2;
+    border-radius: 0;
+  }
+
+  .lines {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 16px;
+  }
+
+  .line {
+    height: 14px;
+  }
+
+  .buttons {
+    height: 36px;
+    margin: 8px 16px 0;
+    border-radius: 999px;
+  }
+}
+
+// Заготовки кнопок панели — тех же размеров, что «Фильтры» и переключатель вида.
+.pill {
+  height: 40px;
+  border-radius: 999px;
+}
+
+.filters-pill {
+  width: 112px;
+}
+
+.view-pill {
+  width: 206px;
+  margin-left: auto;
+}
+
+@media (max-width: 600px) {
+  .view-pill {
+    width: 98px;
+  }
+}
+
+// В колоде фото у карточки не выше 30svh (см. player-card.scss) — у заготовки так же,
+// иначе при загрузке карточка «подпрыгнет» вверх.
+.deck-skeleton .skeleton-card .photo {
+  max-height: 30svh;
+}
+
+// Тот же отступ сверху, что у колоды (.stack). Padding, а не margin у карточки: margin
+// схлопывался с нижним отступом панели, и при загрузке карточка съезжала на 12px.
+.deck-skeleton {
+  padding-top: 12px;
+}
+
+.w40 {
+  width: 40%;
+}
+
+.w60 {
+  width: 60%;
+}
+
+.w70 {
+  width: 70%;
+}
+
+.w80 {
+  width: 80%;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// --- consent note ---
+// Пояснение под «Player 2?» в колоде: на всю ширину ряда кнопок, мелко и приглушённо —
+// как .consent в строке «последнее действие», чтобы читалось как одна и та же мысль.
+// Замок — в строке текста (inline): при переносе остаётся перед первым словом.
+.deck-actions .like-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--di-text-muted);
+  overflow-wrap: break-word;
+
+  mat-icon {
+    margin-right: 4px;
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    vertical-align: -2px;
+  }
 }

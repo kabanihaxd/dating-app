@@ -2,19 +2,35 @@
 <p class="subtitle">{{ 'matches.subtitle' | t }}</p>
 
 @if (loading()) {
-  <div class="center"><mat-spinner diameter="40" /></div>
+  <!-- Скелетон: заготовки карточек мэтчей (аватар, имя, превью чата, контакты). -->
+  <div class="grid" aria-busy="true" [attr.aria-label]="'common.loading' | t">
+    @for (i of skeletons; track i) {
+      <div class="card skeleton-card" aria-hidden="true">
+        <header>
+          <span class="skeleton avatar-sk"></span>
+          <div class="who">
+            <span class="skeleton line w60"></span>
+            <span class="skeleton line w40"></span>
+          </div>
+        </header>
+        <span class="skeleton chat-sk"></span>
+        <span class="skeleton line w80"></span>
+        <span class="skeleton line w70"></span>
+      </div>
+    }
+  </div>
 } @else if (errorKey(); as key) {
-  <p class="form-error" role="alert">{{ key | t }}</p>
+  <app-error-state [errorKey]="key" (retry)="retry()" />
 } @else if (!visibleMatches().length) {
-  <section class="notice">
-    <mat-icon>favorite_border</mat-icon>
+  <app-state-message icon="favorite_border">
     <p>{{ 'matches.empty' | t }}</p>
     <a mat-flat-button routerLink="/feed">{{ 'matches.toFeed' | t }}</a>
-  </section>
+  </app-state-message>
 } @else {
   <div class="grid">
+    <!-- Карточки появляются «лесенкой», а при разрыве мэтча или блокировке плавно тают. -->
     @for (match of visibleMatches(); track match.uid) {
-      <article class="card">
+      <article class="card" animate.enter="di-enter" animate.leave="di-leave" [style.--i]="$index">
         <header>
           @if (match.profile.photo; as src) {
             <img [src]="src" [alt]="match.profile.name" />

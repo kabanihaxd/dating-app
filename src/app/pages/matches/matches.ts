@@ -2,15 +2,15 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AuthService } from '../../core/auth/auth';
+import { firestoreErrorKey } from '../../core/firebase/firestore-errors';
 import { I18n } from '../../core/i18n/i18n';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { matchScore } from '../../core/matching/match-score';
 import { SwipeService } from '../../core/matching/swipes';
 import { NotificationService } from '../../core/notifications/notifications';
-import { ProfileService, profileErrorKey } from '../../core/profile/profile';
+import { ProfileService } from '../../core/profile/profile';
 import {
   CONTACT_FIELDS,
   CONTACT_SITES,
@@ -20,7 +20,9 @@ import {
   ageFrom,
   isProfileLink,
 } from '../../core/profile/profile.model';
+import { ErrorState } from '../../shared/error-state/error-state';
 import { ModerationMenu } from '../../shared/moderation-menu/moderation-menu';
+import { StateMessage } from '../../shared/state-message/state-message';
 
 // Всё, что нужно шаблону про один мэтч, — посчитано заранее, чтобы в шаблоне не было логики.
 interface MatchView {
@@ -38,9 +40,10 @@ interface MatchView {
     RouterLink,
     MatButtonModule,
     MatIconModule,
-    MatProgressSpinnerModule,
     TranslatePipe,
     ModerationMenu,
+    ErrorState,
+    StateMessage,
   ],
   templateUrl: './matches.html',
   styleUrl: './matches.scss',
@@ -55,6 +58,8 @@ export class Matches {
   protected readonly loading = signal(true);
   protected readonly errorKey = signal<string | null>(null);
   protected readonly matches = signal<MatchView[]>([]);
+  // Три серые заготовки карточек на время загрузки.
+  protected readonly skeletons = [0, 1, 2];
 
   // Превью последнего сообщения и «непрочитано» берём из живой подписки уведомлений,
   // поэтому они обновляются на странице сами, без перезагрузки.
@@ -73,6 +78,11 @@ export class Matches {
     void this.load();
   }
 
+  // Кнопка «Спробувати ще раз» на ошибке загрузки.
+  protected retry(): void {
+    void this.load();
+  }
+
   // Мэтч разорван или человек заблокирован — убираем карточку.
   protected remove(uid: string): void {
     this.matches.update((matches) => matches.filter((match) => match.uid !== uid));
@@ -86,6 +96,8 @@ export class Matches {
   private async load(): Promise<void> {
     // Страница закрыта authGuard, поэтому пользователь здесь всегда есть.
     const me = this.auth.user()!.uid;
+    this.loading.set(true);
+    this.errorKey.set(null);
     try {
       const [{ profile: myProfile }, matches] = await Promise.all([
         this.profiles.load(me),
@@ -120,7 +132,7 @@ export class Matches {
         }),
       );
     } catch (error) {
-      this.errorKey.set(profileErrorKey(error));
+      this.errorKey.set(firestoreErrorKey(error));
     } finally {
       this.loading.set(false);
     }

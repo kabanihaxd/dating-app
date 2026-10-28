@@ -1,13 +1,30 @@
 @switch (state()) {
   @case ('loading') {
-    <div class="center"><mat-spinner diameter="40" /></div>
+    <!-- Скелетон чата: шапка с собеседником и несколько пузырей-заготовок. -->
+    <section class="chat" aria-busy="true" [attr.aria-label]="'common.loading' | t">
+      <header class="chat-header">
+        <span class="skeleton avatar-sk"></span>
+        <span class="skeleton name-sk"></span>
+      </header>
+      <div class="messages" aria-hidden="true">
+        @for (bubble of skeletonBubbles; track $index) {
+          <span
+            class="skeleton bubble-sk"
+            [class.mine]="bubble.mine"
+            [style.width.%]="bubble.width"
+          ></span>
+        }
+      </div>
+    </section>
   }
   @case ('notFound') {
-    <section class="notice">
-      <mat-icon>chat_bubble_outline</mat-icon>
+    <app-state-message icon="chat_bubble_outline">
       <p>{{ 'chat.notFound' | t }}</p>
       <a mat-flat-button routerLink="/matches">{{ 'chat.back' | t }}</a>
-    </section>
+    </app-state-message>
+  }
+  @case ('error') {
+    <app-error-state [errorKey]="errorKey()" (retry)="retry()" />
   }
   @case ('ready') {
     <section class="chat">
@@ -35,7 +52,8 @@
       <!-- role="log" + aria-live: программа чтения с экрана сама озвучит новое сообщение. -->
       <div class="messages" #list role="log" aria-live="polite">
         @for (message of messageViews(); track message.id) {
-          <div class="message" [class.mine]="message.mine">
+          <!-- Новое сообщение «выпрыгивает» из своего угла: своё справа, чужое слева. -->
+          <div class="message" [class.mine]="message.mine" animate.enter="pop-in">
             <p>{{ message.text }}</p>
             <time>{{ message.time }}</time>
           </div>

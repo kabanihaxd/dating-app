@@ -30,15 +30,28 @@
   margin-bottom: 12px;
 }
 
-.loading {
+.skeleton-form {
   display: flex;
-  justify-content: center;
-  padding: 48px 0;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 28px;
+
+  .photo-sk {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+  }
+
+  .field-sk {
+    height: 56px;
+  }
 }
 
 form {
   display: flex;
   flex-direction: column;
+  // Форма появляется плавно, когда данные загрузились.
+  animation: di-fade-up 0.3s ease-out;
 }
 
 // Два поля в строку на широком экране, одно под другим — на телефоне.

@@ -12,6 +12,7 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
+import { isPermissionDenied } from '../firebase/firestore-errors';
 import { FIRESTORE } from '../firebase/firestore';
 
 // Такой же лимит стоит в firestore.rules — сервер не пропустит сообщение длиннее.
@@ -35,8 +36,14 @@ export class ChatService {
   private readonly db = inject(FIRESTORE);
 
   // uid собеседника, или null — мэтча нет (или он не наш: правила тогда вернут ошибку доступа).
+  // Другие ошибки (нет сети) пробрасываем дальше: это не «чата нет», а «попробуй ещё раз».
   async loadPartner(matchId: string, me: string): Promise<string | null> {
-    const snapshot = await getDoc(doc(this.db, 'matches', matchId)).catch(() => null);
+    const snapshot = await getDoc(doc(this.db, 'matches', matchId)).catch((error: unknown) => {
+      if (isPermissionDenied(error)) {
+        return null;
+      }
+      throw error;
+    });
     const users = snapshot?.exists() ? (snapshot.get('users') as string[]) : [];
     return users.includes(me) ? users.find((uid) => uid !== me)! : null;
   }

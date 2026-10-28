@@ -6,8 +6,11 @@
     "login": "Log in",
     "logout": "Log out"
   },
+  "common": {
+    "loading": "Loading…"
+  },
   "moderation": {
-    "menu": "Player actions",
+    "menu": "Actions: {{name}}",
     "unmatch": "Unmatch",
     "report": "Report",
     "block": "Block",
@@ -64,13 +67,14 @@
   },
   "feed": {
     "title": "Players",
-    "subtitle": "Players you have the most in common with come first.",
+    "subtitle": "Players who liked you first, then those you share the most with.",
     "count": "Players found: {{count}}",
-    "empty": "Nobody here yet. Invite your gamer friends!",
-    "emptyFiltered": "Nobody matches these filters. Try loosening them.",
+    "emptyTitle": "No other players yet",
+    "empty": "Invite your gamer friends — they'll appear here once they sign up.",
+    "emptyFiltered": "No players match these filters. Try a wider age range or fewer filters.",
     "noProfile": {
       "title": "Fill in your profile first",
-      "text": "To find you teammates, we need to know your games and platforms.",
+      "text": "To find your player 2, we need to know your games and platforms.",
       "cta": "Fill in profile"
     },
     "filters": {
@@ -78,22 +82,87 @@
       "platform": "Platform",
       "city": "City",
       "minAge": "Age from",
-      "maxAge": "to",
+      "maxAge": "Age to",
       "any": "Any",
-      "reset": "Reset"
+      "reset": "Reset filters",
+      "toggle": "Filters",
+      "activeCount": "active: {{count}}",
+      "myGames": "My games",
+      "otherGames": "Other players' games"
     },
     "card": {
       "match": "{{percent}}% match",
       "commonGames": "Games in common",
       "otherGames": "Other games",
       "likedMe": "Likes you",
-      "like": "Like",
-      "skip": "Skip"
+      "like": "Player 2?",
+      "skip": "Skip",
+      "likeName": "Invite {{name}} to be your player 2",
+      "skipName": "Skip {{name}}",
+      "why": "Why you match",
+      "bothPlay": "Shared play times",
+      "commonGenres": "Shared genres",
+      "commonPlatform": "shared platform",
+      "platforms": "Platforms",
+      "more": "Show more",
+      "less": "Show less",
+      "moreGames": "+{{count}} more",
+      "photoAlt": "Photo of {{name}}",
+      "matchHint": "The % reflects shared games, platforms, genres and play times. Games count most."
     },
-    "allSwiped": "You've seen every profile. Come back later — new players will show up.",
     "toMatches": "Go to matches",
-    "matchToast": "It's a match with {{name}}! 🎉",
-    "matchAction": "Message"
+    "matchAction": "Message",
+    "invite": "Copy invite link",
+    "inviteCopied": "Link copied — send it to your friends",
+    "view": {
+      "label": "View",
+      "deck": "One by one",
+      "grid": "Grid"
+    },
+    "keysHint": "← skip · → player 2",
+    "likeHint": "Player 2? sends an invite. Your contacts unlock only if they like you back.",
+    "last": {
+      "liked": "Invite sent: {{name}}",
+      "skipped": "Skipped: {{name}}",
+      "undo": "Undo",
+      "restored": "{{name}} is back in the feed",
+      "undoName": "Undo skip: {{name}}",
+      "consent": "Your contacts stay hidden until they like you back."
+    },
+    "matchDialog": {
+      "title": "It's a match!",
+      "subtitle": "{{name}} is your player 2",
+      "together": "You both play",
+      "write": "Send a message",
+      "later": "Keep browsing",
+      "contacts": "You can now see each other's gaming contacts.",
+      "contactsList": "Contacts unlocked: {{list}}",
+      "noContacts": "{{name}} hasn't added gaming contacts yet. Start in the chat.",
+      "seeContacts": "See contacts"
+    },
+    "end": {
+      "title": "That's everyone for now",
+      "text": "New players appear as they sign up — check back later.",
+      "waiting": "Your likes awaiting a reply: {{count}}",
+      "waitingHint": "A like back makes it a match — we'll let you know.",
+      "unread": "Chats with new messages: {{count}}",
+      "matches": "Matches: {{count}}",
+      "matchesHint": "Suggest a game for tonight.",
+      "improve": "Improve profile",
+      "improveHint": "More games and play times mean more matches with new players."
+    },
+    "hint": {
+      "title": "Add your play times and genres",
+      "text": "— players who game at the same times and like the same genres will rank higher.",
+      "cta": "Add",
+      "dismiss": "Hide tip"
+    },
+    "loading": "Loading players…",
+    "failed": {
+      "like": "Invite not sent: {{name}}.",
+      "skip": "Couldn't skip {{name}}.",
+      "undo": "Couldn't bring {{name}} back to the feed."
+    }
   },
   "auth": {
     "loginTitle": "Log in",
@@ -205,10 +274,7 @@
       "underage": "This site is for adults only (18+)",
       "minOne": "Pick at least one option",
       "invalidContact": "A username (2–37 characters) or an https:// link to {{site}}",
-      "invalidForm": "Check the fields marked in red",
-      "permission": "No access to the database. Check the Firestore rules",
-      "network": "No connection to the database",
-      "unknown": "Something went wrong. Please try again"
+      "invalidForm": "Check the fields marked in red"
     }
   },
   "catalog": {
@@ -241,6 +307,16 @@
       "weekdays": "Weekdays",
       "weekends": "Weekends"
     }
+  },
+  "errors": {
+    "title": "Couldn't load",
+    "retry": "Try again",
+    "offline": "No internet connection. Data may be out of date.",
+    "permission": "You don't have access to this data.",
+    "network": "Can't reach the server. Check your connection.",
+    "quota": "The server is overloaded (daily limit reached). Try again later.",
+    "unauthenticated": "Your session has expired. Please sign in again.",
+    "unknown": "Something went wrong. Please try again."
   },
   "notFound": {
     "title": "404 — Game Over",

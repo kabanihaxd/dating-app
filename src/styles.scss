@@ -15,6 +15,28 @@ html {
       density: 0,
     )
   );
+  // Заметная рамка фокуса у всех компонентов Material (кнопки, поля, переключатели).
+  // Без неё фокус на кнопке виден только как еле заметное осветление — с клавиатуры легко потеряться.
+  @include mat.strong-focus-indicators(
+    (
+      border-color: #00e5ff,
+      border-width: 2px,
+    )
+  );
+  // Полоса прокрутки и выделение текста — тоже часть дизайна, а не серые браузерные «по умолчанию».
+  scrollbar-color: rgba(168, 85, 247, 0.5) #0b0b12;
+  accent-color: #ff2e88;
+}
+
+::selection {
+  background: rgba(255, 46, 136, 0.35);
+  color: #fff;
+}
+
+// Окно «Это мэтч!» рисует свою неоновую рамку само — стандартную подложку Material убираем.
+.di-match-dialog {
+  --mat-dialog-container-color: transparent;
+  --mat-dialog-container-elevation-shadow: none;
 }
 
 // Свои переменные бренда DeadIsland — используем их в компонентах.
@@ -38,4 +60,98 @@ body {
 
 a {
   color: var(--di-neon-cyan);
+}
+
+// ===== Анимации, общие для всех страниц =====
+// Ключевые кадры здесь, в глобальных стилях, — их могут использовать любые компоненты.
+
+// Появление: чуть снизу и из прозрачности.
+@keyframes di-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+// Исчезновение: сжимается и тает. forwards — остаться в последнем кадре до удаления элемента.
+@keyframes di-fade-out {
+  to {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+// Классы для animate.enter / animate.leave в шаблонах.
+// --i — номер элемента в списке: каждый следующий появляется на 40 мс позже («лесенка»),
+// но не дольше 8 шагов, чтобы длинный список не ждать.
+.di-enter {
+  animation: di-fade-up 0.35s ease-out backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 40ms);
+}
+
+.di-leave {
+  animation: di-fade-out 0.25s ease-in forwards;
+}
+
+// Смена страниц (withViewTransitions): старая быстро гаснет, новая выезжает снизу.
+::view-transition-old(root) {
+  animation: 0.15s ease-in both di-fade-out;
+}
+
+::view-transition-new(root) {
+  animation: 0.25s ease-out both di-fade-up;
+}
+
+// ===== Скелетон — серая «заготовка» контента, пока он грузится =====
+// По ней пробегает светлый блик: видно, что страница не зависла, а загружается.
+@keyframes di-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.05) 25%,
+      rgba(255, 255, 255, 0.12) 50%,
+      rgba(255, 255, 255, 0.05) 75%
+    )
+    0 0 / 200% 100%;
+  animation: di-shimmer 1.4s linear infinite;
+}
+
+// ===== Заголовок внутри app-state-message =====
+// Текст в рамке серый (наследуется), а заголовок — основным цветом и одного размера во всех
+// состояниях: пусто, конец ленты, ошибка, 404. Здесь, а не в state-message.scss: заголовок
+// приходит через <ng-content>, и стили самого компонента до него не достают.
+app-state-message :is(h2, h3) {
+  margin: 8px 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--mat-sys-on-surface);
+}
+
+// ===== Меньше движения =====
+// Если в системе включено «уменьшить движение» (кого-то от анимаций укачивает) —
+// почти обнуляем длительность. Не выключаем совсем, чтобы события «анимация закончилась»
+// всё равно приходили и логика вроде animate.leave работала как обычно.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }

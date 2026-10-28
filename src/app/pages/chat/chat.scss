@@ -1,13 +1,7 @@
-.center {
-  display: flex;
-  justify-content: center;
-  padding: 48px 0;
-}
-
-.notice,
 .empty {
   text-align: center;
   color: var(--di-text-muted);
+  animation: di-fade-up 0.4s ease-out;
 
   mat-icon {
     font-size: 48px;
@@ -15,13 +9,6 @@
     height: 48px;
     color: var(--di-neon-pink);
   }
-}
-
-.notice {
-  padding: 40px 16px;
-  background: var(--di-surface);
-  border: 1px dashed rgba(255, 46, 136, 0.4);
-  border-radius: 16px;
 }
 
 // Чат занимает весь экран под шапкой: сверху собеседник, снизу поле ввода,
@@ -168,5 +155,45 @@
 
   .message {
     max-width: 85%;
+  }
+}
+
+// Появление пузыря: вырастает из своего нижнего угла (transform-origin).
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(6px);
+  }
+}
+
+.pop-in {
+  transform-origin: bottom left;
+  animation: pop-in 0.2s ease-out;
+
+  &.mine {
+    transform-origin: bottom right;
+  }
+}
+
+// Заготовки скелетона в форме аватара, имени и пузырей.
+.avatar-sk {
+  width: 40px;
+  height: 40px;
+  margin: 4px 0 4px 8px;
+  border-radius: 50%;
+}
+
+.name-sk {
+  width: 140px;
+  height: 18px;
+}
+
+.bubble-sk {
+  height: 40px;
+  border-radius: 16px 16px 16px 4px;
+
+  &.mine {
+    align-self: flex-end;
+    border-radius: 16px 16px 4px 16px;
   }
 }

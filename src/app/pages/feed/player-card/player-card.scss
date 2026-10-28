@@ -1,3 +1,7 @@
+:host {
+  display: block;
+}
+
 .card {
   display: flex;
   flex-direction: column;
@@ -9,8 +13,12 @@
   transition:
     transform 0.15s,
     box-shadow 0.15s;
+}
 
-  &:hover {
+// Приподнимание при наведении — только в сетке и только там, где есть мышь:
+// на телефоне «наведения» нет, а в режиме «по одному» карточка не должна прыгать.
+@media (hover: hover) {
+  :host(.in-grid) .card:hover {
     transform: translateY(-2px);
     box-shadow: 0 0 20px rgba(168, 85, 247, 0.35);
   }
@@ -18,7 +26,7 @@
 
 .photo {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 3 / 2;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -32,17 +40,32 @@
 
   // «>» — только иконка-заглушка, лежащая прямо в .photo, а не иконки внутри меток.
   > mat-icon {
-    font-size: 72px;
-    width: 72px;
-    height: 72px;
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
     color: var(--di-text-muted);
   }
 }
 
-.liked-me {
+// Белый текст на неоново-розовом — контраст 3,5:1, мало для мелкого текста.
+// Поэтому на розовой заливке текст всегда тёмный (Void Black): 5,6:1.
+// Ряд меток поверх фото. flex-wrap: в узкой карточке «совпадение 29%» уходит на вторую строку,
+// а не наезжает на «Ты нравишься». pointer-events — чтобы ряд не перекрывал фото целиком.
+.badges {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  inset: 10px 10px auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.liked-me {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -51,7 +74,7 @@
   font-weight: 600;
   font-size: 13px;
   line-height: 1;
-  color: #fff;
+  color: var(--di-bg);
   background: var(--di-neon-pink);
   box-shadow: 0 0 12px rgba(255, 46, 136, 0.6);
 
@@ -63,9 +86,8 @@
 }
 
 .match {
-  position: absolute;
-  top: 10px;
-  right: 10px;
+  // auto — прижимает процент к правому краю, даже когда метки «нравишься» нет.
+  margin-left: auto;
   padding: 4px 10px;
   border-radius: 999px;
   font-weight: 600;
@@ -73,6 +95,14 @@
   background: rgba(11, 11, 18, 0.85);
   border: 1px solid var(--di-text-muted);
   color: var(--di-text-muted);
+  // Курсор «справка»: намекает, что у бейджа есть подсказка.
+  cursor: help;
+
+  // Бейдж теперь фокусируемый — рамка фокуса как у кнопок Material (2px бирюзовая).
+  &:focus-visible {
+    outline: 2px solid var(--di-neon-cyan);
+    outline-offset: 2px;
+  }
 
   &.high {
     border-color: var(--di-neon-pink);
@@ -88,44 +118,121 @@
 
 .body {
   flex: 1; // растягивается, чтобы кнопки у всех карточек в ряду стояли на одной высоте
-  padding: 14px 16px 16px;
-
-  h3 {
-    margin: 0;
-  }
+  padding: 14px 16px 12px;
 }
 
 .title-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  // flex-start: «⋮» стоит вровень с первой строкой имени, а не по центру имени с городом.
+  align-items: flex-start;
+  gap: 4px;
   margin: -8px -8px 0 0; // кнопка «⋮» прижата к углу карточки
 }
 
-.city {
-  margin: 2px 0 10px;
+// Имя и город — одна группа: рядом с ней встаёт аватар, когда нет фото.
+.who {
+  flex: 1;
+  // min-width: 0 — без него длинное имя распирает строку и выталкивает «⋮» за край карточки.
+  min-width: 0;
+  // Компенсируем отрицательный верхний отступ ряда: текст начинается там же, где раньше.
+  padding-top: 8px;
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    border-radius: 4px;
+
+    &:focus-visible {
+      outline: 2px solid var(--di-neon-cyan);
+      outline-offset: 2px;
+    }
+  }
+}
+
+// Аватар-заглушка у имени. По умолчанию (в сетке) скрыт: виден только в колоде (ниже).
+// Фиолетовое кольцо — структура, а не действие (розовый) и не «общее» (бирюзовый).
+.avatar {
+  display: none;
+  flex-shrink: 0;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 8px 8px 0 0;
+  border: 2px solid rgba(168, 85, 247, 0.4);
+  border-radius: 50%;
+  background: var(--di-bg);
   color: var(--di-text-muted);
+
+  mat-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 32px;
+  }
+}
+
+.city {
+  margin: 2px 0 0;
+  color: var(--di-text-muted);
+  overflow-wrap: anywhere;
+}
+
+// Общее — сразу под именем, с бóльшим отступом сверху: это отдельная смысловая группа.
+.why {
+  margin-top: 16px;
 }
 
 .label {
-  margin: 10px 0 6px;
+  margin: 14px 0 6px;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--di-text-muted);
 }
 
-.platforms,
-.games {
+.why > .label:first-child {
+  margin-top: 0;
+}
+
+.together {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+
+  mat-icon {
+    flex-shrink: 0;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--di-neon-cyan);
+  }
+
+  b {
+    font-weight: 500;
+    color: var(--di-neon-cyan);
+  }
+}
+
+.tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
 .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
   padding: 3px 10px;
   border-radius: 999px;
   font-size: 13px;
+  overflow-wrap: anywhere;
   border: 1px solid rgba(154, 154, 176, 0.35);
 
   // Совпавшее со мной — подсвечено.
@@ -133,27 +240,129 @@
     border-color: var(--di-neon-cyan);
     color: var(--di-neon-cyan);
   }
+
+  &.more {
+    color: var(--di-text-muted);
+  }
+
+  mat-icon {
+    margin-left: -4px;
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.bio {
+  margin: 14px 0 0;
+  color: var(--di-text-muted);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  // Длинный текст обрезаем до трёх строк, пока карточку не раскрыли.
+  &:not(.open) {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+.more-btn {
+  margin: 6px 0 0 -12px;
+  color: var(--di-neon-cyan);
 }
 
 .actions {
+  // Контейнер-запрос: в узкой карточке (три колонки, длинные слова вроде «Пропустити» или «Preskočiť»)
+  // убираем иконки и уменьшаем отступы, чтобы подпись поместилась в кнопку.
+  container-type: inline-size;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   padding: 0 16px 16px;
 
   .like {
-    background: var(--di-neon-pink);
-    color: #fff;
+    --mat-button-filled-container-color: var(--di-neon-pink);
+    --mat-button-filled-label-text-color: var(--di-bg);
+    --mat-button-filled-state-layer-color: var(--di-bg);
+    font-weight: 600;
     box-shadow: 0 0 12px rgba(255, 46, 136, 0.45);
+  }
+
+  button {
+    min-width: 0;
   }
 }
 
-.bio {
-  margin: 12px 0 0;
-  color: var(--di-text-muted);
-  // Длинный текст обрезаем до трёх строк.
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+@container (max-width: 300px) {
+  .actions button {
+    --mat-button-filled-horizontal-padding: 8px;
+    --mat-button-outlined-horizontal-padding: 8px;
+
+    mat-icon {
+      display: none;
+    }
+  }
+}
+
+// ===== Колода «по одному» =====
+// Карточка в колоде: имя и «почему вы совпали» должны быть видны над прилипшими кнопками
+// Like/Skip без прокрутки — на телефоне 360×740 и на невысоком ноутбуке. Поэтому фото ниже,
+// а без фото — вовсе без большой заглушки (только кольцо-аватар у имени).
+// :not(.in-grid) — в сетке карточки идут списком: там фото задаёт одинаковый ритм ряда, оно не мешает.
+// Следующая карточка (peek) тоже без .in-grid — поэтому выглядывает с той же высотой.
+:host(:not(.in-grid)) {
+  // 30svh — примерно треть «маленькой» высоты экрана (svh считается так, будто панели браузера
+  // показаны, поэтому высота фото не прыгает, когда адресная строка прячется при прокрутке).
+  // Ширина остаётся во всю карточку, обрезается только высота (у img — object-fit: cover).
+  // На широком мониторе 30svh больше натуральной высоты 3:2 — ограничение просто не срабатывает.
+  .photo {
+    max-height: 30svh;
+    // .photo — flex-элемент колонки (.card): по умолчанию min-height: auto не дал бы ему стать
+    // ниже картинки внутри. overflow: hidden обрезает картинку по рамке фото.
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .photo.empty {
+    // block, а не flex с центровкой: ряд меток должен идти во всю ширину, как поверх фото.
+    display: block;
+    aspect-ratio: auto;
+    max-height: none;
+    background: none;
+
+    > mat-icon {
+      display: none;
+    }
+
+    // Метки встают обычным рядом над именем, а не поверх фото.
+    .badges {
+      position: static;
+      padding: 12px 16px 0;
+    }
+
+    // Меток нет (внутри только служебные комментарии Angular, а их :empty не считает) —
+    // и пустой полосы над именем тоже нет.
+    .badges:empty {
+      display: none;
+    }
+  }
+
+  .avatar {
+    display: grid;
+  }
+
+  // Имя с городом — по центру кольца; «⋮» остаётся в углу.
+  .avatar + .who {
+    align-self: center;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

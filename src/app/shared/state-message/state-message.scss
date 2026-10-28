@@ -1,0 +1,32 @@
+// :host — сам тег <app-state-message>. Цвет рамки и иконки задаёт одна переменная --accent.
+:host {
+  --accent: var(--di-neon-pink);
+  --accent-soft: rgba(255, 46, 136, 0.4);
+
+  display: block;
+  text-align: center;
+  padding: 40px 16px;
+  background: var(--di-surface);
+  border: 1px dashed var(--accent-soft);
+  border-radius: 16px;
+  color: var(--di-text-muted);
+  // Обычная CSS-анимация срабатывает, как только элемент появился на странице.
+  animation: di-fade-up 0.3s ease-out;
+}
+
+:host(.cyan) {
+  --accent: var(--di-neon-cyan);
+  --accent-soft: rgba(0, 229, 255, 0.4);
+}
+
+:host(.error) {
+  --accent: var(--mat-sys-error);
+  --accent-soft: var(--mat-sys-error);
+}
+
+mat-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: var(--accent);
+}

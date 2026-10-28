@@ -1,0 +1,74 @@
+<div class="match">
+  <!-- Два аватара «съезжаются» в центр; на стыке — значок геймпада. alt пустой: имена есть в тексте. -->
+  <div class="avatars" aria-hidden="true">
+    <div class="avatar avatar--me">
+      @if (data.me.photo) {
+        <img [src]="data.me.photo" alt="" />
+      } @else {
+        <mat-icon>person</mat-icon>
+      }
+    </div>
+    <div class="avatar avatar--player">
+      @if (data.player.photo) {
+        <img [src]="data.player.photo" alt="" />
+      } @else {
+        <mat-icon>person</mat-icon>
+      }
+    </div>
+    <span class="seam"><mat-icon>sports_esports</mat-icon></span>
+  </div>
+
+  <!-- mat-dialog-title сам связывает заголовок с окном через aria-labelledby. -->
+  <h2 mat-dialog-title class="title">{{ 'feed.matchDialog.title' | t }}</h2>
+
+  <mat-dialog-content class="content">
+    <p class="subtitle">
+      {{ subtitle().before }}<strong>{{ data.player.name }}</strong
+      >{{ subtitle().after }}
+    </p>
+
+    @if (hasCommon()) {
+      <section class="common">
+        <p class="label">{{ 'feed.matchDialog.together' | t }}</p>
+        @if (games().length) {
+          <ul class="tags">
+            @for (game of games(); track game) {
+              <li class="tag">{{ game }}</li>
+            }
+            @if (moreGames()) {
+              <li class="tag tag--more">+{{ moreGames() }}</li>
+            }
+          </ul>
+        }
+        @if (meta()) {
+          <p class="meta">{{ meta() }}</p>
+        }
+      </section>
+    }
+
+    <!-- Главное, что дал мэтч: контакты открылись обоим. Без этой строки взаимный лайк
+         выглядел как «ну, можно написать», а не как открытая дверь. -->
+    <!-- Сначала — общая фраза, через мгновение (когда контакты загрузятся) — конкретика:
+         «Контакты открыты: Discord · Steam». aria-live="polite" — скринридер прочитает
+         уточнение, когда закончит то, что читает сейчас. -->
+    <div class="unlock">
+      <mat-icon aria-hidden="true">lock_open</mat-icon>
+      <p aria-live="polite">{{ contactsText() }}</p>
+      @if (canSeeContacts()) {
+        <button mat-button type="button" [mat-dialog-close]="'contacts'" class="see-contacts">
+          {{ 'feed.matchDialog.seeContacts' | t }}
+        </button>
+      }
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions class="actions">
+    <button mat-button type="button" [mat-dialog-close]="undefined" class="later">
+      {{ 'feed.matchDialog.later' | t }}
+    </button>
+    <!-- cdkFocusInitial — фокус при открытии сразу на главной кнопке. -->
+    <button mat-flat-button type="button" [mat-dialog-close]="'chat'" cdkFocusInitial class="write">
+      {{ 'feed.matchDialog.write' | t }}
+    </button>
+  </mat-dialog-actions>
+</div>

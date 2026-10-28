@@ -6,6 +6,9 @@
   background: var(--di-surface);
   border-bottom: 1px solid rgba(168, 85, 247, 0.4);
   box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
+  // Своё имя для View Transitions: при смене страницы шапка стоит на месте,
+  // а плавно меняется только содержимое под ней.
+  view-transition-name: site-header;
 }
 
 .logo {

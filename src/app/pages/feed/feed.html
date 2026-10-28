@@ -1,90 +1,390 @@
-<h2>{{ 'feed.title' | t }}</h2>
-<p class="subtitle">{{ 'feed.subtitle' | t }}</p>
+<header class="head">
+  <!-- tabindex="-1": сюда уходит фокус, когда последняя карточка закончилась. -->
+  <h1 id="feed-title" tabindex="-1">{{ 'feed.title' | t }}</h1>
+  <p class="subtitle">{{ 'feed.subtitle' | t }}</p>
+</header>
 
 @if (loading()) {
-  <div class="center"><mat-spinner diameter="40" /></div>
+  <!-- Скелетон: серые заготовки карточек в том же размере, что и настоящие.
+       Страница не «прыгает», когда данные приходят, и видно, что идёт загрузка.
+       Первая строка — заготовка панели «Фильтры · вид»: без неё карточки съезжали вниз. -->
+  <div class="toolbar" aria-hidden="true">
+    <span class="skeleton pill filters-pill"></span>
+    <span class="skeleton pill view-pill"></span>
+  </div>
+  <div
+    [class]="view() === 'deck' ? 'deck-skeleton' : 'grid'"
+    role="status"
+    aria-busy="true"
+    [attr.aria-label]="'feed.loading' | t"
+  >
+    @for (i of view() === 'deck' ? [0] : skeletons; track i) {
+      <div class="skeleton-card" aria-hidden="true">
+        <span class="skeleton photo"></span>
+        <div class="lines">
+          <span class="skeleton line w60"></span>
+          <span class="skeleton line w40"></span>
+          <span class="skeleton line w80"></span>
+          <span class="skeleton line w70"></span>
+        </div>
+        <span class="skeleton buttons"></span>
+      </div>
+    }
+  </div>
 } @else if (errorKey(); as key) {
-  <p class="form-error" role="alert">{{ key | t }}</p>
+  <app-error-state [errorKey]="key" (retry)="retry()" />
 } @else if (!me()) {
   <!-- Без своего профиля сравнивать не с чем — просим сначала заполнить его. -->
-  <section class="notice">
-    <mat-icon>sports_esports</mat-icon>
-    <h3>{{ 'feed.noProfile.title' | t }}</h3>
+  <app-state-message icon="sports_esports" tone="cyan">
+    <h2>{{ 'feed.noProfile.title' | t }}</h2>
     <p>{{ 'feed.noProfile.text' | t }}</p>
     <a mat-flat-button routerLink="/profile">{{ 'feed.noProfile.cta' | t }}</a>
-  </section>
+  </app-state-message>
 } @else {
-  <form class="filters" [formGroup]="filters">
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'feed.filters.game' | t }}</mat-label>
-      <mat-select formControlName="game">
-        <mat-option value="">{{ 'feed.filters.any' | t }}</mat-option>
-        @for (game of gameOptions(); track game) {
-          <mat-option [value]="game">{{ game }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'feed.filters.platform' | t }}</mat-label>
-      <mat-select formControlName="platform">
-        <mat-option value="">{{ 'feed.filters.any' | t }}</mat-option>
-        @for (platform of platforms; track platform) {
-          <mat-option [value]="platform">{{ 'catalog.platforms.' + platform | t }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'feed.filters.city' | t }}</mat-label>
-      <input matInput formControlName="city" />
-    </mat-form-field>
-
-    <div class="ages">
-      <mat-form-field appearance="outline">
-        <mat-label>{{ 'feed.filters.minAge' | t }}</mat-label>
-        <input matInput type="number" formControlName="minAge" [min]="minAge" [max]="maxAge" />
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>{{ 'feed.filters.maxAge' | t }}</mat-label>
-        <input matInput type="number" formControlName="maxAge" [min]="minAge" [max]="maxAge" />
-      </mat-form-field>
-    </div>
-
-    <button mat-button type="button" (click)="resetFilters()">
-      <mat-icon>filter_alt_off</mat-icon>
-      {{ 'feed.filters.reset' | t }}
+  <div class="toolbar">
+    <button
+      mat-stroked-button
+      type="button"
+      class="filters-toggle"
+      [class.active]="activeFilters()"
+      aria-controls="feed-filters"
+      [attr.aria-expanded]="filtersOpen()"
+      (click)="toggleFilters()"
+    >
+      <mat-icon aria-hidden="true">tune</mat-icon>
+      {{ 'feed.filters.toggle' | t }}
+      @if (activeFilters()) {
+        <span class="badge" aria-hidden="true">{{ activeFilters() }}</span>
+        <span class="sr-only"
+          >, {{ 'feed.filters.activeCount' | t: { count: activeFilters() } }}</span
+        >
+      }
     </button>
-  </form>
 
-  <p class="count">{{ 'feed.count' | t: { count: results().length } }}</p>
+    <!-- Скринридеру число объявляется отдельно (см. announcement) — только при смене фильтров. -->
+    <p class="count">
+      @if (results().length) {
+        {{ 'feed.count' | t: { count: results().length } }}
+      }
+    </p>
+
+    <mat-button-toggle-group
+      class="view"
+      hideSingleSelectionIndicator
+      [attr.aria-label]="'feed.view.label' | t"
+      [value]="view()"
+      (change)="setView($event.value)"
+    >
+      <!-- [aria-label] — вход компонента: попадает на внутреннюю кнопку, а не на обёртку. -->
+      <mat-button-toggle value="deck" [aria-label]="'feed.view.deck' | t">
+        <mat-icon aria-hidden="true">view_carousel</mat-icon>
+        <span class="view-label">{{ 'feed.view.deck' | t }}</span>
+      </mat-button-toggle>
+      <mat-button-toggle value="grid" [aria-label]="'feed.view.grid' | t">
+        <mat-icon aria-hidden="true">grid_view</mat-icon>
+        <span class="view-label">{{ 'feed.view.grid' | t }}</span>
+      </mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+
+  <!-- Фильтры свёрнуты по умолчанию: на телефоне они занимали весь первый экран. -->
+  @if (filtersOpen()) {
+    <form id="feed-filters" class="filters" [formGroup]="filters" animate.enter="di-enter">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'feed.filters.game' | t }}</mat-label>
+        <mat-select formControlName="game">
+          <mat-option value="">{{ 'feed.filters.any' | t }}</mat-option>
+          @if (gameOptions().mine.length) {
+            <mat-optgroup [label]="'feed.filters.myGames' | t">
+              @for (game of gameOptions().mine; track game) {
+                <mat-option [value]="game">{{ game }}</mat-option>
+              }
+            </mat-optgroup>
+          }
+          @if (gameOptions().others.length) {
+            <mat-optgroup [label]="'feed.filters.otherGames' | t">
+              @for (game of gameOptions().others; track game) {
+                <mat-option [value]="game">{{ game }}</mat-option>
+              }
+            </mat-optgroup>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'feed.filters.platform' | t }}</mat-label>
+        <mat-select formControlName="platform">
+          <mat-option value="">{{ 'feed.filters.any' | t }}</mat-option>
+          @for (platform of platforms; track platform) {
+            <mat-option [value]="platform">{{ 'catalog.platforms.' + platform | t }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'feed.filters.city' | t }}</mat-label>
+        <input matInput formControlName="city" autocomplete="address-level2" />
+      </mat-form-field>
+
+      <div class="ages">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ 'feed.filters.minAge' | t }}</mat-label>
+          <input
+            matInput
+            type="number"
+            inputmode="numeric"
+            formControlName="minAge"
+            [min]="minAge"
+            [max]="maxAge"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ 'feed.filters.maxAge' | t }}</mat-label>
+          <input
+            matInput
+            type="number"
+            inputmode="numeric"
+            formControlName="maxAge"
+            [min]="minAge"
+            [max]="maxAge"
+          />
+        </mat-form-field>
+      </div>
+
+      @if (activeFilters()) {
+        <button mat-button type="button" class="reset" (click)="resetFilters()">
+          <mat-icon aria-hidden="true">filter_alt_off</mat-icon>
+          {{ 'feed.filters.reset' | t }}
+        </button>
+      }
+    </form>
+  }
+
+  <!-- Подсказка «по месту»: время игры и жанры в профиле необязательны, но без них совпадения
+       беднее. Показываем один раз, пока не заполнят или не скроют. -->
+  @if (profileHint()) {
+    <aside class="hint" [attr.aria-label]="'feed.hint.title' | t">
+      <mat-icon aria-hidden="true">schedule</mat-icon>
+      <p>
+        <b>{{ 'feed.hint.title' | t }}</b> {{ 'feed.hint.text' | t }}
+      </p>
+      <a mat-button routerLink="/profile">{{ 'feed.hint.cta' | t }}</a>
+      <button
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="'feed.hint.dismiss' | t"
+        (click)="dismissHint()"
+      >
+        <mat-icon aria-hidden="true">close</mat-icon>
+      </button>
+    </aside>
+  }
 
   @if (results().length) {
-    <div class="grid">
-      @for (result of results(); track result.player.uid) {
-        <app-player-card
-          [player]="result.player"
-          [age]="result.age"
-          [match]="result.match"
-          [busy]="pendingUid() === result.player.uid"
-          [likedMe]="result.likedMe"
-          (liked)="like(result.player)"
-          (skipped)="skip(result.player)"
-        />
-      }
-    </div>
+    @if (view() === 'deck') {
+      <section class="deck" [attr.aria-label]="'feed.view.deck' | t">
+        <!-- Колода: текущий игрок и следующий, выглядывающий из-за него. Когда текущий улетает,
+             следующий плавно выезжает вперёд — это тот же элемент (track по uid), меняется
+             только класс peek. -->
+        <div class="stack">
+          @for (item of deck(); track item.player.uid; let i = $index) {
+            <app-player-card
+              class="slot"
+              [class.peek]="i === 1"
+              [attr.aria-hidden]="i === 1 ? 'true' : null"
+              [attr.inert]="i === 1 ? '' : null"
+              animate.enter="deck-in"
+              [animate.leave]="leaveClass(item.player.uid)"
+              [player]="item.player"
+              [age]="item.age"
+              [match]="item.match"
+              [likedMe]="item.likedMe"
+              [showActions]="false"
+              (removed)="onRemoved(item.player)"
+            />
+          }
+        </div>
+
+        @if (current(); as item) {
+          <div class="deck-actions">
+            <button
+              mat-stroked-button
+              type="button"
+              class="skip"
+              aria-keyshortcuts="ArrowLeft"
+              [attr.aria-label]="'feed.card.skipName' | t: { name: item.player.name }"
+              (click)="skip(item.player)"
+            >
+              <mat-icon aria-hidden="true">close</mat-icon>
+              {{ 'feed.card.skip' | t }}
+            </button>
+            <button
+              mat-flat-button
+              type="button"
+              class="like"
+              aria-keyshortcuts="ArrowRight"
+              [attr.aria-label]="'feed.card.likeName' | t: { name: item.player.name }"
+              [attr.aria-describedby]="likeHint() ? 'feed-like-hint' : null"
+              (click)="like(item.player)"
+            >
+              <mat-icon aria-hidden="true">favorite</mat-icon>
+              {{ 'feed.card.like' | t }}
+            </button>
+            <!-- «Player 2?» — игра слов, а не инструкция. Пока человек ни разу не лайкал, тут же
+                 объясняем, что именно отправится и что останется скрытым. aria-describedby
+                 на кнопке — скринридер прочитает это пояснение вместе с её названием. -->
+            @if (likeHint()) {
+              <p id="feed-like-hint" class="like-hint">
+                <mat-icon aria-hidden="true">lock</mat-icon>
+                {{ 'feed.likeHint' | t }}
+              </p>
+            }
+            <p class="keys-hint" aria-hidden="true">{{ 'feed.keysHint' | t }}</p>
+            <ng-container [ngTemplateOutlet]="lastLine" />
+          </div>
+        }
+      </section>
+    } @else {
+      <div class="grid" [class.settling]="settling()">
+        <!-- animate.enter — класс на время появления, [animate.leave] — на время ухода:
+             Angular не удалит карточку, пока не доиграет её анимация. --i — номер для «лесенки». -->
+        @for (result of results(); track result.player.uid) {
+          <app-player-card
+            class="in-grid"
+            animate.enter="di-enter"
+            [animate.leave]="leaveClass(result.player.uid)"
+            [style.--i]="$index"
+            [player]="result.player"
+            [age]="result.age"
+            [match]="result.match"
+            [likedMe]="result.likedMe"
+            (liked)="like(result.player)"
+            (skipped)="skip(result.player)"
+            (removed)="onRemoved(result.player)"
+          />
+        }
+      </div>
+      <div class="grid-status">
+        <ng-container [ngTemplateOutlet]="lastLine" />
+      </div>
+    }
   } @else {
-    <section class="notice">
-      <mat-icon>search_off</mat-icon>
-      <!-- Три разных «пусто»: никого нет вообще, всех уже посмотрел, никто не подходит под фильтры. -->
-      @if (!players().length) {
+    <ng-container [ngTemplateOutlet]="lastLine" />
+    <!-- Три разных «пусто»: никого нет вообще, всех уже посмотрел, никто не подходит под фильтры. -->
+    @if (!players().length) {
+      <app-state-message icon="group_off" tone="cyan">
+        <h2>{{ 'feed.emptyTitle' | t }}</h2>
         <p>{{ 'feed.empty' | t }}</p>
-      } @else if (!remaining().length) {
-        <p>{{ 'feed.allSwiped' | t }}</p>
-        <a mat-stroked-button routerLink="/matches">{{ 'feed.toMatches' | t }}</a>
-      } @else {
+        <button mat-stroked-button type="button" (click)="copyInvite()">
+          <mat-icon aria-hidden="true">link</mat-icon>
+          {{ 'feed.invite' | t }}
+        </button>
+      </app-state-message>
+    } @else if (!remaining().length) {
+      <!-- Конец ленты — не тупик: что уже происходит (ждут ответа, пишут, мэтчи) и что можно
+           сделать, пока не пришли новые игроки. -->
+      <app-state-message icon="task_alt" tone="cyan">
+        <h2>{{ 'feed.end.title' | t }}</h2>
+        <p>{{ 'feed.end.text' | t }}</p>
+
+        @if (
+          notifications.waitingLikes() ||
+          notifications.unreadChats().size ||
+          notifications.matchCount()
+        ) {
+          <ul class="end-list">
+            @if (notifications.waitingLikes(); as count) {
+              <li>
+                <mat-icon class="pink" aria-hidden="true">favorite</mat-icon>
+                <span>
+                  <b>{{ 'feed.end.waiting' | t: { count } }}</b>
+                  {{ 'feed.end.waitingHint' | t }}
+                </span>
+              </li>
+            }
+            @if (notifications.unreadChats().size; as count) {
+              <li>
+                <mat-icon class="pink" aria-hidden="true">chat</mat-icon>
+                <span
+                  ><b>{{ 'feed.end.unread' | t: { count } }}</b></span
+                >
+              </li>
+            }
+            @if (notifications.matchCount(); as count) {
+              <li>
+                <mat-icon class="cyan" aria-hidden="true">sports_esports</mat-icon>
+                <span>
+                  <b>{{ 'feed.end.matches' | t: { count } }}</b>
+                  {{ 'feed.end.matchesHint' | t }}
+                </span>
+              </li>
+            }
+          </ul>
+        }
+
+        <div class="end-actions">
+          @if (notifications.matchCount()) {
+            <a mat-flat-button class="like" routerLink="/matches">{{ 'feed.toMatches' | t }}</a>
+          }
+          <a mat-stroked-button routerLink="/profile">{{ 'feed.end.improve' | t }}</a>
+        </div>
+        @if (!notifications.matchCount()) {
+          <p class="end-hint">{{ 'feed.end.improveHint' | t }}</p>
+        }
+      </app-state-message>
+    } @else {
+      <app-state-message icon="search_off" tone="cyan">
         <p>{{ 'feed.emptyFiltered' | t }}</p>
-      }
-    </section>
+        <button mat-stroked-button type="button" (click)="resetFilters()">
+          <mat-icon aria-hidden="true">filter_alt_off</mat-icon>
+          {{ 'feed.filters.reset' | t }}
+        </button>
+      </app-state-message>
+    }
   }
+
+  <!-- Живая область для скринридера: всегда на странице, поэтому объявление не потеряется,
+       даже если карточка была последней и вместо колоды появилось «пусто». -->
+  <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
 }
+
+<!-- Строка «последнее действие»: подтверждение лайка/пропуска и «Вернуть» для пропуска.
+     ng-template — кусок шаблона, который вставляется в нескольких местах (колода, сетка, «пусто»). -->
+<ng-template #lastLine>
+  @if (lastAction(); as last) {
+    <p class="last-action">
+      @switch (last.kind) {
+        @case ('liked') {
+          <mat-icon class="pink" aria-hidden="true">favorite</mat-icon>
+          <span>{{ 'feed.last.liked' | t: { name: last.player.name } }}</span>
+          @if (last.consentNote) {
+            <!-- Только при первом лайке: объясняем, что ничего личного ещё не ушло. -->
+            <span class="consent">
+              <mat-icon aria-hidden="true">lock</mat-icon>
+              {{ 'feed.last.consent' | t }}
+            </span>
+          }
+        }
+        @case ('skipped') {
+          <mat-icon aria-hidden="true">close</mat-icon>
+          <span>{{ 'feed.last.skipped' | t: { name: last.player.name } }}</span>
+          <button
+            mat-button
+            type="button"
+            class="undo"
+            [attr.aria-label]="'feed.last.undoName' | t: { name: last.player.name }"
+            [disabled]="restoring() === last.player.uid"
+            (click)="undoSkip(last.player)"
+          >
+            <mat-icon aria-hidden="true">undo</mat-icon>
+            {{ 'feed.last.undo' | t }}
+          </button>
+        }
+        @case ('restored') {
+          <mat-icon class="cyan" aria-hidden="true">undo</mat-icon>
+          <span>{{ 'feed.last.restored' | t: { name: last.player.name } }}</span>
+        }
+      }
+    </p>
+  }
+</ng-template>

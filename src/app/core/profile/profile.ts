@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import { FirebaseError } from 'firebase/app';
 import {
   collection,
   doc,
@@ -40,6 +39,13 @@ export class ProfileService {
     return snapshot.exists() ? (snapshot.data() as UserProfile) : null;
   }
 
+  // Только контакты другого игрока. Правила базы отдадут их, лишь когда у нас с ним есть мэтч
+  // (документ matches/...), — до мэтча этот запрос вернёт ошибку permission-denied.
+  async loadContacts(uid: string): Promise<UserContacts | null> {
+    const snapshot = await getDoc(this.contactsDoc(uid));
+    return snapshot.exists() ? (snapshot.data() as UserContacts) : null;
+  }
+
   // Анкеты для ленты: все, кроме своей. doc.id — это uid владельца анкеты.
   async listPlayers(myUid: string): Promise<Player[]> {
     const snapshot = await getDocs(query(collection(this.db, 'users'), limit(PLAYERS_LIMIT)));
@@ -68,19 +74,5 @@ export class ProfileService {
 
   private contactsDoc(uid: string) {
     return doc(this.db, 'users', uid, 'private', 'contacts');
-  }
-}
-
-// Как authErrorKey: код ошибки Firestore → ключ перевода.
-export function profileErrorKey(error: unknown): string {
-  const code = error instanceof FirebaseError ? error.code : '';
-  switch (code) {
-    case 'permission-denied':
-      return 'profile.errors.permission';
-    case 'unavailable':
-      return 'profile.errors.network';
-    default:
-      console.error(error);
-      return 'profile.errors.unknown';
   }
 }
