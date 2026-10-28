@@ -242,13 +242,33 @@
                 {{ 'feed.likeHint' | t }}
               </p>
             }
-            <p class="keys-hint" aria-hidden="true">{{ 'feed.keysHint' | t }}</p>
-            <ng-container [ngTemplateOutlet]="lastLine" />
+            <!-- Один ряд под кнопками: либо подсказка про клавиши, либо таблетка последнего
+                 действия. Место под ряд зарезервировано (min-height), поэтому кнопки не прыгают,
+                 когда одно сменяет другое. Z / Backspace у «Вернуть» и так есть
+                 в aria-keyshortcuts, а подсказку человек видел до первого действия. -->
+            <div class="status-slot">
+              @if (lastAction()) {
+                <ng-container
+                  [ngTemplateOutlet]="lastLine"
+                  [ngTemplateOutletContext]="{ deck: true }"
+                />
+              } @else {
+                <p class="keys-hint" aria-hidden="true">{{ 'feed.keysHint' | t }}</p>
+              }
+            </div>
           </div>
         }
       </section>
     } @else {
-      <div class="grid" [class.settling]="settling()">
+      <!-- has-status — внизу висит таблетка «последнее действие»: даём сетке запас снизу,
+           чтобы последний ряд карточек можно было докрутить из-под неё (иначе таблетка
+           закрывала «Пропустить» / «Player 2?»). tall — таблетка в две строки (пояснение). -->
+      <div
+        class="grid"
+        [class.settling]="settling()"
+        [class.has-status]="!!lastAction()"
+        [class.tall-status]="!!lastAction()?.consentNote"
+      >
         <!-- animate.enter — класс на время появления, [animate.leave] — на время ухода:
              Angular не удалит карточку, пока не доиграет её анимация. --i — номер для «лесенки». -->
         @for (result of results(); track result.player.uid) {
@@ -273,7 +293,9 @@
       </div>
     }
   } @else {
-    <ng-container [ngTemplateOutlet]="lastLine" />
+    <div class="status-row">
+      <ng-container [ngTemplateOutlet]="lastLine" />
+    </div>
     <!-- Три разных «пусто»: никого нет вообще, всех уже посмотрел, никто не подходит под фильтры. -->
     @if (!players().length) {
       <app-state-message icon="group_off" tone="cyan">
@@ -353,21 +375,37 @@
   <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
 }
 
-<!-- Строка «последнее действие»: подтверждение лайка/пропуска и «Вернуть» (у лайка — пока он ждёт отправки).
+<!-- Строка «последнее действие» — компактная «таблетка»: ♥ Имя · Вернуть · ⏸ — и полоска
+     обратного отсчёта вместо нижней рамки. Раньше под кнопками колоды стопкой лежали подсказка
+     про клавиши, строка «Отправляется», отдельный ряд «Пауза», полоска и пояснение о контактах —
+     пять строк ради одного лайка. Теперь это одна строка.
      ng-template — кусок шаблона, который вставляется в нескольких местах (колода, сетка, «пусто»).
+     let-deck — вставили в колоду: там пояснение о контактах НЕ дублируем — его только что
+     показала подсказка прямо под «Player 2?» (likeHint), а скринридеру оно уходит в живую область.
      Мышь над строкой, фокус внутри неё или кнопка «Пауза» ставят таймер лайка на паузу
-     (onPointer, onFocusIn / onLineFocusOut, toggleHold). tabindex="-1": если «Вернуть» исчезнет, пока на ней фокус, он останется
-     здесь же, на строке, а не упадёт на <body> и не прыгнет к карточке. -->
-<ng-template #lastLine>
+     (onPointer, onFocusIn / onLineFocusOut, toggleHold). tabindex="-1": если «Вернуть» исчезнет,
+     пока на ней фокус, он останется здесь же, на строке, а не упадёт на <body>. -->
+<ng-template #lastLine let-deck="deck">
   @if (lastAction(); as last) {
-    <p class="last-action" tabindex="-1" (focusout)="onLineFocusOut($event)">
+    <p
+      class="last-action"
+      tabindex="-1"
+      [class.two-line]="last.consentNote && !deck"
+      (focusout)="onLineFocusOut($event)"
+    >
       @switch (last.kind) {
         @case ('sending') {
-          <!-- Лайк ещё не записан: честно «отправляется», а не «отправлено». -->
           <mat-icon class="pink" aria-hidden="true">favorite</mat-icon>
-          <span>{{ 'feed.last.sending' | t: { name: last.player.name } }}</span>
-          <!-- Пока лайк ждёт отправки (несколько секунд), его можно отменить. -->
           @if (last.undoable) {
+            <!-- Пока лайк ждёт — коротко «Приглашение: Alex»: что оно ещё не ушло, говорят
+                 полоска отсчёта и «Вернуть» рядом. На паузе — прямо «на паузе», а не
+                 «отправляется»: иначе текст обещал бы то, чего не происходит.
+                 Текст берёт held (кнопка), а не lineHeld (ещё и мышь/фокус): иначе он
+                 мигал бы при каждом наведении. -->
+            @let held = heldByButton() === last.player.uid;
+            <span class="text">{{
+              (held ? 'feed.last.held' : 'feed.last.pending') | t: { name: last.player.name }
+            }}</span>
             <ng-container
               [ngTemplateOutlet]="undoButton"
               [ngTemplateOutletContext]="{
@@ -375,27 +413,30 @@
                 name: last.player.name,
               }"
             />
-            <!-- «Пауза» → «Отправить»: явная остановка таймера. Наведение и фокус — удобство,
-                 а скринридер в режиме чтения их не делает; кнопку же «нажмёт» любой.
-                 Одна кнопка с меняющимся текстом (а не две по очереди) — фокус с неё не слетает. -->
-            @let held = heldByButton() === last.player.uid;
+            <!-- ⏸ → ➤: явная остановка таймера. Наведение и фокус — удобство, а скринридер
+                 в режиме чтения их не делает; кнопку же «нажмёт» любой (WCAG 2.2.1 — время
+                 можно остановить). Одна кнопка с меняющейся иконкой (а не две по очереди) —
+                 фокус с неё не слетает. Только иконка, чтобы строка оставалась одной:
+                 имя кнопке даёт aria-label («Поставить на паузу приглашение: Alex»), а мыши —
+                 подсказка с тем же текстом (Material не дублирует её в aria-describedby,
+                 раз она совпадает с aria-label). -->
+            @let holdLabel =
+              (held ? 'feed.last.sendNowName' : 'feed.last.pauseName')
+                | t: { name: last.player.name };
             <button
-              mat-button
+              mat-icon-button
               type="button"
               class="hold"
-              [attr.aria-label]="
-                (held ? 'feed.last.sendNowName' : 'feed.last.pauseName')
-                  | t: { name: last.player.name }
-              "
+              [attr.aria-label]="holdLabel"
+              [matTooltip]="holdLabel"
               (click)="toggleHold(last.player)"
             >
               <mat-icon aria-hidden="true">{{ held ? 'send' : 'pause' }}</mat-icon>
-              {{ (held ? 'feed.last.sendNow' : 'feed.last.pause') | t }}
             </button>
-            <!-- Полоска «сколько осталось»: CSS-анимация длиной в таймер. @for с одним элементом
-                 и track по uid — приём, чтобы для НОВОГО лайка Angular создал новую полоску
-                 (и анимация началась сначала), а не продолжил старую. held — пауза, как у таймера.
-                 aria-hidden: это картинка; скринридеру хватает «Можно вернуть». -->
+            <!-- Полоска «сколько осталось» — нижняя «рамка» самой таблетки: CSS-анимация длиной
+                 в таймер. @for с одним элементом и track по uid — приём, чтобы для НОВОГО лайка
+                 Angular создал новую полоску (и анимация началась сначала), а не продолжил старую.
+                 held — пауза, как у таймера. aria-hidden: это картинка. -->
             @for (uid of [last.player.uid]; track uid) {
               <span
                 class="countdown"
@@ -404,29 +445,20 @@
                 [style.animation-duration.ms]="likeUndoMs"
               ></span>
             }
-          }
-          @if (last.consentNote) {
-            <!-- Только при первом лайке: объясняем, что ничего личного ещё не ушло. -->
-            <span class="consent">
-              <mat-icon aria-hidden="true">lock</mat-icon>
-              {{ 'feed.last.consent' | t }}
-            </span>
+          } @else {
+            <!-- Время вышло, лайк пишется: честно «отправляется», а не «отправлено». -->
+            <span class="text">{{ 'feed.last.sending' | t: { name: last.player.name } }}</span>
           }
         }
         @case ('liked') {
-          <!-- Сервер подтвердил запись — теперь «Приглашение отправлено». Отменить уже нельзя. -->
+          <!-- Сервер подтвердил запись — теперь «Приглашение отправлено». Отменить уже нельзя,
+               поэтому через несколько секунд строка уйдёт сама (см. clearStatusLater в feed.ts). -->
           <mat-icon class="pink" aria-hidden="true">favorite</mat-icon>
-          <span>{{ 'feed.last.liked' | t: { name: last.player.name } }}</span>
-          @if (last.consentNote) {
-            <span class="consent">
-              <mat-icon aria-hidden="true">lock</mat-icon>
-              {{ 'feed.last.consent' | t }}
-            </span>
-          }
+          <span class="text">{{ 'feed.last.liked' | t: { name: last.player.name } }}</span>
         }
         @case ('skipped') {
           <mat-icon aria-hidden="true">close</mat-icon>
-          <span>{{ 'feed.last.skipped' | t: { name: last.player.name } }}</span>
+          <span class="text">{{ 'feed.last.skipped' | t: { name: last.player.name } }}</span>
           <ng-container
             [ngTemplateOutlet]="undoButton"
             [ngTemplateOutletContext]="{ label: 'feed.last.undoName', name: last.player.name }"
@@ -434,14 +466,22 @@
         }
         @case ('restored') {
           <mat-icon class="cyan" aria-hidden="true">undo</mat-icon>
-          <span>{{ 'feed.last.restored' | t: { name: last.player.name } }}</span>
+          <span class="text">{{ 'feed.last.restored' | t: { name: last.player.name } }}</span>
         }
+      }
+      @if (last.consentNote && !deck) {
+        <!-- Только при первом лайке (и не в колоде, см. выше): ничего личного ещё не ушло. -->
+        <span class="consent">
+          <mat-icon aria-hidden="true">lock</mat-icon>
+          {{ 'feed.last.consent' | t }}
+        </span>
       }
     </p>
   }
 </ng-template>
 
 <!-- Кнопка «Вернуть» — одна для лайка и пропуска. undoLast() сам знает, что отменять.
+     Без иконки: у таблетки уже есть иконка действия, а слово «Вернуть» понятно само.
      aria-keyshortcuts сообщает скринридеру горячие клавиши (несколько — через пробел).
      let-label / let-name — значения из ngTemplateOutletContext. -->
 <ng-template #undoButton let-label="label" let-name="name">
@@ -454,7 +494,6 @@
     [disabled]="!!restoring()"
     (click)="undoLast()"
   >
-    <mat-icon aria-hidden="true">undo</mat-icon>
     {{ 'feed.last.undo' | t }}
   </button>
 </ng-template>

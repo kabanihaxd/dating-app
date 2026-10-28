@@ -29,6 +29,14 @@ form :where(*) {
     font-size: 28px;
     font-weight: 600;
     line-height: 1.2;
+
+    // tabindex="-1": Tab сюда не попадает, фокус ставит только код (keepFocus в profile.ts,
+    // когда после сохранения фокус потерялся). Это «закладка» для диктора, а не элемент управления,
+    // поэтому рамку не рисуем вовсе — иначе вокруг заголовка вдруг появлялся тёмный прямоугольник
+    // браузера по умолчанию.
+    &:focus {
+      outline: none;
+    }
   }
 
   // Разделы формы — h2 под h1; выглядят как section-title (Orbitron, циан).
@@ -75,11 +83,33 @@ form {
   animation: di-fade-up 0.3s ease-out;
 }
 
+// Расстояние между полями. Под каждым полем — строка подсказки/ошибки (её резервирует правило ниже),
+// а 12px сверх неё — настоящий зазор: даже двухстрочная ошибка не «прилипает» к подписи следующего поля.
+// Почему не 8: у заполненного поля подпись «всплывает» на верхнюю рамку и торчит над ней на ~8px —
+// при 8px ошибка сверху почти касалась бы её (замерено: 1px).
+mat-form-field {
+  margin-bottom: 12px;
+}
+
+// У полей subscriptSizing="dynamic" (см. profile.html): строка подсказки растёт по тексту.
+// Но без текста она схлопнулась бы до 0 — и при первой ошибке форма прыгала бы вниз на строку.
+// min-height держит одну строку всегда: короткая ошибка встаёт на готовое место, длинная — раздвигает.
+// ::ng-deep — этот div рисует сам Material внутри mat-form-field, «метки» стилей нашего компонента
+// на нём нет. :host впереди не даёт правилу утечь за пределы страницы анкеты.
+:host ::ng-deep .mat-mdc-form-field-subscript-dynamic-size {
+  min-height: 20px;
+}
+
 // Два поля в строку на широком экране, одно под другим — на телефоне.
 .row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   column-gap: 16px;
+  // start, а не растяжение по высоте соседа: двухстрочная ошибка в одной колонке
+  // не должна раздувать рамку поля в другой.
+  align-items: start;
+  // Отдельный margin-bottom строке не нужен: у полей внутри уже свой 12px (правило mat-form-field выше),
+  // и в сетке он не схлопывается — ритм тот же, что у одиночных полей.
 }
 
 // Ссылки длинные — по одной в строку.
@@ -152,12 +182,54 @@ form {
 }
 
 .chip-group {
-  margin: 8px 0 16px;
+  margin: 8px 0 20px;
 }
 
 .group-label {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   color: var(--di-text-muted);
+
+  // Как звёздочка обязательного текстового поля у Material: сразу за словом, тем же цветом.
+  .required-marker {
+    margin-left: 1px;
+  }
+}
+
+// Выбранный чип-фильтр. По умолчанию Material красит его в secondary-container — на тёмной теме
+// это серый по серому, выбранное от невыбранного почти не отличить. Перекрашиваем через токены
+// (--mat-chip-*), а не через background: так Material сам применит цвет ко всем состояниям.
+// Фиолетовый — «структура» (DESIGN.md): заливка на шаге 0.35 из «лестницы» прозрачностей
+// и сплошная фиолетовая рамка — выбранный чип светится, невыбранный остаётся серым контуром.
+// Кроме цвета выбор показывает и галочка, которую Material ставит в выбранный чип (не только цвет).
+mat-chip-listbox {
+  --mat-chip-elevated-selected-container-color: rgba(168, 85, 247, 0.35);
+  --mat-chip-selected-label-text-color: var(--mat-sys-on-surface);
+  --mat-chip-with-icon-selected-icon-color: var(--mat-sys-on-surface);
+  --mat-chip-selected-hover-state-layer-color: var(--mat-sys-on-surface);
+  --mat-chip-selected-focus-state-layer-color: var(--mat-sys-on-surface);
+  // У выбранного чипа Material убирает рамку (ширина 0) — возвращаем 1px, цвет задаём ниже.
+  --mat-chip-flat-selected-outline-width: 1px;
+
+  // Токен цвета рамки один на все чипы, поэтому для выбранных переопределяем его на самом чипе.
+  // .mat-mdc-chip-selected Material вешает на хост mat-chip-option — а он в нашем шаблоне.
+  mat-chip-option.mat-mdc-chip-selected {
+    --mat-chip-outline-color: var(--di-neon-violet);
+  }
+}
+
+// Крестик «убрать игру» — 18px, пальцем не попасть (WCAG 2.5.8 просит хотя бы 24, гайды мобилок — 44).
+// Растягиваем не сам значок, а невидимый span внутри кнопки: клик по нему — клик по кнопке.
+.mat-mdc-chip-remove {
+  position: relative;
+
+  .remove-hit {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 }
 
 .form-status {

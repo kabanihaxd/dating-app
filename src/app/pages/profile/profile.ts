@@ -143,6 +143,9 @@ export class Profile implements HasUnsavedChanges {
     { control: 'genres', options: GENRES },
     { control: 'playTimes', options: PLAY_TIMES },
   ] as const;
+  // Ссылка на сам валидатор — чтобы шаблон спросил у поля «ты обязательное?» (hasValidator),
+  // а не держал второй, ручной список обязательных групп, который легко разойдётся с формой ниже.
+  protected readonly requiredValidator = Validators.required;
 
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);

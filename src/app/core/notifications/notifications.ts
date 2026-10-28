@@ -246,13 +246,18 @@ export class NotificationService {
               this.notify('notifications.matched', other, '/matches');
             }
           }
+          // Всплывашка о новом сообщении — только если его иначе не увидеть.
+          // Не нужна: в открытом чате с этим человеком (сообщение и так появится в переписке)
+          // и на странице «Мэтчи» (превью чата на карточке обновится и загорится розовая точка).
+          // А вот из ДРУГОГО чата — нужна: снекбар в чате поднят над полем ввода (styles.scss).
           const message = toSummary(change.doc, uid).lastMessage;
           if (
             change.type === 'modified' &&
             message &&
             message.from !== uid &&
             message.at !== previous.get(change.doc.id) &&
-            this.activeChat() !== change.doc.id
+            this.activeChat() !== change.doc.id &&
+            !onMatchesPage
           ) {
             this.notify('notifications.message', other, `/chat/${change.doc.id}`, {
               text: shorten(message.text),

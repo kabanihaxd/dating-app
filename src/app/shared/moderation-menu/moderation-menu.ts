@@ -1,8 +1,8 @@
-import { Component, inject, input, output, signal } from '@angular/core';
+import { Component, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
+import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AuthService } from '../../core/auth/auth';
 import { I18n } from '../../core/i18n/i18n';
@@ -49,6 +49,15 @@ export class ModerationMenu {
   readonly removeFailed = output<void>();
 
   protected readonly busy = signal(false);
+
+  // Сама кнопка «⋮». Окна (подтверждение, жалоба) открываются из пункта меню, а пункт
+  // исчезает вместе с меню ещё до закрытия окна. Material вернул бы фокус на исчезнувший пункт,
+  // то есть никуда — фокус падал на <body>. Поэтому явно говорим окну: «верни фокус на «⋮»».
+  // Material делает это через FocusMonitor с тем же «источником», что и закрытие: закрыли
+  // клавишей Esc — у кнопки будет видимая рамка фокуса, кликом мыши — не будет.
+  // Если человек подтвердил разрыв или блок, карточка потом исчезнет, и фокус дальше
+  // переставит уже страница (removed) — на соседнюю карточку или заголовок.
+  private readonly trigger = viewChild.required(MatMenuTrigger, { read: ElementRef });
 
   protected unmatch(): void {
     if (this.busy()) {
@@ -108,6 +117,7 @@ export class ModerationMenu {
         panelClass: 'di-framed-dialog',
         maxWidth: 440,
         width: 'calc(100vw - 32px)',
+        restoreFocus: this.triggerElement,
       })
       .afterClosed()
       .subscribe((result) => {
@@ -130,11 +140,19 @@ export class ModerationMenu {
   // Оба действия (разрыв и блок) необратимы, поэтому окно — «опасное»: красная кнопка,
   // фокус на «Отмене». Кнопка отмены берёт перевод из того же раздела moderation.
   private confirm(data: { title: string; message: string; confirm: string; icon: string }) {
-    return confirmDialog(this.dialog, {
-      ...data,
-      cancel: this.i18n.translate('moderation.cancel'),
-      destructive: true,
-    });
+    return confirmDialog(
+      this.dialog,
+      {
+        ...data,
+        cancel: this.i18n.translate('moderation.cancel'),
+        destructive: true,
+      },
+      this.triggerElement,
+    );
+  }
+
+  private get triggerElement(): HTMLElement {
+    return this.trigger().nativeElement as HTMLElement;
   }
 
   // Общая часть всех действий: блокируем кнопку, выполняем, сообщаем результат.

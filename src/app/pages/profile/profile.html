@@ -50,8 +50,12 @@
         </div>
       </div>
 
+      <!-- subscriptSizing="dynamic" у всех полей: по умолчанию Material оставляет под подсказку/ошибку
+           ровно одну строку, а длинный текст (две строки в RU/UK, «…Enter. До 20 игр.») вылезает
+           поверх подписи следующего поля. dynamic — строка подсказки растёт по тексту и сдвигает
+           всё ниже. Одну строку всё равно резервируем в profile.scss, чтобы короткая ошибка не дёргала форму. -->
       <div class="row">
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>{{ 'profile.name' | t }}</mat-label>
           <input matInput formControlName="name" data-field="name" autocomplete="given-name" />
           @if (form.controls.name.hasError('required')) {
@@ -61,7 +65,7 @@
           }
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>{{ 'profile.birthDate' | t }}</mat-label>
           <input
             matInput
@@ -78,7 +82,7 @@
         </mat-form-field>
       </div>
 
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>{{ 'profile.city' | t }}</mat-label>
         <input matInput formControlName="city" data-field="city" autocomplete="address-level2" />
         @if (form.controls.city.hasError('required')) {
@@ -88,7 +92,7 @@
         }
       </mat-form-field>
 
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>{{ 'profile.bio' | t }}</mat-label>
         <textarea
           matInput
@@ -106,7 +110,7 @@
       <!-- ===== Игровой профиль ===== -->
       <h2>{{ 'profile.sections.gaming' | t }}</h2>
 
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>{{ 'profile.games.label' | t }}</mat-label>
         <mat-chip-grid #chipGrid formControlName="games">
           @for (game of games(); track game) {
@@ -118,6 +122,9 @@
                 [attr.aria-label]="'profile.games.remove' | t: { game }"
               >
                 <mat-icon>cancel</mat-icon>
+                <!-- Невидимая «площадка» 44×44 вокруг крестика 18px: попасть пальцем, не задев сам чип.
+                     Отдельный span, потому что ::before и ::after кнопки уже заняты Material (фокус и подсветка). -->
+                <span class="remove-hit" aria-hidden="true"></span>
               </button>
             </mat-chip-row>
           }
@@ -165,12 +172,19 @@
       @for (group of chipGroups; track group.control) {
         @let groupControl = form.controls[group.control];
         @let groupError = groupControl.touched && groupControl.invalid;
+        @let groupRequired = groupControl.hasValidator(requiredValidator);
         <div class="chip-group">
-          <p class="group-label">{{ 'profile.' + group.control | t }}</p>
+          <!-- Звёздочка — как у текстовых полей (там её ставит mat-form-field). Для диктора она
+               лишняя: «обязательно» он узнает из aria-required, который выставит [required] у списка. -->
+          <p class="group-label">
+            {{ 'profile.' + group.control | t
+            }}@if (groupRequired) {<span class="required-marker" aria-hidden="true">*</span>}
+          </p>
           <!-- У списка чипов нет mat-form-field, который сам связал бы ошибку с полем.
                Связываем вручную: aria-describedby → id текста ошибки, aria-invalid — «здесь ошибка». -->
           <mat-chip-listbox
             multiple
+            [required]="groupRequired"
             [formControlName]="group.control"
             [attr.data-field]="group.control"
             [attr.aria-label]="'profile.' + group.control | t"
@@ -200,7 +214,7 @@
           <!-- @let — короткое имя для длинного выражения внутри шаблона. -->
           @let control = form.controls.contacts.controls[field];
           <div class="contact">
-            <mat-form-field appearance="outline">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>{{ 'profile.contacts.' + field | t }}</mat-label>
               <input
                 matInput

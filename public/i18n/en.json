@@ -139,7 +139,9 @@
       "pause": "Pause",
       "pauseName": "Pause invite: {{name}}",
       "sendNow": "Send now",
-      "sendNowName": "Send invite now: {{name}}"
+      "sendNowName": "Send invite now: {{name}}",
+      "pending": "Invite: {{name}}",
+      "held": "Invite on hold: {{name}}"
     },
     "matchDialog": {
       "title": "It's a match!",

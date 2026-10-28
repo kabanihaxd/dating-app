@@ -189,15 +189,29 @@
     box-shadow: 0 0 12px rgba(255, 46, 136, 0.45);
   }
 
-  .last-action {
-    grid-column: 1 / -1;
+}
+
+// Ряд под кнопками колоды: подсказка про клавиши ИЛИ таблетка последнего действия.
+// min-height — под высоту таблетки, чтобы при смене одного на другое кнопки не прыгали.
+// Резервируем только там, где подсказка вообще видна (мышь); на телефоне пустой ряд
+// отнимал бы 44px у карточки.
+.status-slot {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .status-slot {
+    min-height: 44px;
   }
 }
 
 // Подсказка про стрелки — только там, где есть клавиатура и мышь.
 .keys-hint {
   display: none;
-  grid-column: 1 / -1;
   margin: 0;
   font-size: 12px;
   text-align: center;
@@ -232,43 +246,88 @@ app-player-card {
   display: block;
 }
 
-// Строка «последнее действие» в сетке прилипает к низу экрана, чтобы «Вернуть» было под рукой.
+// Запас снизу у сетки, пока висит таблетка: высота таблетки (~44px, в две строки ~78px)
+// + её отступ от края экрана (12px) + 16px воздуха. Без него таблетка навсегда закрывала
+// кнопки последнего ряда — докрутить их из-под неё было некуда.
+.grid.has-status {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+
+  &.tall-status {
+    padding-bottom: calc(108px + env(safe-area-inset-bottom));
+  }
+}
+
+// Таблетка в сетке прилипает к низу экрана, чтобы «Вернуть» было под рукой.
+// Сам контейнер — нулевой высоты: в потоке он места не занимает (запас даёт padding сетки),
+// а таблетка, выровненная по его низу (flex-end), «свисает» вверх, над краем экрана.
 .grid-status {
   position: sticky;
   bottom: 0;
   z-index: 2;
   display: flex;
   justify-content: center;
-  padding: 12px 0 calc(8px + env(safe-area-inset-bottom));
+  align-items: flex-end;
+  height: 0;
+  padding: 0 8px;
   pointer-events: none;
 
   .last-action {
     pointer-events: auto;
-    padding: 4px 8px 4px 16px;
-    border: 1px solid rgba(168, 85, 247, 0.4);
-    border-radius: 999px;
-    background: var(--di-surface);
+    margin-bottom: calc(12px + env(safe-area-inset-bottom));
+    // Плавает над карточками — отделяем от них мягким фиолетовым ореолом (ambient).
     box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
   }
 }
 
-.last-action {
+// Над «пусто» таблетка стоит отдельно, по центру — чтобы последнего пропущенного можно было вернуть.
+.status-row {
   display: flex;
-  align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-height: 36px;
+}
+
+// Таблетка «последнее действие»: ♥ текст · Вернуть · ⏸, полоска отсчёта — её нижняя кромка.
+// Одинаковая в колоде, сетке и над «пусто». Радиус 22px = половина высоты в одну строку:
+// одна строка — настоящая таблетка, две (с пояснением о контактах) — скруглённый блок.
+// overflow: hidden обрезает полоску по скруглению — и она выглядит как нижняя рамка.
+.last-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  // Одна строка всегда: при нехватке места сжимается текст (многоточие), а не переносятся
+  // кнопки на вторую строку. Перенос — только у варианта с пояснением (.two-line ниже).
+  flex-wrap: nowrap;
+  column-gap: 2px;
+  max-width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
   margin: 0;
+  padding: 2px 2px 2px 14px;
+  overflow: hidden;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  border-radius: 22px;
+  background: var(--di-surface);
   font-size: 14px;
+  line-height: 20px;
   color: var(--di-text-muted);
   animation: di-fade-up 0.2s ease-out;
 
-  span {
-    overflow-wrap: anywhere;
+  // Без кнопок справа (отправлено / вернулся) — симметричный отступ.
+  &:not(:has(button)) {
+    padding-right: 14px;
   }
 
-  mat-icon {
+  // Текст сжимается первым: длинное имя обрезается многоточием, а кнопки остаются в строке.
+  .text {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin: 0 4px 0 6px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  > mat-icon {
+    flex-shrink: 0;
     font-size: 18px;
     width: 18px;
     height: 18px;
@@ -282,24 +341,38 @@ app-player-card {
     }
   }
 
+  button {
+    flex-shrink: 0;
+  }
+
   .undo {
+    --mat-button-text-horizontal-padding: 10px;
     color: var(--di-neon-cyan);
   }
 
-  // «Пауза» — второстепенная: приглушённая, чтобы главным действием в строке оставалось «Вернуть».
+  // ⏸ / ➤ — второстепенная: приглушённая и компактная (36px вместо 48px),
+  // чтобы главным в строке оставалось «Вернуть». Область касания Material всё равно 48px.
   .hold {
+    --mat-icon-button-state-layer-size: 36px;
+    padding: 6px;
     color: var(--di-text-muted);
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
   }
 
-  // Пояснение о контактах — отдельной строкой под «Приглашение отправлено»: мельче,
-  // с замком. Цвет текста обычный приглушённый: это успокоение, а не тревога.
-  // Замок — в строке текста (inline), а не отдельным flex-элементом: при переносе
-  // на две строки он остаётся перед первым словом, а не уезжает к краю.
+  // Пояснение о контактах — второй строкой внутри таблетки (только в сетке и над «пусто»):
+  // мельче, с замком. Обычный приглушённый цвет: это успокоение, а не тревога.
+  // Замок — в строке текста (inline): при переносе остаётся перед первым словом.
   .consent {
     flex-basis: 100%;
+    padding: 0 12px 6px 0;
     font-size: 12px;
     line-height: 16px;
-    text-align: center;
+    overflow-wrap: anywhere;
 
     mat-icon {
       margin-right: 4px;
@@ -310,24 +383,27 @@ app-player-card {
     }
   }
 
+  &.two-line {
+    flex-wrap: wrap;
+    padding-top: 4px;
+  }
+
   // Фокус сюда ставит только код (tabindex="-1"), когда «Вернуть» исчезла под фокусом, —
   // рамка та же, что у кнопок, чтобы человек с клавиатуры видел, где он.
   &:focus-visible {
     outline: 2px solid var(--di-neon-cyan);
     outline-offset: 2px;
-    border-radius: 8px;
   }
 
-  // Полоска «сколько осталось до отправки»: тонкая розовая линия на всю ширину строки
+  // Полоска «сколько осталось до отправки» — нижняя кромка таблетки: розовая (это лайк),
   // тает справа налево за 4 с (длительность задаёт шаблон). scaleX, а не width: transform
   // не заставляет браузер заново раскладывать строку на каждом кадре.
-  // held — мышь над строкой или фокус на «Вернуть»: анимация замирает вместе с таймером.
+  // held — мышь над строкой, фокус в ней или «Пауза»: анимация замирает вместе с таймером.
   .countdown {
-    flex-basis: 100%;
+    position: absolute;
+    inset: auto 0 0;
     height: 2px;
-    border-radius: 1px;
     background: var(--di-neon-pink);
-    opacity: 0.7;
     transform-origin: left center;
     animation: feed-countdown linear forwards;
 
@@ -347,7 +423,7 @@ app-player-card {
 }
 
 // Без анимаций полоска не нужна: глобальное правило сократило бы её до мгновения, и она
-// бы просто исчезла. Остаётся статичный текст «Приглашение отправляется: X · Вернуть».
+// бы просто исчезла. Остаётся статичная таблетка «Приглашение: X · Вернуть · ⏸».
 @media (prefers-reduced-motion: reduce) {
   .last-action .countdown {
     display: none;

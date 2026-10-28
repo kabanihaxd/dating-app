@@ -25,6 +25,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '../../core/auth/auth';
 import { firestoreErrorKey } from '../../core/firebase/firestore-errors';
 import { I18n } from '../../core/i18n/i18n';
@@ -58,6 +59,11 @@ const UNDO_TIMEOUT_MS = 8000;
 // Сколько лайк «ждёт» перед отправкой. Всё это время в строке «последнее действие» есть
 // «Вернуть»: промахнулся пальцем — успеешь передумать, и второй человек ничего не узнает.
 const LIKE_UNDO_MS = 4000;
+// Сколько висит строка, в которой уже нечего нажать («Приглашение отправлено», «Снова в ленте»).
+// Это просто подтверждение: прочитал — и хватит. Висела бы вечно — в сетке закрывала бы карточки.
+// С пояснением о контактах (целое предложение) — дольше: его надо успеть дочитать.
+const STATUS_CLEAR_MS = 4000;
+const STATUS_CLEAR_LONG_MS = 8000;
 // Ключи localStorage: фильтры и вид ленты переживают переход на другую страницу и перезагрузку.
 // Фильтры — у каждого аккаунта свои (к ключу добавляется uid): следующий человек на этом
 // компьютере не должен получить чужой город и возраст.
@@ -109,6 +115,7 @@ const TEXT_ENTRY =
     MatIconModule,
     MatInputModule,
     MatSelectModule,
+    MatTooltipModule,
     TranslatePipe,
     PlayerCard,
     ErrorState,
@@ -332,6 +339,9 @@ export class Feed {
       writeStorage(this.filtersKey, JSON.stringify(this.filters.getRawValue()));
       // Число найденных объявляем только при смене фильтров, а не после каждого лайка.
       this.announcement.set(this.i18n.translate('feed.count', { count: this.results().length }));
+      // Строка про прошлое действие к новой выборке уже не относится (раньше она доживала
+      // даже до «никто не подходит под фильтры»).
+      this.dropLastAction();
     });
     void this.load();
     // effect — функция, которую Angular перезапускает, когда меняется любой прочитанный в ней
@@ -339,6 +349,17 @@ export class Feed {
     // ставим таймер нужного лайка на паузу или запускаем снова. Второй: следит, не пропала ли
     // карточка с фокусом (см. watchFocusedCard).
     effect(() => this.syncHold());
+    // Строка без кнопок («отправлено», «вернулся») уходит сама через несколько секунд.
+    // onCleanup — Angular вызовет его, когда строка сменится раньше: старый таймер не сработает.
+    effect((onCleanup) => {
+      const last = this.lastAction();
+      if (last?.kind !== 'liked' && last?.kind !== 'restored') {
+        return;
+      }
+      const ms = last.consentNote ? STATUS_CLEAR_LONG_MS : STATUS_CLEAR_MS;
+      const timer = setTimeout(() => this.clearLastAction(last), ms);
+      onCleanup(() => clearTimeout(timer));
+    });
     // untracked — всё, что внутри, не делает effect зависимым от новых signal'ов; заодно
     // Angular разрешает звать там afterNextRender (из «реактивного» кода — нельзя).
     effect(() => {
@@ -391,6 +412,9 @@ export class Feed {
   }
 
   protected setView(view: View): void {
+    if (view !== this.view()) {
+      this.dropLastAction();
+    }
     this.view.set(view);
     writeStorage(STORAGE.view, view);
   }
@@ -731,6 +755,36 @@ export class Feed {
     this.lastAction.set({ ...last, kind: 'liked', undoable: false });
     if (!matched) {
       this.announcement.set(this.i18n.translate('feed.last.liked', { name: last.player.name }));
+    }
+  }
+
+  // Смена вида или фильтров: строку убираем — кроме лайка, который ещё ждёт отправки.
+  // Его «Вернуть» и «Пауза» нужны до конца отсчёта, а честное «отправляется» — пока он пишется.
+  private dropLastAction(): void {
+    const last = this.lastAction();
+    if (last && last.kind !== 'sending') {
+      this.clearLastAction(last);
+    }
+  }
+
+  // Убрать строку, если на экране всё ещё она (за это время могло прийти новое действие).
+  // Фокус внутри строки (на ней самой — tabindex="-1") не бросаем на <body>: переводим
+  // на имя текущей карточки, а если карточек нет — на заголовок страницы.
+  private clearLastAction(last: LastAction): void {
+    if (this.lastAction() !== last) {
+      return;
+    }
+    const hadFocus = !!this.document.activeElement?.closest('.last-action');
+    this.lastAction.set(null);
+    if (hadFocus && !this.destroyed) {
+      const next = this.current();
+      afterNextRender(
+        () =>
+          this.document
+            .getElementById(next ? `player-${next.player.uid}-name` : 'feed-title')
+            ?.focus(),
+        { injector: this.injector },
+      );
     }
   }
 

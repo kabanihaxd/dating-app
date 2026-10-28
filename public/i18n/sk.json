@@ -139,7 +139,9 @@
       "pause": "Pozastaviť",
       "pauseName": "Pozastaviť pozvánku: {{name}}",
       "sendNow": "Odoslať",
-      "sendNowName": "Odoslať pozvánku hneď: {{name}}"
+      "sendNowName": "Odoslať pozvánku hneď: {{name}}",
+      "pending": "Pozvánka: {{name}}",
+      "held": "Pozastavená: {{name}}"
     },
     "matchDialog": {
       "title": "Je to zhoda!",

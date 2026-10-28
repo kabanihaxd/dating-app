@@ -38,7 +38,17 @@ export class ConfirmDialog {
 
 // Помощник: открывает окно с нужными настройками и превращает ответ в простое true/false.
 // Использование: confirmDialog(this.dialog, { ... }).subscribe((ok) => { if (ok) ... }).
-export function confirmDialog(dialog: MatDialog, data: ConfirmDialogData): Observable<boolean> {
+//
+// restoreFocus — куда вернуть фокус после закрытия. По умолчанию Material возвращает его
+// на элемент, который был в фокусе до открытия окна. Но если окно открыто из пункта меню,
+// этот пункт к закрытию окна уже уничтожен (меню закрылось), и фокус падает на <body>:
+// клавиатурный пользователь оказывается в начале страницы. Тогда сюда передают кнопку,
+// которая открывала меню.
+export function confirmDialog(
+  dialog: MatDialog,
+  data: ConfirmDialogData,
+  restoreFocus?: HTMLElement,
+): Observable<boolean> {
   return dialog
     .open<ConfirmDialog, ConfirmDialogData, true>(ConfirmDialog, {
       data,
@@ -49,6 +59,7 @@ export function confirmDialog(dialog: MatDialog, data: ConfirmDialogData): Obser
       panelClass: 'di-framed-dialog',
       maxWidth: 400,
       width: 'calc(100vw - 32px)',
+      restoreFocus: restoreFocus ?? true,
     })
     .afterClosed()
     .pipe(map((result) => result === true));
