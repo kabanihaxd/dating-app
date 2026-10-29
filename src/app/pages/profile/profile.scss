@@ -118,9 +118,16 @@ mat-form-field {
   flex-direction: column;
 }
 
-// Поле ссылки + кнопка «Подключить» справа; на телефоне кнопка уходит под поле.
+// Поле ссылки + кнопка «Подключить Steam» справа. Сетка — только у полей, где кнопка есть (has-connect):
+// раньше сетка «1fr auto» стояла у всех, и у Discord/PSN/Xbox пустая колонка с зазором 12px
+// обрезала поле короче остальных полей формы.
 .contact {
+  // Сетка и у полей без кнопки: она растягивает поле на всю ширину (сам mat-form-field — inline-flex
+  // и в обычном блоке ужался бы по содержимому).
   display: grid;
+}
+
+.contact.has-connect {
   grid-template-columns: 1fr auto;
   column-gap: 12px;
   align-items: start;
@@ -129,11 +136,23 @@ mat-form-field {
     margin-top: 10px;
   }
 
+  // На телефоне кнопка уходит под поле — и должна читаться как кнопка ЭТОГО поля, а не следующего.
+  // Закон близости: 4px до своего поля и 20px до соседнего (раньше было наоборот: ~34px сверху, ~17px снизу).
+  // Для этого у поля убираем нижний отступ и пустую резервную строку подсказки (min-height 20px из
+  // правила выше): появится ошибка — строка вырастет по тексту и просто сдвинет кнопку ниже.
   @media (max-width: 600px) {
     grid-template-columns: 1fr;
 
+    mat-form-field {
+      margin-bottom: 0;
+    }
+
+    ::ng-deep .mat-mdc-form-field-subscript-dynamic-size {
+      min-height: 0;
+    }
+
     .connect-btn {
-      margin: 0 0 16px;
+      margin: 4px 0 20px;
       justify-self: start;
     }
   }
@@ -192,6 +211,19 @@ mat-form-field {
   // Как звёздочка обязательного текстового поля у Material: сразу за словом, тем же цветом.
   .required-marker {
     margin-left: 1px;
+  }
+
+  // «Рекомендуем» у необязательной группы — маленькая серая таблетка, как тег (DESIGN.md → Chips / Tags):
+  // видно, что группа не обязательна, но и не «лишняя». Серая, не циан: циан значит «общее с другим игроком».
+  .recommended-tag {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 8px;
+    border: 1px solid rgba(154, 154, 176, 0.35);
+    border-radius: 999px;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    vertical-align: 1px;
   }
 }
 
@@ -303,8 +335,9 @@ mat-chip-listbox {
   }
 }
 
-.save-btn {
+.bar-btn {
   --mat-button-filled-container-height: 48px;
+  --mat-button-outlined-container-height: 48px;
   min-width: 200px;
   font-size: 16px;
 
@@ -314,13 +347,62 @@ mat-chip-listbox {
   }
 }
 
+// Главное действие страницы — розовое, как «Player 2?» и «К мэтчам» в ленте (DESIGN.md → Buttons):
+// Pulse Pink, тёмный текст 600 (правило Dark-on-Neon: белый на розовом — всего 3.5:1) и «зовущее»
+// свечение 0.45. Красим токенами Material, а не background: так ховер, фокус и disabled остаются его.
+.cta {
+  --mat-button-filled-container-color: var(--di-neon-pink);
+  --mat-button-filled-label-text-color: var(--di-bg);
+  --mat-button-filled-state-layer-color: var(--di-bg);
+  // Пока идёт сохранение, кнопка «погашена» (disabled), но это не мёртвое состояние, а «в пути»:
+  // оставляем розовый, только приглушённый — как мой пузырь в чате (розовый 22%) с розовым текстом.
+  --mat-button-filled-disabled-container-color: rgba(255, 46, 136, 0.22);
+  --mat-button-filled-disabled-label-text-color: var(--di-neon-pink);
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(255, 46, 136, 0.45);
+
+  // Сохраняется — свечение опускаем до «фонового» шага: звать нажать сейчас не к чему.
+  &.is-saving {
+    box-shadow: 0 0 16px rgba(255, 46, 136, 0.15);
+  }
+}
+
+// «Все изменения сохранены ✓»: та же кнопка, но без заливки и свечения — тихая надпись на месте CTA.
+// Цвет текста — Haze Grey (вторичный текст), галочка — циан, как значок статуса «сохранено на устройстве».
+// Это всё ещё <button> (disabled, но фокусируемый) — поэтому красим «отключённые» токены.
+.is-saved {
+  --mat-button-filled-disabled-container-color: transparent;
+  --mat-button-filled-disabled-label-text-color: var(--di-text-muted);
+  font-weight: 400;
+  font-size: 14px;
+  cursor: default;
+
+  mat-icon {
+    color: var(--di-neon-cyan);
+  }
+
+  // Рядом с розовой «К анкетам» надпись не растягиваем — пусть место забирает действие.
+  // На широком экране надпись прижата к краю у кнопок, без резервных 200px пустоты.
+  @media (min-width: 601px) {
+    min-width: 0;
+  }
+}
+
 // Рядом с «Сохранить» появилась «К анкетам» — на телефоне ставим их в одну строку пополам,
 // а не столбиком: иначе панель вырастет вдвое и закроет пол-экрана анкеты.
 // :has() — «строка, внутри которой есть кнопка-ссылка в ленту».
-.bar-row:has(.feed-btn) .save-btn {
+.bar-row:has(.feed-btn) {
   @media (max-width: 600px) {
-    flex: 1 1 0;
-    min-width: 0;
+    .bar-btn {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    // Третьим в узкую строку «Не сохранено» не помещается: кнопки сжимались, и «К анкетам»
+    // ломалась на две строки. Метка уходит на свою строку над кнопками.
+    .unsaved {
+      flex-basis: 100%;
+    }
   }
 }
 

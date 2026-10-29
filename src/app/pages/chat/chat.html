@@ -95,14 +95,24 @@
                 <time [attr.datetime]="message.datetime">{{ message.time }}</time>
                 <!-- Доставка — только у своих: «часики», пока сервер не подтвердил запись
                    (медленная сеть или офлайн), и галочка, когда сообщение записано.
-                   Значок декоративный, смысл дублирует скрытый текст для программы чтения. -->
+                   Значок — это картинка со смыслом (role="img" + короткая подпись «Отправляется» /
+                   «Отправлено» для программы чтения). mat-icon сам ставит себе aria-hidden="true",
+                   поэтому явно пишем "false". Подсказка (matTooltip) по наведению или долгому нажатию
+                   объясняет, что значок значит: «часики» сами отправятся, когда появится сеть. -->
                 @if (message.mine) {
-                  <mat-icon class="status" [class.pending]="message.pending" aria-hidden="true">{{
-                    message.pending ? 'schedule' : 'done'
-                  }}</mat-icon>
-                  <span class="sr-only">{{
-                    (message.pending ? 'chat.status.sending' : 'chat.status.sent') | t
-                  }}</span>
+                  <mat-icon
+                    class="status"
+                    [class.pending]="message.pending"
+                    role="img"
+                    aria-hidden="false"
+                    [attr.aria-label]="
+                      (message.pending ? 'chat.status.sending' : 'chat.status.sent') | t
+                    "
+                    [matTooltip]="
+                      (message.pending ? 'chat.status.sendingHint' : 'chat.status.sentHint') | t
+                    "
+                    >{{ message.pending ? 'schedule' : 'done' }}</mat-icon
+                  >
                 }
               </div>
             </div>
@@ -167,6 +177,18 @@
       </div>
 
       @if (state() === 'ready') {
+        <!-- Мои сообщения ждут сети («часики»), а браузер офлайн: спокойно обещаем, что они уйдут сами.
+             role="status" (вежливая живая область) стоит на обёртке, которая есть в DOM всегда, —
+             программа чтения с экрана надёжнее замечает текст, ПОЯВИВШИЙСЯ внутри уже знакомой
+             области, чем область, которая возникла вместе с текстом. Пустая обёртка места не занимает. -->
+        <div class="queued" role="status">
+          @if (queuedOffline()) {
+            <p class="queued-text">
+              <mat-icon aria-hidden="true">cloud_off</mat-icon>
+              <span>{{ 'chat.queuedOffline' | t }}</span>
+            </p>
+          }
+        </div>
         <!-- (submit), а не (ngSubmit): ngSubmit выдаёт директива NgForm из FormsModule, а здесь только
              ReactiveFormsModule и одиночный FormControl без [formGroup]. Без неё ngSubmit не наступал
              никогда, а обычная отправка формы ПЕРЕЗАГРУЖАЛА страницу при нажатии кнопки «Отправить». -->

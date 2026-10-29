@@ -1,4 +1,4 @@
-import { inject } from '@angular/core';
+import { DOCUMENT, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { CanDeactivateFn } from '@angular/router';
 import { I18n } from '../i18n/i18n';
@@ -17,5 +17,11 @@ export const unsavedChangesGuard: CanDeactivateFn<HasUnsavedChanges> = (componen
   if (!component.hasUnsavedChanges()) {
     return true;
   }
-  return confirmLeave(inject(MatDialog), inject(I18n));
+  // Что было в фокусе в момент попытки уйти — туда и вернём фокус после «Остаться»
+  // (см. confirmLeave). <body> не в счёт: возвращать туда — то же, что никуда.
+  const document = inject(DOCUMENT);
+  const active = document.activeElement;
+  const restoreFocus =
+    active instanceof HTMLElement && active !== document.body ? active : undefined;
+  return confirmLeave(inject(MatDialog), inject(I18n), restoreFocus);
 };

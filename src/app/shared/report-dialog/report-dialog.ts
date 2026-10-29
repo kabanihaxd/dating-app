@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -12,6 +13,9 @@ import { REPORT_REASONS, ReportReason } from '../../core/moderation/moderation';
 
 export interface ReportDialogData {
   name: string;
+  // Есть ли с ним мэтч: от этого зависит, что сотрёт галочка «Также заблокировать»
+  // (в ленте мэтча и чата ещё нет — и пугать их удалением незачем).
+  matched?: boolean;
 }
 
 export interface ReportDialogResult {
@@ -51,8 +55,16 @@ export class ReportDialog {
   protected readonly form = inject(NonNullableFormBuilder).group({
     reason: ['' as ReportReason | '', Validators.required],
     comment: ['', Validators.maxLength(MAX_REPORT_COMMENT)],
-    // На того, на кого жалуются, обычно не хотят больше натыкаться — поэтому по умолчанию «да».
-    block: [true],
+    // По умолчанию — НЕТ. Блок необратимо удаляет мэтч и переписку; заранее поставленная
+    // галочка превращала «просто пожаловаться» в разрушительное действие, которое легко
+    // не заметить. Хочешь блок — поставь галочку сам: под ней написано, что пропадёт.
+    block: [false],
+  });
+
+  // Галочка как сигнал — чтобы подпись главной кнопки менялась вместе с ней:
+  // «Отправить» → «Пожаловаться и заблокировать». Кнопка называет то, что случится.
+  protected readonly blocking = toSignal(this.form.controls.block.valueChanges, {
+    initialValue: this.form.controls.block.value,
   });
 
   protected submit(): void {

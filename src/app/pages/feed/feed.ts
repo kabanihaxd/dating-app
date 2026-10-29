@@ -44,7 +44,12 @@ import {
 } from '../../core/profile/profile.model';
 import { ErrorState } from '../../shared/error-state/error-state';
 import { StateMessage } from '../../shared/state-message/state-message';
-import { MatchDialog, MatchDialogData, MatchDialogResult } from './match-dialog/match-dialog';
+import {
+  MATCH_SUBTITLE_ID,
+  MatchDialog,
+  MatchDialogData,
+  MatchDialogResult,
+} from './match-dialog/match-dialog';
 import { PlayerCard } from './player-card/player-card';
 
 const MIN_AGE = 18;
@@ -75,6 +80,11 @@ const STORAGE = {
 
 type View = 'deck' | 'grid';
 type Direction = 'like' | 'skip';
+// Как уходит действие: now — сразу (пропуск), delayed — лайк ждёт окна отмены,
+// match — лайк тому, кто уже лайкнул меня: пишется сразу и даёт мэтч (см. like()).
+type SwipeMode = 'now' | 'delayed' | 'match';
+// Фильтры, которые сейчас сужают выдачу, — ключи их подписей (feed.filters.*).
+type FilterName = 'game' | 'platform' | 'city' | 'age';
 
 interface FeedItem {
   player: Player;
@@ -84,12 +94,14 @@ interface FeedItem {
 }
 
 // Последнее действие — строка под колодой: «Приглашение отправляется: Alex · Вернуть»,
-// «Приглашение отправлено: Alex» или «Пропущено: Alex · Вернуть».
+// «Приглашение отправлено: Alex», «Мэтч: Alex · Написать» или «Пропущено: Alex · Вернуть».
 // Это и подтверждение (особенно когда анимации выключены), и место для отмены лайка или пропуска.
 // sending — лайк ещё НЕ записан (ждёт LIKE_UNDO_MS или уже пишется), liked — сервер подтвердил.
 // Честный статус: «отправлено» показываем только тогда, когда это уже правда.
+// matched — лайк записан и дал мэтч. «Приглашение отправлено» тут было бы неправдой:
+// приглашать некого, второй человек уже ответил. Вместо этого — ссылка «Написать» в чат.
 interface LastAction {
-  kind: 'sending' | 'liked' | 'skipped' | 'restored';
+  kind: 'sending' | 'liked' | 'matched' | 'skipped' | 'restored';
   player: Player;
   // Первый лайк на этом аккаунте — под строкой объясняем, что контакты пока скрыты.
   consentNote?: boolean;
@@ -199,6 +211,10 @@ export class Feed {
   private readonly frontUid = signal<string | null>(null);
   // Страницу уже закрыли — окно «Это мэтч!» поверх другой страницы не открываем.
   private destroyed = false;
+  // uid игрока, взаимный лайк которому сейчас пишется (мгновенный мэтч). На это время
+  // строки «последнее действие» нет вовсе: «отправляется приглашение» было бы неправдой,
+  // а «мэтч» — обещанием раньше времени. Сервер ответит — покажем «Мэтч: X · Написать».
+  private matchingUid: string | null = null;
   // Длительность полоски «сколько осталось до отправки» — та же, что у таймера.
   protected readonly likeUndoMs = LIKE_UNDO_MS;
 
@@ -267,11 +283,33 @@ export class Feed {
     { initialValue: this.filters.getRawValue() },
   );
 
-  // Сколько фильтров включено — число на кнопке «Фильтры», когда панель свёрнута.
-  protected readonly activeFilters = computed(() => {
+  // Какие фильтры включены — в порядке полей на панели.
+  private readonly activeFilterNames = computed<FilterName[]>(() => {
     const { game, platform, city, minAge, maxAge } = this.filterValues();
     const ageChanged = (minAge || MIN_AGE) !== MIN_AGE || (maxAge || MAX_AGE) !== MAX_AGE;
-    return [game, platform, city.trim(), ageChanged].filter(Boolean).length;
+    const on: [FilterName, unknown][] = [
+      ['game', game],
+      ['platform', platform],
+      ['city', city.trim()],
+      ['age', ageChanged],
+    ];
+    return on.filter(([, value]) => value).map(([name]) => name);
+  });
+
+  // Сколько фильтров включено — число на кнопке «Фильтры», когда панель свёрнута.
+  protected readonly activeFilters = computed(() => this.activeFilterNames().length);
+
+  // Подсказка в «никто не подходит под фильтры». Раньше она всегда винила возраст
+  // («Расширь возраст…»), даже когда выдачу обнулил город. Теперь называем то, что
+  // действительно включено: «Включены фильтры: Город, Возраст. Ослабь какой-нибудь…» —
+  // человек сразу видит, что трогать, и не ищет виноватого в поле, которое и так пустое.
+  protected readonly emptyFilteredHint = computed(() => {
+    const names = this.activeFilterNames();
+    if (!names.length) {
+      return this.i18n.translate('feed.emptyFiltered');
+    }
+    const list = names.map((name) => this.i18n.translate(`feed.filters.${name}`)).join(', ');
+    return this.i18n.translate('feed.emptyFilteredBy', { list });
   });
 
   // Варианты для фильтра «Игра» двумя группами: сначала мои игры, потом игры других игроков.
@@ -442,10 +480,14 @@ export class Feed {
     // со страницы, а ответ — прийти, когда из аккаунта вышли и auth.user() — null.
     const uid = this.uid;
     if (this.notifications.likedMe().has(player.uid)) {
-      this.swipe(player, 'like', () =>
-        this.pendingLikes
-          .likeNow(uid, player.uid)
-          .then((outcome) => this.likeDone(player, uid, outcome)),
+      this.swipe(
+        player,
+        'like',
+        () =>
+          this.pendingLikes
+            .likeNow(uid, player.uid)
+            .then((outcome) => this.likeDone(player, uid, outcome)),
+        'match',
       );
       return;
     }
@@ -456,7 +498,7 @@ export class Feed {
         this.pendingLikes
           .schedule(uid, player.uid, LIKE_UNDO_MS, () => this.likeSending(player.uid))
           .then((outcome) => this.likeDone(player, uid, outcome)),
-      true,
+      'delayed',
     );
   }
 
@@ -635,12 +677,12 @@ export class Feed {
 
   // Общая часть лайка и пропуска. Карточку убираем СРАЗУ, не дожидаясь сервера, —
   // интерфейс отвечает мгновенно. Если сохранить не вышло, карточка возвращается.
-  // delayed — лайк отложен и его можно отменить (см. like()).
+  // mode: delayed — лайк отложен и его можно отменить, match — мгновенный мэтч (см. like()).
   private swipe(
     player: Player,
     direction: Direction,
     action: () => Promise<void>,
-    delayed = false,
+    mode: SwipeMode = 'now',
   ): void {
     if (this.settling() || this.swiped().has(player.uid)) {
       return;
@@ -670,16 +712,27 @@ export class Feed {
       this.consentNoteSeen.set(true);
       writeStorage(consentKey, '1');
     }
-    this.lastAction.set({
-      kind: direction === 'like' ? 'sending' : 'skipped',
-      player,
-      consentNote,
-      undoable: direction === 'skip' || delayed,
-    });
-    this.announcement.set(this.lastActionText());
+    if (mode === 'match') {
+      // Мгновенный мэтч: ни «приглашение отправляется» в строке, ни то же самое в живой
+      // области. Запись — доли секунды, потом откроется «Это мэтч!» и всё скажет само.
+      // Прошлую строку убираем: она про другого игрока и рядом с мэтчем только путает.
+      this.matchingUid = player.uid;
+      this.lastAction.set(null);
+    } else {
+      this.lastAction.set({
+        kind: direction === 'like' ? 'sending' : 'skipped',
+        player,
+        consentNote,
+        undoable: direction === 'skip' || mode === 'delayed',
+      });
+      this.announcement.set(this.lastActionText());
+    }
     this.focusAfterSwipe(index);
 
     action().catch((error) => {
+      if (this.matchingUid === player.uid) {
+        this.matchingUid = null;
+      }
       this.swipeDirections.delete(player.uid);
       this.swiped.update((uids) => {
         const next = new Set(uids);
@@ -713,7 +766,7 @@ export class Feed {
       return;
     }
     const matched = outcome === 'matched';
-    this.likeSent(player.uid, matched);
+    this.likeSent(player, matched);
     if (!matched) {
       return;
     }
@@ -744,18 +797,39 @@ export class Feed {
     }
   }
 
-  // Сервер подтвердил — теперь можно честно сказать «Приглашение отправлено».
+  // Сервер подтвердил — теперь можно честно сказать «Приглашение отправлено»,
+  // а если лайк дал мэтч — «Мэтч: Alex · Написать» (строка остаётся и после закрытия окна).
+  // Строку меняем, только если она всё ещё «наша»: у отложенного лайка — его же
+  // «отправляется», у мгновенного мэтча — пустое место (за эти доли секунды человек мог
+  // пропустить следующего, и тогда его «Пропущено · Вернуть» важнее).
   // Скринридеру — коротко и без повтора заметки о контактах. При мэтче молчим: окно
-  // «Это мэтч!» скажет всё само.
-  private likeSent(uid: string, matched: boolean): void {
+  // «Это мэтч!» само называет игрока (aria-describedby на подзаголовок, см. showMatch),
+  // а пока окно открыто, Material прячет ленту от скринридера (aria-hidden) — объявление
+  // из нашей живой области потерялось бы или прозвучало вторым, дублем.
+  private likeSent(player: Player, matched: boolean): void {
     const last = this.lastAction();
-    if (last?.kind !== 'sending' || last.player.uid !== uid) {
+    const instant = this.matchingUid === player.uid;
+    if (instant) {
+      this.matchingUid = null;
+    }
+    const ours = instant
+      ? last === null
+      : last?.kind === 'sending' && last.player.uid === player.uid;
+    if (!ours) {
       return;
     }
-    this.lastAction.set({ ...last, kind: 'liked', undoable: false });
-    if (!matched) {
-      this.announcement.set(this.i18n.translate('feed.last.liked', { name: last.player.name }));
+    if (matched) {
+      // Пояснение «контакты скрыты, пока не ответят» к мэтчу уже не относится — без него.
+      this.lastAction.set({ kind: 'matched', player });
+      return;
     }
+    this.lastAction.set({ ...last, player, kind: 'liked', undoable: false });
+    this.announcement.set(this.i18n.translate('feed.last.liked', { name: player.name }));
+  }
+
+  // Ссылка «Написать» в строке мэтча — тот же чат, что открывает кнопка в окне «Это мэтч!».
+  protected chatLink(player: Player): string[] {
+    return ['/chat', matchId(this.uid, player.uid)];
   }
 
   // Смена вида или фильтров: строку убираем — кроме лайка, который ещё ждёт отправки.
@@ -933,6 +1007,9 @@ export class Feed {
     this.dialog
       .open<MatchDialog, MatchDialogData, MatchDialogResult>(MatchDialog, {
         data: { me, player, match: matchScore(me, player) },
+        // Имя окна — только «Это мэтч!»; с кем — говорит подзаголовок. Без этого описания
+        // скринридер так и не узнал бы имя (живая область ленты молчит, см. likeSent).
+        ariaDescribedBy: MATCH_SUBTITLE_ID,
         autoFocus: 'first-tabbable',
         panelClass: 'di-framed-dialog',
         maxWidth: '440px',

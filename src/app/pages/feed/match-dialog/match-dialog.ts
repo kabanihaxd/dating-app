@@ -23,6 +23,10 @@ export interface MatchDialogData {
 // undefined — закрыл / «Смотреть дальше».
 export type MatchDialogResult = 'chat' | 'contacts' | undefined;
 
+// id подзаголовка «Alex — твой player 2». Лента передаёт его в ariaDescribedBy окна:
+// тогда скринридер при открытии читает не только «Это мэтч!», но и с кем.
+export const MATCH_SUBTITLE_ID = 'match-dialog-subtitle';
+
 // Сколько общих игр показываем тегами; остальные сворачиваем в «+N».
 const MAX_GAMES = 4;
 
@@ -41,6 +45,7 @@ const NAME_MARK = '\u0000';
 export class MatchDialog {
   // inject(MAT_DIALOG_DATA) — данные, переданные в dialog.open(..., { data }).
   protected readonly data = inject<MatchDialogData>(MAT_DIALOG_DATA);
+  protected readonly subtitleId = MATCH_SUBTITLE_ID;
   private readonly i18n = inject(I18n);
   private readonly profiles = inject(ProfileService);
 

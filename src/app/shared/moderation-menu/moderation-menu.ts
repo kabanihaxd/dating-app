@@ -111,7 +111,7 @@ export class ModerationMenu {
     }
     this.dialog
       .open<ReportDialog, ReportDialogData, ReportDialogResult>(ReportDialog, {
-        data: { name: this.name() },
+        data: { name: this.name(), matched: this.matched() },
         // Рамку и фон окно рисует само (как ConfirmDialog), подложку Material этот класс
         // делает прозрачной. Ширина «до 440px, но с отступом 16px от краёв» — для телефонов.
         panelClass: 'di-framed-dialog',

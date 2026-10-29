@@ -224,12 +224,17 @@
 
   // «Повторить» / «Удалить»: текстовые кнопки размером с мета-строку. Своя мини-кнопка,
   // а не mat-button: Material-кнопка в 11px-строке раздула бы пузырь до 40px высоты.
-  // Область нажатия добираем padding'ом, чтобы по ней было проще попасть пальцем.
+  // Видимая часть маленькая, а область нажатия — 44×44px (минимум для пальца): её даёт
+  // невидимый ::after, растянутый вверх и вниз за пределы кнопки (см. ниже). Пузырь при этом
+  // не растёт — псевдоэлемент position: absolute и места в строке не занимает.
   .link {
+    position: relative;
+    min-width: 44px;
     padding: 4px 6px;
     margin: -4px 0;
     border: 0;
-    border-radius: 6px;
+    // 8px — шаг «sm» из шкалы скруглений DESIGN.md (было 6px — вне шкалы).
+    border-radius: 8px;
     background: none;
     font: inherit;
     font-weight: 600;
@@ -237,6 +242,18 @@
     text-decoration: underline;
     text-underline-offset: 2px;
     cursor: pointer;
+
+    // Невидимая «подушка» для пальца: на всю ширину кнопки и 44px в высоту, по центру кнопки.
+    // Клик по ней — это клик по самой кнопке (псевдоэлемент — часть её бокса).
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 44px;
+      translate: 0 -50%;
+    }
 
     &:hover {
       background: rgba(255, 255, 255, 0.08);
@@ -303,9 +320,49 @@
     flex: 1;
   }
 
+  // Кнопка «Отправить». Красим через токены Material, а не через color: прямой color перебивал
+  // и выключенное состояние — пустое поле, а кнопка такая же розовая, будто готова отправлять.
+  // Теперь розовая (Pulse Pink — «действие») только когда есть что отправить, а выключенная —
+  // приглушённая Haze Grey: видно, что нажимать пока нечего.
+  // Размер 48px вместо стандартных 40px: в неё попадают большим пальцем, и чаще всех кнопок чата.
+  // margin-top выравнивает её по центру однострочного поля (поле 56px: (56 − 48) / 2 = 4px).
   .send {
     margin-top: 4px;
-    color: var(--di-neon-pink);
+    --mat-icon-button-state-layer-size: 48px;
+    --mat-icon-button-icon-color: var(--di-neon-pink);
+    --mat-icon-button-disabled-icon-color: var(--di-text-muted);
+  }
+}
+
+// Строка «Отправим, когда появится сеть» над полем ввода. Тихая: Haze Grey, мелкий текст,
+// без рамок и заливки — это обещание, а не тревога (тревогу уже показывает красная плашка «нет сети»).
+// Сама обёртка .queued пустая, когда подсказки нет, и места не занимает: отступы — только у текста.
+// Разделитель над полем ввода переносим на обёртку: так подсказка оказывается ПОД линией, вместе
+// с полем, к которому она относится, а не болтается внизу списка сообщений.
+.queued {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.queued + .composer {
+  border-top: 0;
+}
+
+.queued-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 16px 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--di-text-muted);
+  animation: di-fade-up 0.2s ease-out;
+
+  mat-icon {
+    flex-shrink: 0;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
   }
 }
 

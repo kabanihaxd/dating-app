@@ -165,7 +165,8 @@ export class Profile implements HasUnsavedChanges {
   protected readonly readyForFeed = signal(false);
   // Сеть не ответила, и запись ждёт в очереди Firestore на этом устройстве. Пока она не дошла,
   // закрывать вкладку молча нельзя: очередь живёт в памяти вкладки и пропадёт вместе с ней.
-  private readonly pendingSync = signal(false);
+  // protected — по нему шаблон пишет «Сохранено на устройстве» вместо «Все изменения сохранены».
+  protected readonly pendingSync = signal(false);
   // Не ошибка, а состояние: «сохранено на устройстве, отправится, когда вернётся связь».
   // Показываем под кнопкой и озвучиваем вежливо (role="status"), а не тревожно, как ошибку.
   protected readonly statusKey = signal<string | null>(null);
@@ -235,6 +236,21 @@ export class Profile implements HasUnsavedChanges {
   protected readonly saveDisabled = computed(
     () => this.saving() || (!this.isNew() && !this.dirty()),
   );
+
+  // Сохранять нечего и ничего не сохраняется — вместо погасшей кнопки показываем тихое «всё сохранено».
+  // Это saveDisabled без «идёт сохранение»: у сохранения свой вид («Сохраняем…»).
+  protected readonly allSaved = computed(() => !this.saving() && !this.isNew() && !this.dirty());
+
+  // Подпись кнопки «Сохранить» для каждого её вида (сами виды описаны в profile.html).
+  protected readonly saveLabelKey = computed(() => {
+    if (this.allSaved()) {
+      return this.pendingSync() ? 'profile.savedOnDevice' : 'profile.allSaved';
+    }
+    if (this.saving()) {
+      return 'profile.saving';
+    }
+    return this.isNew() ? 'profile.firstRun.save' : 'profile.save';
+  });
 
   // Подсказки: популярные игры, которые подходят под набранный текст и ещё не выбраны.
   protected readonly suggestions = computed(() => {

@@ -12,14 +12,17 @@ import {
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TextFieldModule } from '@angular/cdk/text-field';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '../../core/auth/auth';
 import { FirebaseError } from 'firebase/app';
 import { ChatMessage, ChatService, MAX_MESSAGE_LENGTH } from '../../core/chat/chat';
+import { ChatDrafts } from '../../core/chat/chat-drafts';
 import {
   firestoreErrorKey,
   isNetworkErrorKey,
@@ -77,6 +80,7 @@ interface FailedMessage {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatTooltipModule,
     TranslatePipe,
     ModerationMenu,
     ErrorState,
@@ -88,6 +92,7 @@ interface FailedMessage {
 export class Chat {
   private readonly auth = inject(AuthService);
   private readonly chat = inject(ChatService);
+  private readonly drafts = inject(ChatDrafts);
   private readonly profiles = inject(ProfileService);
   private readonly notifications = inject(NotificationService);
   private readonly i18n = inject(I18n);
@@ -130,6 +135,11 @@ export class Chat {
   // Прокручивать его вниз силой нельзя — он потеряет место, где читал.
   protected readonly newBelow = signal(false);
 
+  // Есть ли у браузера сеть. Обновляется событиями online/offline на window (подписка в конструкторе).
+  // navigator.onLine === false — надёжный признак «сети точно нет»; true бывает и при «плохой» сети,
+  // но для подсказки ниже нам важен именно явный офлайн.
+  private readonly online = signal(typeof navigator === 'undefined' || navigator.onLine);
+
   // Имя собеседника для подписей; если анкета не загрузилась — нейтральное «Игрок».
   protected readonly partnerName = computed(
     () => this.partner()?.name || this.i18n.translate('chat.unknown'),
@@ -152,6 +162,14 @@ export class Chat {
       pending: message.pending,
     }));
   });
+
+  // Подсказка над полем ввода «Отправим, когда появится сеть»: показываем, только когда есть мои
+  // сообщения с «часиками» И браузер точно офлайн. Одни «часики» мелкие и ничего не обещают —
+  // человек мог решить, что сообщения потерялись. А при живой сети «часики» висят доли секунды,
+  // и мигающая строка только отвлекала бы.
+  protected readonly queuedOffline = computed(
+    () => !this.online() && this.messageViews().some((m) => m.mine && m.pending),
+  );
 
   protected readonly draft = new FormControl('', {
     nonNullable: true,
@@ -201,7 +219,10 @@ export class Chat {
       // старое имя. При повторе того же чата черновик, наоборот, сохраняем.
       if (matchId !== this.loadedMatchId) {
         this.loadedMatchId = matchId;
-        this.draft.reset();
+        // Черновик — свой у каждого чата (см. ChatDrafts): достаём текст, недописанный именно
+        // этому собеседнику, или пустую строку. emitEvent: false — это не ввод человека, и
+        // подписка valueChanges ниже не должна записывать его обратно.
+        this.draft.reset(this.drafts.get(matchId), { emitEvent: false });
         this.partner.set(null);
         this.commonGames.set([]);
         // Неотправленные сообщения относятся к тому чату, где их писали.
@@ -294,8 +315,27 @@ export class Chat {
       }
     });
 
-    // Таймер «ухода» не должен сработать, когда страницы уже нет.
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.leavingTimer));
+    // Каждое изменение поля ввода сразу кладём в черновик ЭТОГО чата: уйдёт человек со страницы
+    // (назад, по уведомлению, перезагрузит вкладку) — текст дождётся его возвращения.
+    // После отправки send() очищает поле, и пустая строка стирает черновик.
+    // takeUntilDestroyed — подписка сама закончится вместе со страницей.
+    this.draft.valueChanges.pipe(takeUntilDestroyed()).subscribe((text) => {
+      if (this.loadedMatchId) {
+        this.drafts.set(this.loadedMatchId, text);
+      }
+    });
+
+    // Сеть пропала / появилась — обновляем сигнал online (от него зависит подсказка queuedOffline).
+    const updateOnline = () => this.online.set(navigator.onLine);
+    window.addEventListener('online', updateOnline);
+    window.addEventListener('offline', updateOnline);
+
+    // Таймер «ухода» не должен сработать, когда страницы уже нет; слушатели сети — тоже снимаем.
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.leavingTimer);
+      window.removeEventListener('online', updateOnline);
+      window.removeEventListener('offline', updateOnline);
+    });
   }
 
   protected send(): void {
@@ -303,7 +343,7 @@ export class Chat {
     if (!text || this.draft.invalid || this.sending() || this.state() !== 'ready') {
       return;
     }
-    // Поле очищаем сразу, не дожидаясь сервера: Firestore и так мгновенно покажет сообщение
+    // Поле очищаем сразу (а с ним и черновик этого чата — см. подписку valueChanges), не дожидаясь сервера: Firestore и так мгновенно покажет сообщение
     // в списке (из локального кэша) — с «часиками», пока сервер его не подтвердит.
     // sending снимается, как только сообщение появилось в списке (см. applyMessages) или запись
     // завершилась. Ждать только ответа сервера нельзя: без сети он не придёт никогда,

@@ -22,7 +22,8 @@
   <h2 mat-dialog-title class="title">{{ 'feed.matchDialog.title' | t }}</h2>
 
   <mat-dialog-content class="content">
-    <p class="subtitle">
+    <!-- id — для aria-describedby окна (см. MATCH_SUBTITLE_ID): скринридер читает, с кем мэтч. -->
+    <p class="subtitle" [id]="subtitleId">
       {{ subtitle().before }}<strong>{{ data.player.name }}</strong
       >{{ subtitle().after }}
     </p>

@@ -3,6 +3,12 @@
   position: sticky;
   top: 64px;
   z-index: 9;
+
+  // На телефоне mat-toolbar ниже — 56px; с top: 64px между шапкой и полосой
+  // оставалась щель, в которую просвечивала прокручиваемая страница.
+  @media (max-width: 599px) {
+    top: 56px;
+  }
   display: flex;
   align-items: center;
   justify-content: center;

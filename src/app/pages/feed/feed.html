@@ -63,8 +63,12 @@
 
     <!-- Скринридеру число объявляется отдельно (см. announcement) — только при смене фильтров. -->
     <p class="count">
+      <!-- Две формы: на телефоне короткая «Гравців: 12» — полная «Знайдено гравців: 12»
+           не помещалась между «Фильтрами» и переключателем вида и ломалась на две строки.
+           Видна всегда одна (display: none у второй прячет её и от скринридера). -->
       @if (results().length) {
-        {{ 'feed.count' | t: { count: results().length } }}
+        <span class="count-long">{{ 'feed.count' | t: { count: results().length } }}</span>
+        <span class="count-short">{{ 'feed.countShort' | t: { count: results().length } }}</span>
       }
     </p>
 
@@ -361,7 +365,8 @@
     } @else {
       <app-state-message icon="search_off" tone="cyan">
         <h2>{{ 'feed.emptyFilteredTitle' | t }}</h2>
-        <p>{{ 'feed.emptyFiltered' | t }}</p>
+        <!-- Называем включённые фильтры, а не гадаем, какой из них виноват (см. emptyFilteredHint). -->
+        <p>{{ emptyFilteredHint() }}</p>
         <button mat-stroked-button type="button" (click)="resetFilters()">
           <mat-icon aria-hidden="true">filter_alt_off</mat-icon>
           {{ 'feed.filters.reset' | t }}
@@ -455,6 +460,21 @@
                поэтому через несколько секунд строка уйдёт сама (см. clearStatusLater в feed.ts). -->
           <mat-icon class="pink" aria-hidden="true">favorite</mat-icon>
           <span class="text">{{ 'feed.last.liked' | t: { name: last.player.name } }}</span>
+        }
+        @case ('matched') {
+          <!-- Лайк дал мэтч (тот человек лайкнул меня раньше): никакого «приглашения» —
+               сразу «Мэтч: Alex» и ссылка в чат. Окно «Это мэтч!» закрыли «Смотреть дальше» —
+               а путь к разговору остаётся здесь же, под рукой. Сама строка не уходит:
+               в ней есть что нажать (как у «Пропущено · Вернуть»). -->
+          <mat-icon class="pink" aria-hidden="true">favorite</mat-icon>
+          <span class="text">{{ 'feed.last.matched' | t: { name: last.player.name } }}</span>
+          <a
+            mat-button
+            class="message"
+            [routerLink]="chatLink(last.player)"
+            [attr.aria-label]="'feed.last.messageName' | t: { name: last.player.name }"
+            >{{ 'feed.matchAction' | t }}</a
+          >
         }
         @case ('skipped') {
           <mat-icon aria-hidden="true">close</mat-icon>

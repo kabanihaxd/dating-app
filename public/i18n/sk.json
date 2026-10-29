@@ -40,14 +40,15 @@
     "blockTitle": "{{name}}: zablokovať?",
     "blockTextFeed": "V zozname hráčov sa už navzájom neuvidíte.",
     "blockTextMatched": "Match, konverzácia aj kontakty sa vymažú a už sa navzájom neuvidíte.",
-    "blockAction": "Zablokovať"
+    "blockAction": "Zablokovať",
+    "sendAndBlock": "Nahlásiť a zablokovať"
   },
   "notifications": {
-    "liked": "{{name}} ti dáva lajk! Lajkni späť a je z toho match",
-    "matched": "Je to match s {{name}}! 🎉",
+    "liked": "{{name}} ti dáva lajk",
+    "matched": "Je to match: {{name}}",
     "view": "Zobraziť",
     "badge": "Nové: {{count}}",
-    "message": "💬 {{name}}: {{text}}"
+    "message": "{{name}}: {{text}}"
   },
   "lang": {
     "choose": "Jazyk rozhrania"
@@ -77,7 +78,7 @@
     "count": "Nájdení hráči: {{count}}",
     "emptyTitle": "Iní hráči tu zatiaľ nie sú",
     "empty": "Pozvi kamarátov hráčov — zobrazia sa tu, hneď ako sa zaregistrujú.",
-    "emptyFiltered": "Rozšír vekový rozsah alebo zruš niektoré filtre.",
+    "emptyFiltered": "Uvoľni filtre alebo ich zruš všetky.",
     "noProfile": {
       "title": "Najprv si vyplň profil",
       "text": "Aby sme našli tvojho player 2, potrebujeme poznať tvoje hry a platformy.",
@@ -94,7 +95,8 @@
       "toggle": "Filtre",
       "activeCount": "aktívne: {{count}}",
       "myGames": "Moje hry",
-      "otherGames": "Hry ostatných hráčov"
+      "otherGames": "Hry ostatných hráčov",
+      "age": "Vek"
     },
     "card": {
       "match": "zhoda {{percent}}%",
@@ -141,7 +143,9 @@
       "sendNow": "Odoslať",
       "sendNowName": "Odoslať pozvánku hneď: {{name}}",
       "pending": "Pozvánka: {{name}}",
-      "held": "Pozastavená: {{name}}"
+      "held": "Pozastavená: {{name}}",
+      "matched": "Zhoda: {{name}}",
+      "messageName": "Napísať: {{name}}"
     },
     "matchDialog": {
       "title": "Je to zhoda!",
@@ -185,7 +189,9 @@
     "matchToast": "Je to zhoda: {{name}}!",
     "inviteCopyFailed": "Nepodarilo sa skopírovať. Tu je odkaz: {{url}}",
     "deckLabel": "Balíček hráčov",
-    "emptyFilteredTitle": "Nikoho sme nenašli"
+    "emptyFilteredTitle": "Nikoho sme nenašli",
+    "countShort": "Hráči: {{count}}",
+    "emptyFilteredBy": "Zapnuté filtre: {{list}}. Uvoľni niektorý alebo ich zruš všetky."
   },
   "auth": {
     "loginTitle": "Prihlásenie",
@@ -260,11 +266,14 @@
     "status": {
       "sending": "Odosiela sa",
       "sent": "Odoslané",
-      "failed": "Neodoslané"
+      "failed": "Neodoslané",
+      "sendingHint": "Čaká na pripojenie. Odošle sa automaticky.",
+      "sentHint": "Odoslané: uložené na serveri"
     },
     "retry": "Skúsiť znova",
     "discard": "Vymazať",
-    "newMessages": "Nové správy"
+    "newMessages": "Nové správy",
+    "queuedOffline": "Si offline. Správy sa odošlú, keď sa pripojenie obnoví."
   },
   "profile": {
     "title": "Profil",
@@ -285,7 +294,7 @@
     "name": "Meno",
     "birthDate": "Dátum narodenia",
     "city": "Mesto",
-    "bio": "O mne",
+    "bio": "Ako hráš",
     "bioPlaceholder": "Ako rád hráš, koho hľadáš...",
     "games": {
       "label": "Obľúbené hry",
@@ -302,8 +311,8 @@
     "contactPlaceholder": "Prezývka alebo odkaz na profil",
     "openLink": "Otvoriť odkaz",
     "connect": {
-      "button": "Pripojiť",
-      "reconnect": "Pripojiť znova",
+      "button": "Pripojiť {{platform}}",
+      "reconnect": "Znova pripojiť {{platform}}",
       "done": "{{platform}} je pripojený",
       "failed": "Platformu sa nepodarilo pripojiť. Skús to znova"
     },
@@ -338,7 +347,11 @@
       "leave": "Odísť"
     },
     "queued": "Bez pripojenia. Profil je uložený v tomto zariadení a odošle sa, keď sa pripojenie obnoví. Dovtedy nezatváraj túto kartu.",
-    "synced": "Pripojenie je späť. Profil bol odoslaný"
+    "synced": "Pripojenie je späť. Profil bol odoslaný",
+    "gamingHint": "Zhody sa radia najprv podľa spoločných hier, potom podľa platforiem, žánrov a času hrania.",
+    "recommended": "Odporúčané",
+    "allSaved": "Všetky zmeny sú uložené",
+    "savedOnDevice": "Uložené v zariadení"
   },
   "catalog": {
     "platforms": {

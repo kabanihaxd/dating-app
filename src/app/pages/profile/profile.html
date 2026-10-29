@@ -109,6 +109,9 @@
 
       <!-- ===== Игровой профиль ===== -->
       <h2>{{ 'profile.sections.gaming' | t }}</h2>
+      <!-- Зачем заполнять жанры и время игры: одна приглушённая строка с правилом подбора.
+           Без неё необязательные группы ниже выглядят как анкета ради анкеты. -->
+      <p class="hint">{{ 'profile.gamingHint' | t }}</p>
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>{{ 'profile.games.label' | t }}</mat-label>
@@ -176,9 +179,13 @@
         <div class="chip-group">
           <!-- Звёздочка — как у текстовых полей (там её ставит mat-form-field). Для диктора она
                лишняя: «обязательно» он узнает из aria-required, который выставит [required] у списка. -->
+          <!-- Необязательная группа (время игры) — не «молча без звёздочки», а с пометкой «рекомендуем»:
+               заполнять не обязательно, но подбор её учитывает (см. строку под заголовком раздела). -->
           <p class="group-label">
             {{ 'profile.' + group.control | t
-            }}@if (groupRequired) {<span class="required-marker" aria-hidden="true">*</span>}
+            }}@if (groupRequired) {<span class="required-marker" aria-hidden="true">*</span>} @else {
+              <span class="recommended-tag">{{ 'profile.recommended' | t }}</span>
+            }
           </p>
           <!-- У списка чипов нет mat-form-field, который сам связал бы ошибку с полем.
                Связываем вручную: aria-describedby → id текста ошибки, aria-invalid — «здесь ошибка». -->
@@ -213,7 +220,10 @@
         @for (field of contactFields; track field) {
           <!-- @let — короткое имя для длинного выражения внутри шаблона. -->
           @let control = form.controls.contacts.controls[field];
-          <div class="contact">
+          <!-- has-connect: у поля есть кнопка «Подключить». Только тогда строка — сетка «поле + кнопка»;
+               у остальных полей нет пустой колонки (и зазора перед ней), и они тянутся на всю ширину. -->
+          @let canConnect = connect.canConnect(field);
+          <div class="contact" [class.has-connect]="canConnect">
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>{{ 'profile.contacts.' + field | t }}</mat-label>
               <input
@@ -243,7 +253,7 @@
               }
             </mat-form-field>
             <!-- Steam и Discord умеют «вход через сайт платформы» — ник и ссылку не нужно искать и копировать. -->
-            @if (connect.canConnect(field)) {
+            @if (canConnect) {
               <button
                 mat-stroked-button
                 type="button"
@@ -252,7 +262,12 @@
                 (click)="connectPlatform(field)"
               >
                 <mat-icon>link</mat-icon>
-                {{ (control.value ? 'profile.connect.reconnect' : 'profile.connect.button') | t }}
+                <!-- В подписи — название платформы («Подключить Steam»): на телефоне кнопка стоит под полем,
+                     и голое «Подключить» по близости читалось как кнопка соседнего поля. -->
+                {{
+                  (control.value ? 'profile.connect.reconnect' : 'profile.connect.button')
+                    | t: { platform: ('profile.contacts.' + field | t) }
+                }}
               </button>
             }
           </div>
@@ -304,24 +319,51 @@
         </span>
       }
       <!-- disabledInteractive: погасшая кнопка остаётся фокусируемой (aria-disabled вместо disabled).
-           Нажал «Сохранить» с клавиатуры — после сохранения фокус остаётся на ней, а не теряется в body. -->
+           Нажал «Сохранить» с клавиатуры — после сохранения фокус остаётся на ней, а не теряется в body.
+           Поэтому у кнопки три вида, но это одна и та же кнопка (не три разных — фокус никуда не пропадёт):
+           - есть что сохранять — розовый CTA, как «Player 2?» в ленте;
+           - идёт сохранение — тот же розовый, приглушённый, с текстом «Сохраняем…»;
+           - всё сохранено (allSaved) — тихая надпись «Все изменения сохранены ✓» вместо мёртвой серой
+             таблетки. Высота та же 48px, так что панель не прыгает, когда форма становится «чистой». -->
       <button
         mat-flat-button
         type="submit"
         form="profile-form"
-        class="save-btn"
+        class="bar-btn save-btn"
+        [class.cta]="!allSaved()"
+        [class.is-saving]="saving()"
+        [class.is-saved]="allSaved()"
         [disabled]="saveDisabled()"
         disabledInteractive
       >
-        {{ (saving() ? 'profile.saving' : isNew() ? 'profile.firstRun.save' : 'profile.save') | t }}
+        <!-- Каждый @if — ровно с одним элементом внутри. Иначе Angular не сможет разложить содержимое
+             по «слотам» кнопки: значок попадёт не на место значка, а в текст и встанет выше строки. -->
+        @if (allSaved()) {
+          <!-- Запись ждёт сеть (pendingSync) — честно «сохранено на устройстве», а не «всё сохранено». -->
+          <mat-icon aria-hidden="true">{{ pendingSync() ? 'cloud_off' : 'check' }}</mat-icon>
+        }
+        {{ saveLabelKey() | t }}
+        @if (isNew() && !saving()) {
+          <!-- Стрелка: «Сохранить и найти игроков» — шаг вперёд, в ленту, а не просто запись. -->
+          <mat-icon iconPositionEnd aria-hidden="true">arrow_forward</mat-icon>
+        }
       </button>
       <!-- Анкету только что создали, но в ленту сами не перешли (вернулись со Steam/Discord, не было сети) —
-           обещание «игроки появятся сразу после сохранения» держим явной кнопкой. -->
+           обещание «игроки появятся сразу после сохранения» держим явной кнопкой.
+           Розовой она становится, только когда «Сохранить» затихла: два розовых CTA рядом спорили бы,
+           какой из них главный. Пока есть несохранённые правки, она второстепенная (контур). -->
       @if (readyForFeed()) {
-        <a mat-flat-button routerLink="/feed" class="save-btn feed-btn">
-          {{ 'profile.toFeed' | t }}
-          <mat-icon iconPositionEnd aria-hidden="true">arrow_forward</mat-icon>
-        </a>
+        @if (allSaved()) {
+          <a mat-flat-button routerLink="/feed" class="bar-btn feed-btn cta">
+            {{ 'profile.toFeed' | t }}
+            <mat-icon iconPositionEnd aria-hidden="true">arrow_forward</mat-icon>
+          </a>
+        } @else {
+          <a mat-stroked-button routerLink="/feed" class="bar-btn feed-btn">
+            {{ 'profile.toFeed' | t }}
+            <mat-icon iconPositionEnd aria-hidden="true">arrow_forward</mat-icon>
+          </a>
+        }
       }
     </div>
   </div>

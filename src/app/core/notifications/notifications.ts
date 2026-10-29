@@ -1,5 +1,6 @@
 import { Injectable, WritableSignal, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
   DocumentSnapshot,
@@ -13,10 +14,34 @@ import { AuthService } from '../auth/auth';
 import { FIRESTORE } from '../firebase/firestore';
 import { I18n } from '../i18n/i18n';
 import { ProfileService } from '../profile/profile';
+import { NotificationToast, NotificationToastData } from './notification-toast';
 
 const SEEN_KEY = 'di-matches-seen';
-// Длинное сообщение во всплывашке обрезаем — целиком его покажет чат.
+// Длинное сообщение во всплывашке обрезаем — целиком его покажет чат. CSS всё равно режет
+// по ширине плашки многоточием; эта граница лишь не тащит в DOM (и в озвучку) простыню текста.
 const TOAST_TEXT_LENGTH = 60;
+// Сколько всплывашек может ждать в очереди (пока открыто окно). Старые выбрасываем:
+// после долгого окна пять плашек подряд — это спам, а не новости; значки в меню всё равно посчитают всё.
+const TOAST_QUEUE_LIMIT = 3;
+const TOAST_DURATION = 6000;
+
+type ToastKind = 'liked' | 'matched' | 'message';
+
+// Одна всплывашка в очереди. Решение «показывать ли» принимаем в момент показа, а не прихода:
+// пока она ждала, человек мог уже открыть этот чат или страницу «Мэтчи».
+interface Toast {
+  kind: ToastKind;
+  otherUid: string;
+  link: string;
+  text: string;
+  matchId?: string;
+}
+
+const TOAST_ICONS: Record<ToastKind, string> = {
+  liked: 'favorite',
+  matched: 'sports_esports', // геймпад — тот же символ мэтча, что в окне «Это мэтч!»
+  message: 'chat_bubble',
+};
 
 export interface LastMessage {
   from: string;
@@ -50,6 +75,12 @@ export class NotificationService {
   private readonly snackBar = inject(MatSnackBar);
   private readonly i18n = inject(I18n);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
+
+  // Очередь всплывашек и флаг «одна сейчас на экране». MatSnackBar показывает только одну
+  // плашку за раз (новая вытесняет старую), поэтому показываем их по очереди сами.
+  private readonly toastQueue: Toast[] = [];
+  private toastOnScreen = false;
 
   private readonly likedMeUids = signal(new Set<string>());
   private readonly myLikes = signal(new Set<string>());
@@ -130,6 +161,10 @@ export class NotificationService {
   );
 
   constructor() {
+    // Пока открыто окно (мэтч, жалоба, подтверждение), всплывашки ждут: плашка поверх окна
+    // перекрывает его кнопки и отвлекает в момент решения. afterAllClosed — все окна закрылись.
+    this.dialog.afterAllClosed.subscribe(() => this.showNextToast());
+
     // effect перезапускается при входе/выходе. onCleanup отписывает старые подписки —
     // иначе после выхода продолжали бы приходить уведомления прошлого пользователя.
     effect((onCleanup) => {
@@ -207,9 +242,7 @@ export class NotificationService {
           snapshot
             .docChanges()
             .filter((change) => change.type === 'added')
-            .forEach((change) =>
-              this.notify('notifications.liked', change.doc.get('from'), '/feed'),
-            );
+            .forEach((change) => this.notify('liked', change.doc.get('from'), '/feed'));
         }
         first = false;
       },
@@ -243,13 +276,14 @@ export class NotificationService {
           if (change.type === 'added') {
             added = true;
             if (change.doc.get('createdBy') !== uid && !onMatchesPage) {
-              this.notify('notifications.matched', other, '/matches');
+              this.notify('matched', other, '/matches');
             }
           }
           // Всплывашка о новом сообщении — только если его иначе не увидеть.
           // Не нужна: в открытом чате с этим человеком (сообщение и так появится в переписке)
           // и на странице «Мэтчи» (превью чата на карточке обновится и загорится розовая точка).
-          // А вот из ДРУГОГО чата — нужна: снекбар в чате поднят над полем ввода (styles.scss).
+          // А вот из ДРУГОГО чата — нужна: она всплывает сверху, под шапкой, и не закрывает
+          // ни поле ввода, ни свежие ответы внизу переписки.
           const message = toSummary(change.doc, uid).lastMessage;
           if (
             change.type === 'modified' &&
@@ -259,9 +293,8 @@ export class NotificationService {
             this.activeChat() !== change.doc.id &&
             !onMatchesPage
           ) {
-            this.notify('notifications.message', other, `/chat/${change.doc.id}`, {
-              text: shorten(message.text),
-            });
+            const link = `/chat/${change.doc.id}`;
+            this.notify('message', other, link, shorten(message.text), change.doc.id);
           }
         }
         if (added && onMatchesPage) {
@@ -291,21 +324,122 @@ export class NotificationService {
     );
   }
 
+  // Всплывашки о событиях «извне» (лайк, мэтч, сообщение) живут ВВЕРХУ, под шапкой, а не внизу,
+  // где обычные снекбары-результаты («Анкета сохранена»). Внизу на каждой странице своя панель:
+  // кнопки колоды в ленте, поле ввода в чате, «Сохранить» в анкете — и плашка с кнопкой
+  // «Смотреть» в 20px от «Player 2?» означала риск промахнуться пальцем. Вверху же под шапкой
+  // только заголовок страницы — его можно на несколько секунд прикрыть.
   private async notify(
-    key: string,
+    kind: ToastKind,
     otherUid: string,
     link: string,
-    params: Record<string, string> = {},
+    text = '',
+    matchId?: string,
   ): Promise<void> {
-    if (this.hidden().has(otherUid)) {
-      return; // от заблокированных — никаких всплывашек
+    if (!this.toastWanted({ kind, otherUid, link, text, matchId })) {
+      return; // ранний отсев — не грузим анкету ради плашки, которую всё равно не покажем
     }
     const profile = await this.profiles.loadPublic(otherUid).catch(() => null);
-    const text = this.i18n.translate(key, { ...params, name: profile?.name ?? '' });
-    this.snackBar
-      .open(text, this.i18n.translate('notifications.view'), { duration: 6000 })
-      .onAction()
-      .subscribe(() => this.router.navigateByUrl(link));
+    const message = this.i18n.translate(`notifications.${kind}`, {
+      name: profile?.name ?? '',
+      text,
+    });
+    // Плашка про тот же чат уже ждёт — заменяем её свежей, а не ставим вторую.
+    const same = this.toastQueue.findIndex((toast) => toast.link === link && toast.kind === kind);
+    if (same >= 0) {
+      this.toastQueue.splice(same, 1);
+    }
+    this.toastQueue.push({ kind, otherUid, link, text: message, matchId });
+    this.toastQueue.splice(0, Math.max(0, this.toastQueue.length - TOAST_QUEUE_LIMIT));
+    this.showNextToast();
+  }
+
+  private showNextToast(): void {
+    // Одна плашка уже на экране — следующая покажется, когда она закроется (afterDismissed).
+    // Открыто окно — ждём afterAllClosed (подписка в конструкторе).
+    if (this.toastOnScreen || this.dialog.openDialogs.length) {
+      return;
+    }
+    // Устаревшие (чат уже открыт, человек заблокирован…) просто выбрасываем.
+    let toast = this.toastQueue.shift();
+    while (toast && !this.toastWanted(toast)) {
+      toast = this.toastQueue.shift();
+    }
+    if (!toast) {
+      return;
+    }
+    const link = toast.link;
+    this.toastOnScreen = true;
+    const ref = this.snackBar.openFromComponent<NotificationToast, NotificationToastData>(
+      NotificationToast,
+      {
+        data: {
+          icon: TOAST_ICONS[toast.kind],
+          text: toast.text,
+          action: this.i18n.translate('notifications.view'),
+          duration: TOAST_DURATION,
+        },
+        verticalPosition: 'top',
+        // Отступ под шапку (и полосу «нет сети») и ширину на телефоне задаёт этот класс в styles.scss.
+        panelClass: 'di-notify-toast',
+        // Озвучка: 'polite' — экранный диктор дочитает текущую фразу и потом скажет «Alex: привет».
+        // Фокус плашка не забирает (она не модальная, и перехват фокуса посреди набора
+        // сообщения был бы хуже самой плашки). Та же новость есть в значках меню.
+        politeness: 'polite',
+      },
+    );
+    ref.afterDismissed().subscribe(({ dismissedByAction }) => {
+      this.toastOnScreen = false;
+      if (dismissedByAction) {
+        void this.openFromToast(link);
+      } else {
+        this.showNextToast();
+      }
+    });
+  }
+
+  // Нужна ли ещё плашка. Проверяется и при приходе события, и в момент показа из очереди.
+  private toastWanted(toast: Toast): boolean {
+    if (this.hidden().has(toast.otherUid)) {
+      return false; // от заблокированных — никаких всплывашек
+    }
+    const path = this.router.url.split(/[?#]/)[0];
+    switch (toast.kind) {
+      // В ленте лайкнувшие и так идут первыми с розовым значком «Лайкнул(а) тебя» —
+      // плашка дублировала бы карточку. Счётчик на «Анкетах» в меню всё равно растёт.
+      case 'liked':
+        return path !== '/feed';
+      case 'matched':
+        return path !== '/matches';
+      case 'message':
+        return path !== '/matches' && this.activeChat() !== toast.matchId;
+    }
+  }
+
+  // «Смотреть». Вызывается из afterDismissed, а не из onAction: пока плашка уезжает
+  // (анимация ~75мс), её кнопка ещё в DOM и держит фокус — проверять «куда делся фокус»
+  // раньше бессмысленно. Когда плашка уже удалена и фокус упал на <body>, ставим его
+  // на заголовок новой страницы (у h1 для этого tabindex="-1"), а в чате — в поле ввода:
+  // туда человек и шёл. Следующую плашку из очереди показываем только после перехода —
+  // иначе она могла бы оказаться про чат, который мы как раз открываем.
+  private async openFromToast(link: string): Promise<void> {
+    await this.router.navigateByUrl(link).catch(() => false);
+    // Страница могла ещё не дорисоваться (чат показывает поле ввода, только загрузив мэтч),
+    // поэтому пробуем несколько раз в течение секунды. Если фокус за это время уже кто-то
+    // поставил (сама страница или человек кликнул), не трогаем его.
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const active = document.activeElement;
+      if (active && active !== document.body) {
+        break;
+      }
+      const target = document.querySelector<HTMLElement>('main h1[tabindex="-1"], main textarea');
+      if (target) {
+        target.focus({ preventScroll: true });
+        break;
+      }
+    }
+    this.showNextToast();
   }
 
   // router.url — текущий адрес; ?query и #hash отрезаем, сравниваем только путь.

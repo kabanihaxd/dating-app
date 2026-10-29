@@ -37,7 +37,13 @@
   margin-bottom: 12px;
 }
 
+// Обе кнопки панели — 44px в высоту (у Material по умолчанию 40px): это минимальная зона
+// касания. У «Фильтров» Material и так добавляет невидимую зону 48px, а у переключателя
+// вида её нет вовсе — поэтому растим саму кнопку. «Фильтры» — той же высоты, чтобы ряд
+// оставался ровным.
 .filters-toggle {
+  --mat-button-outlined-container-height: 44px;
+
   &.active {
     border-color: var(--di-neon-cyan);
     color: var(--di-neon-cyan);
@@ -63,9 +69,29 @@
   min-width: 0;
   margin: 0;
   color: var(--di-text-muted);
+  // Число не переносится на вторую строку: «Знайдено гравців:» / «3» читалось как два факта.
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.count-short {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .count-long {
+    display: none;
+  }
+
+  .count-short {
+    display: inline;
+  }
 }
 
 .view {
+  --mat-button-toggle-height: 44px;
+
   // Подписи у переключателя вида на телефоне прячем — остаются иконки (с aria-label).
   .view-label {
     margin-left: 6px;
@@ -312,7 +338,7 @@ app-player-card {
   animation: di-fade-up 0.2s ease-out;
 
   // Без кнопок справа (отправлено / вернулся) — симметричный отступ.
-  &:not(:has(button)) {
+  &:not(:has(button, a)) {
     padding-right: 14px;
   }
 
@@ -345,7 +371,10 @@ app-player-card {
     flex-shrink: 0;
   }
 
-  .undo {
+  // «Вернуть» и «Написать» (ссылка в чат у мэтча) — циановые: это переход и связь, не желание.
+  .undo,
+  .message {
+    flex-shrink: 0;
     --mat-button-text-horizontal-padding: 10px;
     color: var(--di-neon-cyan);
   }
@@ -603,7 +632,7 @@ app-state-message {
 
 // Заготовки кнопок панели — тех же размеров, что «Фильтры» и переключатель вида.
 .pill {
-  height: 40px;
+  height: 44px;
   border-radius: 999px;
 }
 
