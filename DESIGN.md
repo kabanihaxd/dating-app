@@ -276,6 +276,14 @@ The default "one by one" feed view. A grid view stays available through the tool
 - **End of feed:** never a dead end. Inside the cyan state message it shows a title and "new players arrive as they sign up". Then comes a left-aligned list, each row only when non-zero: likes waiting for a reply (pink heart), chats with new messages (pink), matches with a "suggest a game for tonight" nudge (cyan gamepad). Counts use the "Label: N" form, so no plural rules are needed in RU/UK/SK. Primary "Go to matches" (pink, dark text) appears when matches exist; stroked "Improve profile" is always there.
 - **Profile hint:** a single dismissible row above the deck (cyan 0.35 border, 12px radius) shown while the profile lacks play times or genres. Dismissal is remembered per account.
 
+### Match Card
+One card per mutual match on /matches, read top to bottom by priority. Lobby Indigo, pink 0.4 border, pink ambient glow; a flex column whose actions block (`margin-top: auto`) sits at the bottom, so chat rows line up across a grid row and spare height lands in the middle.
+- **Header:** 64px avatar with pink ring, name and age (Card Name), city, "⋮" menu. At most one pill beside the name: **"Your turn"** (last message is theirs) in pink fill while unread, as a quiet pink 0.4 outline once read; otherwise **"New match"** (pink fill) for matches since the last visit.
+- **What you share:** common games as cyan tags, then "Shared platforms: PC · PlayStation" and "Shared play times: …" lines in the feed's cyan-icon style.
+- **Chat row (primary action):** full width, 56px, 12px radius on Void Black, cyan 0.35 border; chat icon, "{speaker}: preview" with ellipsis, and a short timestamp (today "21:40", "yesterday" via `Intl.RelativeTimeFormat`, "12 Oct", or a short date). Unread turns border, icon and time pink, bolds the preview and adds a glowing 8px dot after the time.
+- **Contacts:** a wrapping row of 40px pill chips (44px on coarse pointers), cyan 0.35 border, no fill: short platform name ("PSN") plus a cyan icon that says what happens, `content_copy` for a nickname, `open_in_new` for a verified link. The value shows in a tooltip; the accessible name carries action, platform, value and player.
+- **Order:** unread first, then latest activity, frozen while the page is open.
+
 ### Match Dialog (signature)
 "It's a match!" is the feed's one authored moment.
 - **Avatars:** two 88px avatars with pink rings slide together, and a cyan gamepad badge pops onto the seam.

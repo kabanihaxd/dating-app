@@ -14,6 +14,7 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '../../core/auth/auth';
 import { firestoreErrorKey } from '../../core/firebase/firestore-errors';
 import { I18n } from '../../core/i18n/i18n';
@@ -25,6 +26,8 @@ import {
   CONTACT_FIELDS,
   CONTACT_SITES,
   ContactField,
+  Platform,
+  PlayTime,
   UserContacts,
   UserProfile,
   ageFrom,
@@ -42,13 +45,26 @@ interface MatchView {
   profile: UserProfile;
   age: number;
   commonGames: string[];
-  contacts: { field: ContactField; value: string; isLink: boolean }[];
+  commonPlatforms: Platform[];
+  commonPlayTimes: PlayTime[];
+  // short — короткое имя платформы для чипа («PSN» вместо «PlayStation Network»).
+  contacts: { field: ContactField; short: string; value: string; isLink: boolean }[];
 }
 
 // Запись кэша карточек по uid — одно из трёх состояний. Это «размеченное объединение»
 // (discriminated union): по полю state TypeScript сам понимает, какие ещё поля есть у записи.
 // view — карточка готова; deleted — анкеты нет, показывать нечего;
 // error — не удалось загрузить (сеть, сбой). Это НЕ «удалён»: такую карточку можно перезапросить.
+// Короткие названия платформ для чипов контактов. Это имена брендов, их не переводят.
+const CONTACT_SHORT: Record<ContactField, string> = {
+  discord: 'Discord',
+  steam: 'Steam',
+  psn: 'PSN',
+  xbox: 'Xbox',
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 type CardEntry =
   | { state: 'view'; view: MatchView }
   | { state: 'deleted' }
@@ -60,6 +76,7 @@ type CardEntry =
     RouterLink,
     MatButtonModule,
     MatIconModule,
+    MatTooltipModule,
     TranslatePipe,
     ModerationMenu,
     ErrorState,
@@ -346,6 +363,38 @@ export class Matches {
     });
   }
 
+  // Список из каталога через точку: «PC · PlayStation». Переводим в шаблоне, а не в toView():
+  // карточки кэшируются, и при смене языка подписи должны перевестись заново.
+  protected joined(group: string, keys: readonly string[]): string {
+    return keys.map((key) => this.i18n.translate(`${group}.${key}`)).join(' · ');
+  }
+
+  // Время последнего сообщения коротко, как в мессенджерах: сегодня — «21:40», вчера — «вчера»,
+  // в этом году — «12 окт.», раньше — «12.10.2025». Слово «вчера» даёт сам браузер
+  // (Intl.RelativeTimeFormat с numeric: 'auto'), поэтому отдельный перевод не нужен.
+  protected when(at: number): string {
+    const lang = this.i18n.lang();
+    const date = new Date(at);
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    if (at >= startOfToday) {
+      return new Intl.DateTimeFormat(lang, { hour: '2-digit', minute: '2-digit' }).format(date);
+    }
+    if (at >= startOfToday - DAY_MS) {
+      return new Intl.RelativeTimeFormat(lang, { numeric: 'auto' }).format(-1, 'day');
+    }
+    const sameYear = date.getFullYear() === now.getFullYear();
+    return new Intl.DateTimeFormat(
+      lang,
+      sameYear ? { day: 'numeric', month: 'short' } : { dateStyle: 'short' },
+    ).format(date);
+  }
+
+  // Машиночитаемое время для <time datetime="...">.
+  protected iso(at: number): string {
+    return new Date(at).toISOString();
+  }
+
   // Буфер обмена может быть недоступен (нет разрешения, старый браузер, не https) —
   // тогда честно говорим об этом, а не делаем вид, что скопировали.
   protected async copy(value: string, platform: string): Promise<void> {
@@ -494,13 +543,16 @@ export class Matches {
       return null;
     }
     const myProfile = this.myProfile();
+    const score = myProfile ? matchScore(myProfile, profile) : null;
     return {
       id: match.id,
       uid: match.otherUid,
       headingId: `match-name-${match.id}`,
       profile,
       age: ageFrom(profile.birthDate),
-      commonGames: myProfile ? matchScore(myProfile, profile).commonGames : [],
+      commonGames: score?.commonGames ?? [],
+      commonPlatforms: score?.commonPlatforms ?? [],
+      commonPlayTimes: score?.commonPlayTimes ?? [],
       contacts: this.toContactList(contacts),
     };
   }
@@ -511,7 +563,14 @@ export class Matches {
     return CONTACT_FIELDS.flatMap((field) => {
       const value = contacts?.[field]?.trim() ?? '';
       return value
-        ? [{ field, value, isLink: isProfileLink(value, CONTACT_SITES[field].domains) }]
+        ? [
+            {
+              field,
+              short: CONTACT_SHORT[field],
+              value,
+              isLink: isProfileLink(value, CONTACT_SITES[field].domains),
+            },
+          ]
         : [];
     });
   }

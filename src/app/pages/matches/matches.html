@@ -6,7 +6,7 @@
 @if (errorKey(); as key) {
   <app-error-state [errorKey]="key" (retry)="retry()" />
 } @else if (loading()) {
-  <!-- Скелетон: заготовки карточек мэтчей (аватар, имя, превью чата, контакты).
+  <!-- Скелетон повторяет новую карточку: шапка, общие игры, строка чата и ряд контактов внизу.
        Серые плашки скрыты от скринридера — он услышит только «Загрузка…» из role="status". -->
   <p class="sr-only" role="status">{{ 'common.loading' | t }}</p>
   <div class="grid" aria-hidden="true">
@@ -19,9 +19,15 @@
             <span class="skeleton line w40"></span>
           </div>
         </header>
-        <span class="skeleton chat-sk"></span>
-        <span class="skeleton line w80"></span>
         <span class="skeleton line w70"></span>
+        <span class="skeleton line w80"></span>
+        <div class="actions">
+          <span class="skeleton chat-sk"></span>
+          <div class="chips-sk">
+            <span class="skeleton"></span>
+            <span class="skeleton"></span>
+          </div>
+        </div>
       </div>
     }
   </div>
@@ -51,9 +57,15 @@
   }
   <div class="grid">
     <!-- Карточки появляются «лесенкой», а при разрыве мэтча или блокировке плавно тают.
-         aria-labelledby: скринридер называет карточку по имени игрока («статья: Аня, 24»). -->
+         aria-labelledby: скринридер называет карточку по имени игрока («статья: Аня, 24»).
+         Порядок внутри карточки — по важности: кто это и чей ход → что вас связывает →
+         чат (главное действие) → контакты. Чат и контакты прижаты к низу карточки. -->
     @for (match of visibleMatches(); track match.uid) {
       @let name = match.profile.name;
+      @let last = notifications.lastMessages().get(match.id);
+      @let unread = notifications.unreadChats().has(match.id);
+      <!-- «Твой ход» — последнее слово в переписке за собеседником, то есть ответить должен я. -->
+      @let myTurn = !!last && last.from !== me;
       <article
         class="card"
         animate.enter="di-enter"
@@ -74,12 +86,16 @@
           <div class="who">
             <div class="name-row">
               <h2 [id]="match.headingId" tabindex="-1">{{ name }}, {{ match.age }}</h2>
-              <!-- Мэтч случился после моего прошлого захода на страницу. -->
-              @if (newMatchIds().has(match.id)) {
-                <span class="new-pill">{{ 'matches.new' | t }}</span>
+              <!-- Одна метка, самая важная. «Твой ход» розовый, пока ответ не прочитан,
+                   и тихий контурный — когда прочитан, но ещё не отвечен.
+                   «Новый мэтч» — мэтч случился после прошлого захода и переписки ещё нет. -->
+              @if (myTurn) {
+                <span class="pill" [class.quiet]="!unread">{{ 'matches.yourTurn' | t }}</span>
+              } @else if (newMatchIds().has(match.id)) {
+                <span class="pill">{{ 'matches.new' | t }}</span>
               }
             </div>
-            <p class="muted"><mat-icon inline>place</mat-icon> {{ match.profile.city }}</p>
+            <p class="muted"><mat-icon inline aria-hidden="true">place</mat-icon> {{ match.profile.city }}</p>
           </div>
           <app-moderation-menu
             [otherUid]="match.uid"
@@ -89,6 +105,7 @@
           />
         </header>
 
+        <!-- Что вас связывает: общие игры, платформы и время. Ради этого и случился мэтч. -->
         @if (match.commonGames.length) {
           <p class="label">{{ 'feed.card.commonGames' | t }}</p>
           <div class="tags">
@@ -97,62 +114,82 @@
             }
           </div>
         }
-
-        <!-- Превью чата: последнее сообщение и розовая точка, если оно не прочитано.
-             Скрытый текст делает имя ссылки понятным вне карточки: «Чат: Аня. Ты: привет. Новое сообщение». -->
-        @let last = notifications.lastMessages().get(match.id);
-        @let unread = notifications.unreadChats().has(match.id);
-        <a class="chat-link" [class.unread]="unread" [routerLink]="['/chat', match.id]">
-          <mat-icon>chat</mat-icon>
-          <span class="preview">
-            <span class="sr-only">{{ 'matches.chatWith' | t: { name } }}. </span>
-            @if (last) {
-              @if (last.from === me) {
-                <span class="muted">{{ 'matches.you' | t }}:</span>
-              }
-              {{ last.text }}
-            } @else {
-              {{ 'matches.write' | t }}
-            }
-          </span>
-          @if (unread) {
-            <span class="dot" aria-hidden="true"></span>
-            <span class="sr-only">. {{ 'matches.unread' | t }}</span>
-          }
-        </a>
-
-        <p class="label">{{ 'matches.contacts' | t }}</p>
-        @if (match.contacts.length) {
-          <ul class="contacts">
-            @for (contact of match.contacts; track contact.field) {
-              @let platform = 'profile.contacts.' + contact.field | t;
-              <li>
-                <span class="platform">{{ platform }}</span>
-                <!-- Ссылку (уже проверенную при сохранении) делаем кликабельной, ник — копируем. -->
-                @if (contact.isLink) {
-                  <a [href]="contact.value" target="_blank" rel="noopener noreferrer">
-                    {{ 'matches.openProfile' | t }}
-                    <span class="sr-only">({{ 'matches.openProfileHint' | t: { platform, name } }})</span>
-                    <mat-icon inline>open_in_new</mat-icon>
-                  </a>
-                } @else {
-                  <span class="nickname">{{ contact.value }}</span>
-                  <button
-                    mat-icon-button
-                    type="button"
-                    class="copy"
-                    (click)="copy(contact.value, platform)"
-                    [attr.aria-label]="'matches.copyNickname' | t: { platform, name }"
-                  >
-                    <mat-icon>content_copy</mat-icon>
-                  </button>
-                }
-              </li>
-            }
-          </ul>
-        } @else {
-          <p class="muted">{{ 'matches.noContacts' | t }}</p>
+        @if (match.commonPlatforms.length) {
+          <p class="together">
+            <mat-icon aria-hidden="true">sports_esports</mat-icon>
+            <span><b>{{ 'matches.sharedPlatforms' | t }}:</b> {{ joined('catalog.platforms', match.commonPlatforms) }}</span>
+          </p>
         }
+        @if (match.commonPlayTimes.length) {
+          <p class="together">
+            <mat-icon aria-hidden="true">schedule</mat-icon>
+            <span><b>{{ 'feed.card.bothPlay' | t }}:</b> {{ joined('catalog.playTimes', match.commonPlayTimes) }}</span>
+          </p>
+        }
+
+        <div class="actions">
+          <!-- Строка чата — главное действие карточки: превью последнего сообщения и его время.
+               Скрытый текст делает имя ссылки понятным вне карточки:
+               «Чат: Аня. Аня: го катку? 21:40. Новое сообщение». -->
+          <a class="chat-link" [class.unread]="unread" [routerLink]="['/chat', match.id]">
+            <mat-icon aria-hidden="true">chat</mat-icon>
+            <span class="preview">
+              <span class="sr-only">{{ 'matches.chatWith' | t: { name } }}. </span>
+              @if (last) {
+                <span class="speaker">{{ last.from === me ? ('matches.you' | t) : name }}:</span>
+                {{ last.text }}
+              } @else {
+                {{ 'matches.write' | t }}
+              }
+            </span>
+            @if (last) {
+              <time class="when" [attr.datetime]="iso(last.at)">{{ when(last.at) }}</time>
+            }
+            @if (unread) {
+              <span class="sr-only">. {{ 'matches.unread' | t }}</span>
+            }
+          </a>
+
+          <!-- Контакты — компактные чипы: ник копируется по нажатию, проверенная ссылка открывается
+               в новой вкладке. Сам ник виден в подсказке и полностью звучит в имени кнопки. -->
+          @if (match.contacts.length) {
+            <ul class="contacts" [attr.aria-label]="'matches.contactsOf' | t: { name }">
+              @for (contact of match.contacts; track contact.field) {
+                @let platform = 'profile.contacts.' + contact.field | t;
+                <li>
+                  @if (contact.isLink) {
+                    <a
+                      class="contact"
+                      [href]="contact.value"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      [matTooltip]="contact.value"
+                      [attr.aria-label]="'matches.openProfileHint' | t: { platform, name }"
+                    >
+                      {{ contact.short }}
+                      <mat-icon aria-hidden="true">open_in_new</mat-icon>
+                    </a>
+                  } @else {
+                    <button
+                      type="button"
+                      class="contact"
+                      [matTooltip]="contact.value"
+                      (click)="copy(contact.value, platform)"
+                      [attr.aria-label]="
+                        'matches.copyNicknameValue' | t: { platform, name, nickname: contact.value }
+                      "
+                    >
+                      {{ contact.short }}
+                      <mat-icon aria-hidden="true">content_copy</mat-icon>
+                    </button>
+                  }
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="no-contacts">{{ 'matches.noContacts' | t }}</p>
+          }
+        </div>
       </article>
     }
   </div>

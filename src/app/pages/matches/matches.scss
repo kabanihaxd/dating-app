@@ -37,10 +37,10 @@ h1,
   border: 1px solid rgba(255, 46, 136, 0.4);
   border-radius: 16px;
   box-shadow: 0 0 16px rgba(255, 46, 136, 0.15);
-  // Карточка — контейнер для @container ниже: раскладка контактов зависит от ширины
-  // самой карточки, а не всего экрана (в сетке из трёх колонок карточка узкая и на десктопе).
-  container-type: inline-size;
   min-width: 0;
+  // Колонка: блок .actions с margin-top: auto уезжает к низу карточки.
+  display: flex;
+  flex-direction: column;
 
   header {
     display: flex;
@@ -68,7 +68,7 @@ h1,
 
   // Метка «Новый» — pill в розовом (Pulse Pink): по правилу Dark-on-Neon текст тёмный и жирный,
   // белый на розовом не проходит контраст. Свечение — «розовый зов», как у метки «нравишься».
-  .new-pill {
+  .pill {
     padding: 4px 10px;
     border-radius: 999px;
     font-size: 13px;
@@ -78,6 +78,15 @@ h1,
     background: var(--di-neon-pink);
     box-shadow: 0 0 12px rgba(255, 46, 136, 0.45);
     white-space: nowrap;
+
+    // «Твой ход», но ответ уже прочитан: напоминание, а не сигнал — контур без заливки и свечения.
+    &.quiet {
+      padding: 3px 9px;
+      color: var(--di-neon-pink);
+      background: none;
+      border: 1px solid rgba(255, 46, 136, 0.4);
+      box-shadow: none;
+    }
   }
 
   // Имя занимает всё свободное место — кнопка «⋮» уезжает к правому краю.
@@ -130,117 +139,177 @@ h1,
   color: var(--di-neon-cyan);
 }
 
-.contacts {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+// Строки «Общие платформы: …» и «Играете оба: …» — как «почему вы совпали» в ленте:
+// бирюзовая иконка и бирюзовый зачин (общее = cyan по правилу One Meaning).
+.together {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 18px;
 
-  // Строка: платформа | ник | кнопка. flex-wrap — запасной выход, если что-то не влезло.
-  li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    column-gap: 8px;
-    min-height: 44px;
+  mat-icon {
+    flex-shrink: 0;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--di-neon-cyan);
   }
 
-  .platform {
-    flex: 0 0 10em;
-    color: var(--di-text-muted);
-  }
-
-  // Ник занимает остаток строки; длинный ник переносится, кнопка «копировать» остаётся справа.
-  .nickname {
-    flex: 1 1 0;
-    min-width: 0;
+  b {
     font-weight: 500;
-    overflow-wrap: anywhere;
-  }
-
-  // Ссылка «Открыть профиль»: сам текст ~26px в высоту — в него трудно попасть пальцем.
-  // min-height 44px растягивает только область нажатия (строка li и так 44px), поэтому карточка
-  // не выросла. Боковые 6px паддинга с минусовым margin — та же ширина на экране, но рамка
-  // фокуса не прилипает к буквам. Скругление 8px — его подхватит бирюзовая рамка фокуса.
-  a {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    min-height: 44px;
-    padding: 0 6px;
-    margin: 0 -6px;
-    border-radius: 8px;
-  }
-
-  // На сенсорном экране палец толще курсора: кнопка не меньше 48px (минимум — 44px).
-  @media (pointer: coarse) {
-    .copy {
-      --mat-icon-button-state-layer-size: 48px;
-    }
+    color: var(--di-neon-cyan);
   }
 }
 
-// Узкая карточка: подпись платформы уходит над значением, а ник получает всю ширину.
-// Так «PlayStation Network» и длинный ник не теснят друг друга даже на 320px.
-@container (max-width: 380px) {
-  .contacts {
-    li {
-      padding: 4px 0;
-    }
-
-    .platform {
-      flex-basis: 100%;
-      font-size: 12px;
-    }
-  }
+// Чат и контакты — низ карточки. margin-top: auto прижимает их к низу: в ряду сетки карточки
+// одной высоты, и строки чата у соседей стоят на одной линии, а свободное место остаётся
+// в середине, между «что вас связывает» и действиями, а не пустым хвостом под контактами.
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 16px;
 }
 
-// Кнопка-превью чата во всю ширину карточки. Длинное сообщение обрезаем многоточием.
+// Строка чата — главное действие карточки: во всю ширину, 56px, превью и время.
+// Длинное сообщение обрезаем многоточием, время не сжимается.
 .chat-link {
+  // border-box: 56px — это вся высота строки вместе с паддингом и рамкой.
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 16px;
-  padding: 10px 12px;
+  min-height: 56px;
+  padding: 8px 14px;
   border-radius: 12px;
   border: 1px solid rgba(0, 229, 255, 0.35);
+  background: var(--di-bg);
   color: inherit;
   text-decoration: none;
-  transition: background 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
 
   &:hover {
     background: rgba(0, 229, 255, 0.08);
   }
 
-  mat-icon {
+  > mat-icon {
     color: var(--di-neon-cyan);
     flex-shrink: 0;
   }
 
   .preview {
     flex: 1;
+    min-width: 0;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
 
+  .speaker {
+    color: var(--di-text-muted);
+  }
+
+  .when {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--di-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // Непрочитанное: розовая рамка и иконка, жирное превью, розовое время с точкой-сигналом.
   &.unread {
     border-color: var(--di-neon-pink);
+    box-shadow: 0 0 12px rgba(255, 46, 136, 0.25);
+
+    > mat-icon {
+      color: var(--di-neon-pink);
+    }
 
     .preview {
       font-weight: 600;
     }
-  }
 
-  .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    background: var(--di-neon-pink);
-    box-shadow: 0 0 8px var(--di-neon-pink);
+    .when {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      color: var(--di-neon-pink);
+
+      &::after {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--di-neon-pink);
+        box-shadow: 0 0 8px var(--di-neon-pink);
+      }
+    }
+
+    &:hover {
+      background: rgba(255, 46, 136, 0.08);
+    }
   }
 }
 
+// Контакты — ряд компактных чипов. Они вторичны по отношению к чату, поэтому без заливки,
+// с тихой бирюзовой рамкой (0.35); иконка справа говорит, что будет: копировать или открыть.
+.contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.contact {
+  // У <a> по умолчанию content-box, у <button> — border-box: выравниваем, чтобы чипы были одной высоты.
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px 0 14px;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: 500 13px/1 Roboto, sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--di-neon-cyan);
+  }
+
+  &:hover {
+    background: rgba(0, 229, 255, 0.08);
+    border-color: var(--di-neon-cyan);
+  }
+
+  // На сенсорном экране палец толще курсора — чип не ниже 44px.
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
+}
+
+.no-contacts {
+  margin: 0;
+  font-size: 13px;
+  color: var(--di-text-muted);
+}
 // Строка «Не удалось загрузить мэтчи: N · Попробовать ещё раз» над сеткой.
 // Пунктир — как у всех состояний ошибки/пустоты в системе (DESIGN.md), цвет — ошибки Material.
 .load-failed {
@@ -290,10 +359,24 @@ h1,
     flex-shrink: 0;
   }
 
+  .actions {
+    gap: 12px;
+  }
+
   .chat-sk {
-    height: 44px;
-    margin-top: 4px;
+    height: 56px;
     border-radius: 12px;
+  }
+
+  .chips-sk {
+    display: flex;
+    gap: 8px;
+
+    span {
+      width: 84px;
+      height: 40px;
+      border-radius: 999px;
+    }
   }
 
   .line {
