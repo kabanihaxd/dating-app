@@ -1,3 +1,37 @@
+// «К содержимому»: спрятана за верхним краем экрана и выезжает, только когда на неё пришёл
+// фокус с клавиатуры. Не display: none — такую ссылку Tab бы пропустил.
+// Стиль — как у фокуса во всём приложении: Signal Cyan рамка на тёмной подложке.
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--di-bg);
+  color: var(--di-neon-cyan);
+  font-weight: 500;
+  text-decoration: none;
+  outline: 2px solid var(--di-neon-cyan);
+  outline-offset: 2px;
+  translate: 0 calc(-100% - 24px);
+
+  &:focus-visible {
+    translate: 0 0;
+  }
+
+  // Фокус пришёл не с клавиатуры (например, кликом) — ссылку не показываем вовсе.
+  &:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+// <main> получает фокус только из кода (по ссылке «К содержимому») — рамка вокруг всей
+// страницы была бы шумом: человек и так видит, что оказался в начале содержимого.
+main:focus {
+  outline: none;
+}
+
 .page {
   max-width: 960px;
   margin: 0 auto;

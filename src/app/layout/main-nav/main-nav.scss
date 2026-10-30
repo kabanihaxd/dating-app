@@ -1,4 +1,8 @@
-.nav a.active {
+// active — открыт сам адрес пункта (routerLinkActive); section-active — открыта страница
+// внутри раздела (чат внутри «Мэтчей»). Отдельный класс, а не тот же active: иначе привязка
+// [class.active]="false" снимала бы класс, который только что поставил routerLinkActive.
+.nav a.active,
+.nav a.section-active {
   color: var(--di-neon-cyan);
 }
 

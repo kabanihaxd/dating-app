@@ -48,7 +48,16 @@ interface MatchView {
   commonPlatforms: Platform[];
   commonPlayTimes: PlayTime[];
   // short — короткое имя платформы для чипа («PSN» вместо «PlayStation Network»).
-  contacts: { field: ContactField; short: string; value: string; isLink: boolean }[];
+  // shown — что написать на чипе после платформы: ник как есть, у ссылки — читаемый хвост
+  // адреса (steamcommunity.com/id/anya → «anya»). null — хвост бессмысленный (числовой id),
+  // тогда шаблон пишет переведённое слово «профиль».
+  contacts: {
+    field: ContactField;
+    short: string;
+    value: string;
+    shown: string | null;
+    isLink: boolean;
+  }[];
 }
 
 // Запись кэша карточек по uid — одно из трёх состояний. Это «размеченное объединение»
@@ -119,6 +128,14 @@ export class Matches {
   // Когда я в прошлый раз заходил на «Мэтчи» — запоминаем ДО того, как отметить всё просмотренным.
   // Мэтчи новее этого момента получают метку «Новый».
   private readonly seenBefore: number;
+
+  // Какой чип контакта сейчас показывает «Скопировано» (ключ «id мэтча:поле»). Обратная связь
+  // прямо на чипе, под пальцем, а не только снекбаром внизу экрана. Через 1,5 с чип возвращается.
+  protected readonly copiedKey = signal<string | null>(null);
+  private copiedTimer: ReturnType<typeof setTimeout> | undefined;
+  // Чип, у которого копирование не удалось: под контактами показываем поле с выделенным ником,
+  // чтобы его можно было скопировать руками (Ctrl+C или долгим нажатием на телефоне).
+  protected readonly copyFailedKey = signal<string | null>(null);
 
   // Три серые заготовки карточек на время загрузки.
   protected readonly skeletons = [0, 1, 2];
@@ -396,16 +413,33 @@ export class Matches {
   }
 
   // Буфер обмена может быть недоступен (нет разрешения, старый браузер, не https) —
-  // тогда честно говорим об этом, а не делаем вид, что скопировали.
-  protected async copy(value: string, platform: string): Promise<void> {
+  // тогда честно говорим об этом и даём запасной путь: поле с уже выделенным ником.
+  protected async copy(key: string, value: string, platform: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(value);
-      this.snackBar.open(this.i18n.translate('matches.copiedNickname', { platform }), undefined, {
-        duration: 2000,
-      });
+      this.copyFailedKey.set(null);
+      // Чип на 1,5 с меняет иконку на галочку и пишет «Скопировано». Снекбар остаётся:
+      // он ещё и вежливо озвучивает результат скринридеру (MatSnackBar — это live-регион).
+      this.copiedKey.set(key);
+      clearTimeout(this.copiedTimer);
+      this.copiedTimer = setTimeout(() => this.copiedKey.set(null), 1500);
+      this.snackBar.open(
+        this.i18n.translate('matches.copiedValue', { platform, value }),
+        undefined,
+        { duration: 2000 },
+      );
     } catch (error) {
       console.error(error);
-      this.snackBar.open(this.i18n.translate('matches.copyFailed'), undefined, { duration: 4000 });
+      this.copiedKey.set(null);
+      this.copyFailedKey.set(key);
+      this.snackBar.open(this.i18n.translate('matches.copyFailed'), undefined, { duration: 6000 });
+      // Поле запасного копирования появится после перерисовки — тогда ставим в него фокус
+      // и выделяем ник целиком: остаётся нажать Ctrl+C (на телефоне — «Копировать»).
+      setTimeout(() => {
+        const input = this.document.getElementById(`manual-${key}`) as HTMLInputElement | null;
+        input?.focus();
+        input?.select();
+      });
     }
   }
 
@@ -568,10 +602,31 @@ export class Matches {
               field,
               short: CONTACT_SHORT[field],
               value,
-              isLink: isProfileLink(value, CONTACT_SITES[field].domains),
+              ...this.shownValue(value, CONTACT_SITES[field].domains),
             },
           ]
         : [];
     });
+  }
+
+  // Что показать на чипе. Ник — как есть. У ссылки — последний кусок пути без хоста:
+  // steamcommunity.com/id/anya → «anya». Если этот кусок — одни цифры (discord.com/users/1234…,
+  // steamcommunity.com/profiles/7656…), человеку он ничего не скажет: возвращаем null,
+  // и шаблон напишет слово «профиль» на языке интерфейса.
+  private shownValue(
+    value: string,
+    domains: readonly string[],
+  ): { isLink: boolean; shown: string | null } {
+    if (!isProfileLink(value, domains)) {
+      return { isLink: false, shown: value };
+    }
+    const tail = new URL(value).pathname.split('/').filter(Boolean).pop() ?? '';
+    let shown = tail;
+    try {
+      shown = decodeURIComponent(tail); // %D0%B0%D0%BD%D1%8F → «аня»
+    } catch {
+      // битая %-последовательность — оставляем как есть
+    }
+    return { isLink: true, shown: shown && !/^\d+$/.test(shown) ? shown : null };
   }
 }

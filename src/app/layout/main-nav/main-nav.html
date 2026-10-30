@@ -1,6 +1,16 @@
 <nav class="nav">
   @for (item of navItems(); track item.path) {
-    <a mat-button [routerLink]="item.path" routerLinkActive="active">
+    <!-- routerLinkActive — «active», когда открыт адрес пункта; ariaCurrentWhenActive сообщает
+         программе чтения с экрана «текущая страница». section-active — та же подсветка
+         для раздела: «Мэтчи» горят и внутри чата (там aria-current не ставим — это уже не сама
+         страница мэтчей, а её «вложенная» страница). -->
+    <a
+      mat-button
+      [routerLink]="item.path"
+      routerLinkActive="active"
+      ariaCurrentWhenActive="page"
+      [class.section-active]="item.section"
+    >
       <mat-icon
         [matBadge]="item.badge"
         [matBadgeHidden]="!item.badge"

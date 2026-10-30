@@ -4,7 +4,8 @@
     "matches": "Matche",
     "profile": "Profil",
     "login": "Prihlásiť sa",
-    "logout": "Odhlásiť sa"
+    "logout": "Odhlásiť sa",
+    "skipToContent": "Preskočiť na obsah"
   },
   "common": {
     "loading": "Načítava sa…",
@@ -78,7 +79,6 @@
     "count": "Nájdení hráči: {{count}}",
     "emptyTitle": "Iní hráči tu zatiaľ nie sú",
     "empty": "Pozvi kamarátov hráčov — zobrazia sa tu, hneď ako sa zaregistrujú.",
-    "emptyFiltered": "Uvoľni filtre alebo ich zruš všetky.",
     "noProfile": {
       "title": "Najprv si vyplň profil",
       "text": "Aby sme našli tvojho player 2, potrebujeme poznať tvoje hry a platformy.",
@@ -96,11 +96,13 @@
       "activeCount": "aktívne: {{count}}",
       "myGames": "Moje hry",
       "otherGames": "Hry ostatných hráčov",
-      "age": "Vek"
+      "age": "Vek",
+      "remove": "Odstrániť filter {{label}}"
     },
     "card": {
       "match": "zhoda {{percent}}%",
       "commonGames": "Spoločné hry",
+      "games": "Hry",
       "otherGames": "Ďalšie hry",
       "likedMe": "Páčiš sa",
       "like": "Player 2?",
@@ -170,8 +172,16 @@
       "improveHint": "Viac hier a časov hrania znamená viac zhôd s novými hráčmi."
     },
     "hint": {
-      "title": "Pridaj čas hrania a žánre",
-      "text": "— vyššie sa zobrazia hráči, ktorí hrajú v rovnakom čase a podobné žánre.",
+      "title": {
+        "both": "Pridaj čas hrania a žánre",
+        "playTimes": "Pridaj čas hrania",
+        "genres": "Pridaj obľúbené žánre"
+      },
+      "text": {
+        "both": "— vyššie sa zobrazia hráči, ktorí hrajú v rovnakom čase a podobné žánre.",
+        "playTimes": "— vyššie sa zobrazia hráči, ktorí hrajú v rovnakom čase.",
+        "genres": "— vyššie sa zobrazia hráči, ktorí majú radi podobné žánre."
+      },
       "cta": "Pridať",
       "dismiss": "Skryť tip"
     },
@@ -191,7 +201,7 @@
     "deckLabel": "Balíček hráčov",
     "emptyFilteredTitle": "Nikoho sme nenašli",
     "countShort": "Hráči: {{count}}",
-    "emptyFilteredBy": "Zapnuté filtre: {{list}}. Uvoľni niektorý alebo ich zruš všetky."
+    "emptyFilteredBy": "Odstráň niektorý filter alebo ich zruš všetky."
   },
   "auth": {
     "loginTitle": "Prihlásenie",
@@ -233,8 +243,11 @@
     "you": "Ty",
     "unread": "Nová správa",
     "chatWith": "Chat: {{name}}",
-    "copiedNickname": "Prezývka ({{platform}}) skopírovaná",
-    "copyFailed": "Nepodarilo sa skopírovať. Označ prezývku a skopíruj ju ručne.",
+    "copiedValue": "Skopírované ({{platform}}): {{value}}",
+    "copied": "Skopírované",
+    "copyFailed": "Nepodarilo sa skopírovať. Prezývka je označená v poli pod kontaktmi — skopíruj ju ručne.",
+    "copyManually": "Prezývka {{platform}} — skopíruj ju ručne (Ctrl+C alebo dlhé podržanie):",
+    "profileWord": "profil",
     "openProfileHint": "Otvoriť profil {{platform}} ({{name}}) na novej karte",
     "loadFailed": "Nepodarilo sa načítať matche: {{count}}",
     "new": "Nový match",
@@ -275,7 +288,9 @@
     "discard": "Vymazať",
     "newMessages": "Nové správy",
     "queuedOffline": "Si offline. Správy sa odošlú, keď sa pripojenie obnoví.",
-    "tooLong": "Príliš dlhá: najviac {{max}} znakov. Skráťte ju, aby sa dala odoslať."
+    "tooLong": "Viac ako {{max}} znakov — skráť ju, aby sa dala odoslať.",
+    "docTitle": "{{name}} · Chat — DeadIsland",
+    "starter": "Téma na rozhovor:"
   },
   "profile": {
     "title": "Profil",
@@ -338,7 +353,9 @@
     "firstRun": {
       "title": "Vytvor si profil hráča",
       "subtitle": "Pridaj svoje hry a platformy. Hráči sa ti zobrazia hneď po uložení.",
-      "save": "Uložiť a nájsť hráčov"
+      "save": "Uložiť a nájsť hráčov",
+      "required": "Povinné: hry, platformy, žánre, meno, dátum narodenia, mesto. Zvyšok môže počkať.",
+      "welcome": "Hotovo! Toto sú hráči, s ktorými máš najviac spoločného"
     },
     "toFeed": "Na hráčov",
     "unsaved": "Neuložené zmeny",
@@ -357,6 +374,7 @@
       "playTimes": "Kto hrá v rovnakom čase ako ty, je v poradí vyššie."
     },
     "recommended": "Odporúčané",
+    "optional": "Nepovinné",
     "allSaved": "Všetky zmeny sú uložené",
     "savedOnDevice": "Uložené v zariadení"
   },

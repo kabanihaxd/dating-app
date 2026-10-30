@@ -51,3 +51,13 @@
     letter-spacing: 1px;
   }
 }
+
+// Чат на телефоне: шапка 48px вместо 56px. Высоту задают токены Material-тулбара —
+// переопределяем их только у этой шапки и только на узком экране. Кнопки-иконки (40–48px)
+// в 48px помещаются, логотип и меню остаются на месте.
+@media (max-width: 600px) {
+  .header.compact {
+    --mat-toolbar-standard-height: 48px;
+    --mat-toolbar-mobile-height: 48px;
+  }
+}

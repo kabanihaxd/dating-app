@@ -111,7 +111,11 @@
     <!-- Всё, что раскрывает кнопка «Подробнее», — в одном блоке: на него ссылается aria-controls. -->
     <div [id]="detailsId()">
       @if (otherGames().length) {
-        <p class="label">{{ 'feed.card.otherGames' | t }}</p>
+        <!-- «Другие игры» — другие по сравнению с общими. Общих нет — сравнивать не с чем,
+             и подпись просто «Игры». -->
+        <p class="label">
+          {{ (match().commonGames.length ? 'feed.card.otherGames' : 'feed.card.games') | t }}
+        </p>
         <div class="tags">
           @for (game of visibleOtherGames(); track game) {
             <span class="tag">{{ game }}</span>

@@ -3,6 +3,8 @@
      disabledInteractive оставляет кнопку фокусируемой и ставит aria-disabled="true" —
      а matMenuTrigger, увидев aria-disabled, сам не открывает меню ни кликом, ни клавишами.
      Вторая страховка — проверка busy() в начале каждого действия в moderation-menu.ts. -->
+<!-- Подсказка нужна мыши (навести и прочитать). На сенсорном экране (hover: none) она
+     после нажатия «залипала» поверх меню — там её выключаем; имя кнопки даёт aria-label. -->
 <button
   mat-icon-button
   type="button"
@@ -11,6 +13,7 @@
   disabledInteractive
   [attr.aria-label]="'moderation.menu' | t: { name: name() }"
   [matTooltip]="'moderation.menu' | t: { name: name() }"
+  [matTooltipDisabled]="noHover"
 >
   <mat-icon>more_vert</mat-icon>
 </button>

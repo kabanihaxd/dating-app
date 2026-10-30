@@ -150,12 +150,15 @@
             }
           </a>
 
-          <!-- Контакты — компактные чипы: ник копируется по нажатию, проверенная ссылка открывается
-               в новой вкладке. Сам ник виден в подсказке и полностью звучит в имени кнопки. -->
+          <!-- Контакты — компактные чипы «PSN · di_tester_1»: значение видно сразу, его можно
+               прочитать и набрать на консоли. Длинное обрезается многоточием, целиком — в подсказке
+               и в имени кнопки. Ник копируется по нажатию (чип на 1,5 с пишет «Скопировано»),
+               проверенная ссылка открывается в новой вкладке. -->
           @if (match.contacts.length) {
             <ul class="contacts" [attr.aria-label]="'matches.contactsOf' | t: { name }">
               @for (contact of match.contacts; track contact.field) {
                 @let platform = 'profile.contacts.' + contact.field | t;
+                @let key = match.id + ':' + contact.field;
                 <li>
                   @if (contact.isLink) {
                     <a
@@ -166,26 +169,43 @@
                       [matTooltip]="contact.value"
                       [attr.aria-label]="'matches.openProfileHint' | t: { platform, name }"
                     >
-                      {{ contact.short }}
+                      <span class="platform">{{ contact.short }}</span>
+                      <span class="value">{{ contact.shown ?? ('matches.profileWord' | t) }}</span>
                       <mat-icon aria-hidden="true">open_in_new</mat-icon>
                     </a>
                   } @else {
+                    @let copied = copiedKey() === key;
                     <button
                       type="button"
                       class="contact"
+                      [class.copied]="copied"
                       [matTooltip]="contact.value"
-                      (click)="copy(contact.value, platform)"
+                      (click)="copy(key, contact.value, platform)"
                       [attr.aria-label]="
                         'matches.copyNicknameValue' | t: { platform, name, nickname: contact.value }
                       "
                     >
-                      {{ contact.short }}
-                      <mat-icon aria-hidden="true">content_copy</mat-icon>
+                      <span class="platform">{{ contact.short }}</span>
+                      <span class="value">{{ copied ? ('matches.copied' | t) : contact.shown }}</span>
+                      <mat-icon aria-hidden="true">{{ copied ? 'check' : 'content_copy' }}</mat-icon>
                     </button>
                   }
                 </li>
               }
             </ul>
+            <!-- Запасной путь, если буфер обмена недоступен: поле только для чтения с ником.
+                 Код ставит в него фокус и выделяет текст — остаётся Ctrl+C или «Копировать». -->
+            @for (contact of match.contacts; track contact.field) {
+              @let key = match.id + ':' + contact.field;
+              @if (copyFailedKey() === key) {
+                <div class="manual-copy">
+                  <label [for]="'manual-' + key">
+                    {{ 'matches.copyManually' | t: { platform: ('profile.contacts.' + contact.field | t) } }}
+                  </label>
+                  <input [id]="'manual-' + key" type="text" readonly [value]="contact.value" />
+                </div>
+              }
+            }
           } @else {
             <p class="no-contacts">{{ 'matches.noContacts' | t }}</p>
           }

@@ -56,15 +56,21 @@ export class PlayerCard {
     const common = new Set(this.match().commonGames.map((game) => game.toLowerCase()));
     return this.player().games.filter((game) => !common.has(game.toLowerCase()));
   });
+  // Скрыть ровно одну игру за «+1» и кнопкой «Подробнее» — дороже, чем просто её показать:
+  // пилюля «+1» и кнопка занимают больше места, чем сама игра. Поэтому сворачиваем,
+  // только если прячется хотя бы две (иначе показываем все четыре сразу).
+  private readonly gamesFold = computed(() => this.otherGames().length > VISIBLE_OTHER_GAMES + 1);
   protected readonly visibleOtherGames = computed(() =>
-    this.expanded() ? this.otherGames() : this.otherGames().slice(0, VISIBLE_OTHER_GAMES),
+    this.expanded() || !this.gamesFold()
+      ? this.otherGames()
+      : this.otherGames().slice(0, VISIBLE_OTHER_GAMES),
   );
   protected readonly hiddenGames = computed(
     () => this.otherGames().length - this.visibleOtherGames().length,
   );
 
   protected readonly canExpand = computed(
-    () => this.otherGames().length > VISIBLE_OTHER_GAMES || this.player().bio.length > LONG_BIO,
+    () => this.gamesFold() || this.player().bio.length > LONG_BIO,
   );
 
   // Цвет полоски совместимости: от 70% — розовая, от 40% — бирюзовая, ниже — серая.

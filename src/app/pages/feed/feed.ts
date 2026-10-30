@@ -18,6 +18,7 @@ import { map, take } from 'rxjs';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { FirebaseError } from 'firebase/app';
 import { MatButtonModule } from '@angular/material/button';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -85,6 +86,17 @@ type Direction = 'like' | 'skip';
 type SwipeMode = 'now' | 'delayed' | 'match';
 // Фильтры, которые сейчас сужают выдачу, — ключи их подписей (feed.filters.*).
 type FilterName = 'game' | 'platform' | 'city' | 'age';
+// Включённый фильтр для «пусто»: имя (что сбрасывать) и подпись со значением — «Город: Zzzville».
+interface ActiveFilter {
+  name: FilterName;
+  label: string;
+}
+// Чего не хватает в профиле для подсказки над колодой: времени игры, жанров или обоих.
+type MissingProfile = 'both' | 'playTimes' | 'genres';
+// Сколько городов предлагать в подсказках к полю «Город».
+const CITY_SUGGESTIONS = 8;
+// Телефонная ширина — та же граница 600px, что в стилях (DESIGN.md).
+const PHONE_QUERY = '(max-width: 600px)';
 
 interface FeedItem {
   player: Player;
@@ -121,6 +133,7 @@ const TEXT_ENTRY =
     NgTemplateOutlet,
     ReactiveFormsModule,
     RouterLink,
+    MatAutocompleteModule,
     MatButtonModule,
     MatButtonToggleModule,
     MatFormFieldModule,
@@ -215,6 +228,8 @@ export class Feed {
   // строки «последнее действие» нет вовсе: «отправляется приглашение» было бы неправдой,
   // а «мэтч» — обещанием раньше времени. Сервер ответит — покажем «Мэтч: X · Написать».
   private matchingUid: string | null = null;
+  // Выдача только что обнулилась, но панель фильтров ещё не свёрнута (человек печатал в поле).
+  private collapsePending = false;
   // Длительность полоски «сколько осталось до отправки» — та же, что у таймера.
   protected readonly likeUndoMs = LIKE_UNDO_MS;
 
@@ -239,9 +254,17 @@ export class Feed {
   protected readonly likeHint = computed(() => !this.consentNoteSeen());
 
   // Подсказка нужна, если в профиле нет времени игры или жанров: без них совпадения беднее.
-  protected readonly profileHint = computed(() => {
+  // Возвращаем, ЧЕГО именно нет: раньше текст всегда просил «время игры и жанры», даже когда
+  // жанры уже заполнены, — человек шёл в профиль и не понимал, что там добавлять.
+  // null — подсказка не нужна (всё есть или её скрыли).
+  protected readonly profileHint = computed<MissingProfile | null>(() => {
     const me = this.me();
-    return !!me && !this.hintDismissed() && (!me.playTimes.length || !me.genres.length);
+    if (!me || this.hintDismissed()) {
+      return null;
+    }
+    const noTimes = !me.playTimes.length;
+    const noGenres = !me.genres.length;
+    return noTimes && noGenres ? 'both' : noTimes ? 'playTimes' : noGenres ? 'genres' : null;
   });
   private settleTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -299,17 +322,47 @@ export class Feed {
   // Сколько фильтров включено — число на кнопке «Фильтры», когда панель свёрнута.
   protected readonly activeFilters = computed(() => this.activeFilterNames().length);
 
-  // Подсказка в «никто не подходит под фильтры». Раньше она всегда винила возраст
-  // («Расширь возраст…»), даже когда выдачу обнулил город. Теперь называем то, что
-  // действительно включено: «Включены фильтры: Город, Возраст. Ослабь какой-нибудь…» —
-  // человек сразу видит, что трогать, и не ищет виноватого в поле, которое и так пустое.
-  protected readonly emptyFilteredHint = computed(() => {
-    const names = this.activeFilterNames();
-    if (!names.length) {
-      return this.i18n.translate('feed.emptyFiltered');
+  // Включённые фильтры со значениями — для «никто не подходит»: «Город: Zzzville», «Возраст: 25–40».
+  // Раньше там было только «Включены фильтры: Город» — без значения не видно, что именно
+  // слишком строго (опечатка в городе? не та игра?). Каждый — кнопка, которая снимает
+  // только этот фильтр, а не все сразу. Называем включённые, а не гадаем, какой виноват.
+  protected readonly activeFilterChips = computed<ActiveFilter[]>(() => {
+    const { game, platform, city, minAge, maxAge } = this.filterValues();
+    const a = clampAge(minAge || MIN_AGE);
+    const b = clampAge(maxAge || MAX_AGE);
+    const values: Record<FilterName, string> = {
+      game,
+      platform: platform ? this.i18n.translate(`catalog.platforms.${platform}`) : '',
+      city: city.trim(),
+      // Тире между числами — диапазон; поля могли перепутать местами, как и в results.
+      age: `${Math.min(a, b)}–${Math.max(a, b)}`,
+    };
+    return this.activeFilterNames().map((name) => ({
+      name,
+      label: `${this.i18n.translate(`feed.filters.${name}`)}: ${values[name]}`,
+    }));
+  });
+
+  // Город в фильтре — свободный текст, и опечатка («Kyiv» / «Kiev») молча давала пустоту.
+  // Подсказываем города, которые реально есть у загруженных игроков (mat-autocomplete):
+  // совпадение с начала названия идёт первым, потом — по любой его части.
+  protected readonly cityOptions = computed(() => {
+    const query = this.filterValues().city.trim().toLowerCase();
+    const cities = new Map<string, string>();
+    for (const player of this.players()) {
+      const city = player.city.trim();
+      if (city && !cities.has(city.toLowerCase())) {
+        cities.set(city.toLowerCase(), city);
+      }
     }
-    const list = names.map((name) => this.i18n.translate(`feed.filters.${name}`)).join(', ');
-    return this.i18n.translate('feed.emptyFilteredBy', { list });
+    return [...cities.entries()]
+      .filter(([key]) => key.includes(query) && key !== query)
+      .sort(
+        ([a], [b]) =>
+          Number(b.startsWith(query)) - Number(a.startsWith(query)) || a.localeCompare(b),
+      )
+      .slice(0, CITY_SUGGESTIONS)
+      .map(([, city]) => city);
   });
 
   // Варианты для фильтра «Игра» двумя группами: сначала мои игры, потом игры других игроков.
@@ -367,6 +420,11 @@ export class Feed {
       );
   });
 
+  // «Никто не подходит под фильтры»: игроки есть, но фильтры отсекли всех.
+  protected readonly filteredEmpty = computed(
+    () => !!this.me() && !this.results().length && this.remaining().length > 0,
+  );
+
   // В колоде рисуем двух: текущего и следующего «выглядывающего» из-за него.
   protected readonly deck = computed(() => this.results().slice(0, 2));
   protected readonly current = computed(() => this.results()[0] ?? null);
@@ -403,6 +461,24 @@ export class Feed {
     effect(() => {
       const list = this.results();
       untracked(() => this.watchFocusedCard(list));
+    });
+    // На телефоне открытая панель фильтров занимает весь первый экран, и сообщение «никто
+    // не подходит» оказывалось ниже края — казалось, что фильтр просто ничего не сделал.
+    // Выдача обнулилась — сворачиваем панель, и сообщение (с фильтрами-кнопками) сразу на виду.
+    // Только в момент перехода «были игроки → пусто» (или при загрузке): если человек сам
+    // открыл панель, чтобы поправить фильтры, — её у него не отбираем.
+    let wasEmpty = false;
+    effect(() => {
+      const empty = this.filteredEmpty();
+      if (empty && !wasEmpty) {
+        this.collapsePending = true;
+        untracked(() =>
+          afterNextRender(() => this.collapseFiltersIfEmpty(), { injector: this.injector }),
+        );
+      } else if (!empty) {
+        this.collapsePending = false;
+      }
+      wasEmpty = empty;
     });
     // Строка «последнее действие» сменилась — её могли перерисовать в другом месте (последняя
     // карточка ушла, и вместо колоды — «пусто»). Старый элемент удалён, а «прощальных» событий
@@ -442,6 +518,79 @@ export class Feed {
 
   protected resetFilters(): void {
     this.filters.reset();
+    this.keepFocusAfterFilter(0);
+  }
+
+  // Кнопка-фильтр в «никто не подходит»: снимает только этот фильтр.
+  protected clearFilter(name: FilterName, index: number): void {
+    if (name === 'age') {
+      this.filters.patchValue({ minAge: MIN_AGE, maxAge: MAX_AGE });
+    } else {
+      this.filters.controls[name].setValue('');
+    }
+    this.keepFocusAfterFilter(index);
+  }
+
+  // Нажатая кнопка («Сбросить», «Город: Zzzville ✕») исчезла — фокус не бросаем на <body>.
+  // Если всё ещё пусто — на соседнюю кнопку-фильтр (или «Сбросить»), если игроки нашлись —
+  // на имя первого, иначе — на заголовок страницы.
+  private keepFocusAfterFilter(index: number): void {
+    afterNextRender(
+      () => {
+        const active = this.document.activeElement;
+        if (active && active !== this.document.body && active.isConnected) {
+          return;
+        }
+        const chips = this.document.querySelectorAll<HTMLElement>('.filter-chips button');
+        const next = this.current();
+        const target =
+          chips[Math.min(index, chips.length - 1)] ??
+          this.document.querySelector<HTMLElement>('.empty-reset') ??
+          this.document.getElementById(next ? `player-${next.player.uid}-name` : 'feed-title');
+        target?.focus();
+      },
+      { injector: this.injector },
+    );
+  }
+
+  // Свернуть панель фильтров, если выдача пустая (только на телефоне, см. effect
+  // в конструкторе). Пока человек печатает в поле (город, возраст), не трогаем: панель
+  // исчезла бы из-под пальцев посреди слова. Свернём, когда он уйдёт из полей (onFiltersFocusOut).
+  private collapseFiltersIfEmpty(): void {
+    // Открыт выпадающий список (он живёт в оверлее) — человек ещё выбирает.
+    const busy = this.document.activeElement?.closest(
+      '#feed-filters input, .cdk-overlay-container',
+    );
+    if (
+      !this.collapsePending ||
+      this.destroyed ||
+      !this.filteredEmpty() ||
+      !this.filtersOpen() ||
+      !this.document.defaultView?.matchMedia(PHONE_QUERY).matches ||
+      busy
+    ) {
+      return;
+    }
+    this.collapsePending = false;
+    // Фокус был в панели (например, на выпадающем списке) — после сворачивания переводим
+    // его на кнопку «Фильтры»: она же и откроет панель обратно.
+    const hadFocus = !!this.document.activeElement?.closest('#feed-filters');
+    this.toggleFilters();
+    if (hadFocus) {
+      afterNextRender(() => this.document.querySelector<HTMLElement>('.filters-toggle')?.focus(), {
+        injector: this.injector,
+      });
+    }
+  }
+
+  // Фокус ушёл из поля панели. relatedTarget — куда он переходит: в другое поле той же
+  // панели — человек ещё настраивает, ждём. setTimeout — дать фокусу «доехать» до цели.
+  protected onFiltersFocusOut(event: FocusEvent): void {
+    const form = event.currentTarget as HTMLElement;
+    if (form.contains(event.relatedTarget as Node | null)) {
+      return;
+    }
+    setTimeout(() => this.collapseFiltersIfEmpty());
   }
 
   protected toggleFilters(): void {

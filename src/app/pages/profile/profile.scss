@@ -59,6 +59,48 @@ form :where(*) {
   margin-bottom: 12px;
 }
 
+// «* Обязательно: …» на первом заходе — тише подзаголовка (13px), чтобы читалась как пояснение,
+// а не как ещё одно обещание. Отступ сверху отделяет её от подзаголовка.
+.required-note {
+  margin: 8px 0 0;
+  color: var(--di-text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+// «Можно позже» — та же серая таблетка, что «Рекомендуем» у времени игры (DESIGN.md → Chips / Tags).
+// Стоит у заголовка «Контакты» (там h2 — Orbitron и циан, поэтому шрифт и цвет сбрасываем) и у фото.
+.optional-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid rgba(154, 154, 176, 0.35);
+  border-radius: 999px;
+  font-family: var(--mat-sys-body-medium-font, inherit);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  line-height: 1.5;
+  color: var(--di-text-muted);
+  vertical-align: 1px;
+}
+
+.photo-actions .optional-tag {
+  margin-left: 0;
+}
+
+// Пустое поле даты (класс date-blank ставит profile.html): прячем маску «дд.мм.гггг», пока поле
+// не в фокусе, — так оно выглядит пустым, как остальные пустые поля. В фокусе маска видна:
+// по ней понятно, в каком порядке вводить. Значок календаря не прячем — он подсказывает, что это дата.
+// ::-webkit-datetime-edit — внутренняя часть поля в Chrome/Edge/Safari; Firefox просто покажет маску как раньше.
+input.date-blank:not(:focus) {
+  color: transparent;
+
+  &::-webkit-datetime-edit {
+    color: transparent;
+  }
+}
+
 .skeleton-form {
   display: flex;
   flex-direction: column;
@@ -316,6 +358,8 @@ mat-chip-listbox {
 // текста ошибки: тот же цвет и шрифт, подчёркивание показывает, что на него можно нажать.
 // Сброс кнопочных стилей браузера (рамка, фон, отступы), чтобы она встала в строку как слово.
 .field-link {
+  // position: relative — опора для невидимой «площадки» ::after ниже.
+  position: relative;
   padding: 0;
   border: 0;
   background: none;
@@ -327,6 +371,17 @@ mat-chip-listbox {
 
   &:hover {
     text-decoration-thickness: 2px;
+  }
+
+  // Слово 13px — цель высотой ~18px, пальцем по ней легко промахнуться (гайды мобилок просят 44).
+  // Растягиваем не саму кнопку (строка стала бы выше, а панель — толще), а невидимый ::after
+  // поверх неё: на 13px вверх и вниз, итого ~44px. Места в строке он не занимает — текст
+  // ложится и переносится как раньше. Площадки соседних строк чуть перекрываются; это не страшно:
+  // нажатие всё равно попадёт в одно из имён рядом с пальцем.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -13px -2px;
   }
 
   // Рамка фокуса с клавиатуры — того же цвета ошибки, чтобы было видно, на каком поле стоишь.

@@ -161,6 +161,13 @@ export class Profile implements HasUnsavedChanges {
   protected readonly photo = signal<string | null>(null);
   protected readonly photoErrorKey = signal<string | null>(null);
   protected readonly gameQuery = signal('');
+  // Показать ВЕСЬ список популярных игр при пустом поле. Только по явной просьбе — стрелке вниз.
+  // Просто фокус (Tab, клик, переход из списка ошибок) список не открывает: он закрыл бы
+  // текст ошибки под полем и группу «Платформы», а диктор прочитал бы список вместо ошибки.
+  protected readonly browseGames = signal(false);
+  // В поле даты начали вводить, но не дописали: value ещё пустой, а цифры на экране уже есть.
+  // Тогда маску «дд.мм.гггг» не прячем — иначе недописанные цифры исчезли бы (см. profile.html).
+  protected readonly birthDatePartial = signal(false);
   // Первый заход: анкеты в базе ещё нет. Тогда страница — «собери профиль», а после сохранения ведём в ленту.
   protected readonly isNew = signal(false);
   // Анкету только что создали, но в ленту сами не увели (вернулись со Steam/Discord, не было сети,
@@ -214,14 +221,27 @@ export class Profile implements HasUnsavedChanges {
   });
 
   // form.events — поток ВСЕХ событий формы: смена значения, статуса, touched, dirty/pristine.
-  // Сама форма не signal, поэтому computed ниже не узнал бы о markAsDirty/markAsPristine.
+  // Сама форма не signal, поэтому computed ниже не узнал бы, что значение или статус поменялись.
   // Читая formEvent(), computed подписывается на этот поток и пересчитывается после каждого события.
   private readonly formEvent = toSignal(this.form.events);
 
-  // Есть несохранённые правки — от этого зависят значок «не сохранено» и кнопка «Сохранить».
-  protected readonly dirty = computed(() => {
+  // «Снимок» анкеты, которая сейчас лежит в базе: строка JSON из значений формы и фото.
+  // Ставим его после загрузки и после каждого сохранения. null — снимка ещё нет (анкета грузится).
+  private readonly savedSnapshot = signal<string | null>(null);
+
+  // Тот же снимок, но для того, что сейчас на экране. Пересчитывается на каждое событие формы и смену фото.
+  private readonly currentSnapshot = computed(() => {
     this.formEvent();
-    return this.form.dirty;
+    return this.snapshot();
+  });
+
+  // Есть несохранённые правки — от этого зависят значок «не сохранено», кнопка «Сохранить» и guard ухода.
+  // Сравниваем ЗНАЧЕНИЯ, а не флаг form.dirty. dirty — это «поле трогали», а не «значение другое»:
+  // его ставит, например, список чипов игр, когда фокус просто прошёл через поле, и он не снимается,
+  // если человек вернул всё как было. Сравнение снимков честнее: стёр правку — снова «всё сохранено».
+  protected readonly dirty = computed(() => {
+    const saved = this.savedSnapshot();
+    return saved !== null && this.currentSnapshot() !== saved;
   });
 
   // Поля с ошибками, в порядке страницы: путь (по нему ищем элемент для фокуса) и подпись ('Город').
@@ -270,8 +290,13 @@ export class Profile implements HasUnsavedChanges {
   });
 
   // Подсказки: популярные игры, которые подходят под набранный текст и ещё не выбраны.
+  // Пустое поле и стрелку вниз не нажимали — подсказок нет. Пустой mat-autocomplete панель
+  // не показывает вовсе, даже если фокус пришёл в поле: так список не всплывает «сам».
   protected readonly suggestions = computed(() => {
     const query = this.gameQuery().trim().toLowerCase();
+    if (!query && !this.browseGames()) {
+      return [];
+    }
     const chosen = new Set(this.games().map((game) => game.toLowerCase()));
     return POPULAR_GAMES.filter(
       (game) => !chosen.has(game.toLowerCase()) && game.toLowerCase().includes(query),
@@ -305,11 +330,11 @@ export class Profile implements HasUnsavedChanges {
       return;
     } else {
       this.form.controls.games.setValue([...games, name]);
-      this.form.controls.games.markAsDirty();
       this.gameRejection.set(null);
     }
     input.value = '';
     this.gameQuery.set('');
+    this.browseGames.set(false);
   }
 
   // Набрали в поле игр текст и сразу нажали «Сохранить» (или Enter в другом поле) — не теряем его.
@@ -325,11 +350,21 @@ export class Profile implements HasUnsavedChanges {
     this.gameRejection.set(null);
   }
 
+  // Стрелка вниз в пустом поле — явная просьба «покажи, из чего выбрать». Включаем полный список;
+  // саму панель откроет mat-autocomplete (он тоже слушает стрелки), как только в ней появятся пункты.
+  protected browseAllGames(): void {
+    this.browseGames.set(true);
+  }
+
+  // Панель закрылась (Esc, ушли из поля, выбрали игру) — при следующем фокусе списка снова нет.
+  protected stopBrowsingGames(): void {
+    this.browseGames.set(false);
+  }
+
   protected removeGame(name: string): void {
     this.form.controls.games.setValue(
       this.form.controls.games.value.filter((game) => game !== name),
     );
-    this.form.controls.games.markAsDirty();
   }
 
   protected async onPhotoSelected(input: HTMLInputElement): Promise<void> {
@@ -344,8 +379,8 @@ export class Profile implements HasUnsavedChanges {
       return;
     }
     try {
+      // Фото — signal, и он входит в снимок (currentSnapshot), так что «не сохранено» загорится само.
       this.photo.set(await resizeImage(file));
-      this.form.markAsDirty();
     } catch {
       this.photoErrorKey.set('profile.photo.invalid');
     }
@@ -353,13 +388,12 @@ export class Profile implements HasUnsavedChanges {
 
   protected removePhoto(): void {
     this.photo.set(null);
-    this.form.markAsDirty();
   }
 
   // Для guard'а и beforeunload. Пока идёт сохранение, правки тоже считаем несохранёнными:
   // ответа сервера ещё нет, и при плохой сети запись может не дойти — молча отпускать нельзя.
   hasUnsavedChanges(): boolean {
-    return this.form.dirty || this.saving();
+    return this.dirty() || this.saving();
   }
 
   // Внутри приложения запись из очереди Firestore не пропадёт (база живёт, пока открыта вкладка),
@@ -436,9 +470,14 @@ export class Profile implements HasUnsavedChanges {
     }
     // Во время сохранения могли что-то поправить — тогда форма осталась «грязной», и уводить
     // в ленту нельзя (guard спросил бы «уйти без сохранения?»). Остаёмся, как при обычном сохранении.
-    if (wasNew && !this.form.dirty) {
+    if (wasNew && !this.dirty()) {
       // Анкета готова — сразу показываем то, ради чего её заполняли: ленту игроков.
-      this.snackBar.open(saved, undefined, { duration: 3000 });
+      // Наградой будет сама лента, поэтому вместо сухого «Профиль сохранён» — короткая фраза о том,
+      // что человек сейчас видит. Снекбар внизу, над панелью действий ленты (её отступ
+      // задаёт styles.scss), так что первую карточку он не закрывает.
+      this.snackBar.open(this.i18n.translate('profile.firstRun.welcome'), undefined, {
+        duration: 4000,
+      });
       await this.router.navigate(['/feed']);
       return;
     }
@@ -472,7 +511,7 @@ export class Profile implements HasUnsavedChanges {
   // На телефоне панель занимает всю ширину — там снекбар как везде, над ней по центру.
   private barSnack(duration: number): MatSnackBarConfig {
     const inBar =
-      !this.destroyed && !this.form.dirty && this.window.matchMedia('(min-width: 601px)').matches;
+      !this.destroyed && !this.dirty() && this.window.matchMedia('(min-width: 601px)').matches;
     return inBar
       ? { duration, horizontalPosition: 'start', panelClass: 'di-bar-snack' }
       : { duration };
@@ -488,11 +527,11 @@ export class Profile implements HasUnsavedChanges {
     this.statusKey.set(null);
     this.showInvalid.set(false);
     // Снимок того, что отправили. Пока ждём сервер, человек может печатать дальше —
-    // эти новые правки не должны пропасть, поэтому «всё сохранено» (pristine) ставим,
-    // только если форма и фото не изменились с момента отправки.
+    // эти новые правки не должны пропасть. Поэтому «сохранённым» объявляем именно отправленное:
+    // если на экране уже другое, dirty() останется true сам, без особых проверок.
     const submitted = this.form.getRawValue();
     const photo = this.photo();
-    const snapshot = JSON.stringify([submitted, photo]);
+    const snapshot = this.snapshot();
     const { contacts, ...profile } = submitted;
     try {
       await withNetworkTimeout(
@@ -500,15 +539,15 @@ export class Profile implements HasUnsavedChanges {
         this.window,
       );
       this.isNew.set(false); // анкета теперь есть в базе
-      this.markSavedIfUnchanged(snapshot);
+      this.savedSnapshot.set(snapshot);
       return 'saved';
     } catch (error) {
       if (error instanceof NetworkTimeoutError) {
         // Честно: «не сохранилось» тут было бы неправдой. Запись лежит в очереди на устройстве —
-        // для формы это «сохранено» (pristine, guard не пугает потерей), а pendingSync помнит,
+        // для формы это «сохранено» (guard не пугает потерей), а pendingSync помнит,
         // что до сервера она ещё не дошла.
         this.isNew.set(false);
-        this.markSavedIfUnchanged(snapshot);
+        this.savedSnapshot.set(snapshot);
         this.waitForSync(error.pending);
         return 'queued';
       }
@@ -526,11 +565,10 @@ export class Profile implements HasUnsavedChanges {
     }
   }
 
-  // «Всё сохранено» (pristine) ставим, только если форма и фото не изменились с момента отправки.
-  private markSavedIfUnchanged(snapshot: string): void {
-    if (JSON.stringify([this.form.getRawValue(), this.photo()]) === snapshot) {
-      this.form.markAsPristine();
-    }
+  // Всё, что сохраняем в базу, одной строкой: значения формы и фото. Строки удобно сравнивать:
+  // две равны, только если равны все поля, включая списки игр и чипов (и их порядок).
+  private snapshot(): string {
+    return JSON.stringify([this.form.getRawValue(), this.photo()]);
   }
 
   // Запись ушла в очередь Firestore. Показываем «сохранено на устройстве» и ждём, чем кончится:
@@ -561,8 +599,10 @@ export class Profile implements HasUnsavedChanges {
           this.snackBar.open(this.i18n.translate(key), undefined, { duration: 5000 });
           return;
         }
-        this.form.markAsDirty(); // правки до сервера не дошли — «Сохранить» снова активна
-        this.errorKey.set(key); // markAsDirty не меняет значения, так что подписка ошибку не сотрёт
+        // Правки до сервера не дошли — в базе их нет. Пустая строка не совпадёт ни с одним снимком,
+        // поэтому dirty() станет true, и «Сохранить» снова загорится.
+        this.savedSnapshot.set('');
+        this.errorKey.set(key); // значения формы не менялись, так что подписка ошибку не сотрёт
       },
     );
   }
@@ -578,7 +618,7 @@ export class Profile implements HasUnsavedChanges {
     this.flushGameInput();
     // Первый заход: после возврата с платформы страница должна помнить, что дальше путь — в ленту.
     const firstRun = this.isNew() || this.readyForFeed();
-    if ((this.form.dirty || this.isNew()) && this.form.valid) {
+    if ((this.dirty() || this.isNew()) && this.form.valid) {
       const result = await this.persist();
       if (!result) {
         return; // не сохранилось — остаёмся, ошибка уже под кнопкой
@@ -592,7 +632,7 @@ export class Profile implements HasUnsavedChanges {
       }
     }
     // Ещё грязная: либо ошибки в полях, либо что-то поправили, пока шло сохранение.
-    if (this.form.dirty && !(await confirmLeave(this.dialog, this.i18n))) {
+    if (this.dirty() && !(await confirmLeave(this.dialog, this.i18n))) {
       return;
     }
     this.leavingForConnect = true;
@@ -650,19 +690,18 @@ export class Profile implements HasUnsavedChanges {
   // Вернулись с платформы: подставляем ссылку и сразу сохраняем её, чтобы не пришлось жать «Сохранить».
   private async finishConnect(): Promise<void> {
     const contacts = this.form.controls.contacts;
-    // Ссылка уже стоит в поле, но в базу ещё не записана.
-    let linkInForm = false;
     try {
       const result = await this.connect.finish();
       if (!result) {
         return;
       }
       contacts.controls[result.field].setValue(result.link);
-      linkInForm = true;
       await withNetworkTimeout(
         this.profiles.saveContacts(this.uid, this.trimmed(contacts.getRawValue())),
         this.window,
       );
+      // Ссылка теперь в базе — она часть «сохранённого» снимка.
+      this.savedSnapshot.set(this.snapshot());
       const platform = this.i18n.translate(`profile.contacts.${result.field}`);
       this.snackBar.open(
         this.i18n.translate('profile.connect.done', { platform }),
@@ -672,15 +711,13 @@ export class Profile implements HasUnsavedChanges {
     } catch (error) {
       if (error instanceof NetworkTimeoutError) {
         // Ссылку получили, и она стоит в очереди на устройстве — это не «не удалось подключить».
+        this.savedSnapshot.set(this.snapshot());
         this.waitForSync(error.pending);
         return;
       }
       console.error(error);
-      if (linkInForm) {
-        // Ссылку получили, а записать не смогли. Помечаем контакты «изменёнными» —
-        // тогда загорится «Сохранить», и ссылку можно сохранить вручную, не подключаясь заново.
-        contacts.markAsDirty();
-      }
+      // Если ссылку получили, а записать не смогли, — она стоит в поле, но не в сохранённом снимке.
+      // Значит, dirty() уже true: «Сохранить» горит, ссылку можно сохранить вручную, не подключаясь заново.
       // Ошибку ставим ПОСЛЕ setValue: иначе подписка «любая правка стирает ошибку» сразу бы её убрала.
       this.errorKey.set('profile.connect.failed');
     }
@@ -729,6 +766,10 @@ export class Profile implements HasUnsavedChanges {
       if (contacts) {
         this.form.controls.contacts.patchValue(contacts);
       }
+      // То, что сейчас в форме, и есть «сохранённое» — от этого снимка считаем правки.
+      // На первом заходе в базе пусто, но точкой отсчёта всё равно берём то, что показали
+      // (имя из Google): ничего не тронул — уйти можно без вопроса.
+      this.savedSnapshot.set(this.snapshot());
     } catch (error) {
       this.loadErrorKey.set(firestoreErrorKey(error));
       return;

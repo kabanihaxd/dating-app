@@ -2,6 +2,14 @@
   <!-- Первый заход (анкеты ещё нет) — приветствие и обещание: после сохранения сразу откроется лента. -->
   <h1 tabindex="-1">{{ (isNew() ? 'profile.firstRun.title' : 'profile.title') | t }}</h1>
   <p class="subtitle">{{ (isNew() ? 'profile.firstRun.subtitle' : 'profile.subtitle') | t }}</p>
+  @if (isNew() && !loading()) {
+    <!-- Первый заход: полей много (13), обязательных — шесть. Одни звёздочки этого не объясняют,
+         поэтому один раз, наверху, говорим словами, что нужно сейчас, а что подождёт.
+         Звёздочка в начале связывает строку со звёздочками у полей; диктору она лишняя. -->
+    <p class="required-note">
+      <span aria-hidden="true">* </span>{{ 'profile.firstRun.required' | t }}
+    </p>
+  }
 
   @if (loading()) {
     <!-- Скелетон: круг фото и полосы полей формы. -->
@@ -54,11 +62,15 @@
           matChipInputAddOnBlur
           [matAutocomplete]="auto"
           (input)="onGameTyped(gameInput.value)"
+          (keydown.arrowdown)="browseAllGames()"
           (matChipInputTokenEnd)="addGame($event.value, gameInput)"
         />
+        <!-- Подсказки появляются, только когда начали печатать (или нажали стрелку вниз), —
+             не от фокуса: иначе список закрывал бы ошибку под полем и платформы (см. suggestions в profile.ts). -->
         <mat-autocomplete
           #auto="matAutocomplete"
           (optionSelected)="addGame($event.option.value, gameInput)"
+          (closed)="stopBrowsingGames()"
         >
           @for (game of suggestions(); track game) {
             <!-- preventDefault на mousedown: клик по подсказке не уводит фокус с поля.
@@ -157,6 +169,9 @@
             <button mat-button type="button" (click)="removePhoto()">
               {{ 'profile.photo.remove' | t }}
             </button>
+          } @else if (isNew()) {
+            <!-- Первый заход: фото не обязательно — говорим прямо, чтобы на нём не застревали. -->
+            <span class="optional-tag">{{ 'profile.optional' | t }}</span>
           }
           @if (photoErrorKey(); as key) {
             <!-- role="alert": фото выбирают в системном окне, глазами ошибку легко пропустить — диктор прочитает сразу. -->
@@ -182,12 +197,19 @@
 
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>{{ 'profile.birthDate' | t }}</mat-label>
+          <!-- Пустое поле даты браузер всё равно заполняет маской «дд.мм.гггг», а Material у даты
+               всегда поднимает подпись — и пустое поле выглядит заполненным. Класс date-blank прячет
+               маску, пока поле пустое и не в фокусе (см. profile.scss). Недописанную дату
+               (validity.badInput: value ещё пустой, но цифры уже есть) не прячем — её запоминаем на blur. -->
           <input
+            #birthInput
             matInput
             type="date"
             formControlName="birthDate"
             data-field="birthDate"
             [max]="maxBirthDate"
+            [class.date-blank]="!form.controls.birthDate.value && !birthDatePartial()"
+            (blur)="birthDatePartial.set(birthInput.validity.badInput)"
           />
           @if (form.controls.birthDate.hasError('required')) {
             <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
@@ -216,6 +238,9 @@
           rows="4"
           [placeholder]="'profile.bioPlaceholder' | t"
         ></textarea>
+        @if (isNew()) {
+          <mat-hint>{{ 'profile.optional' | t }}</mat-hint>
+        }
         <mat-hint align="end">{{ form.controls.bio.value.length }} / {{ maxBioLength }}</mat-hint>
         @if (form.controls.bio.hasError('maxlength')) {
           <mat-error>{{ 'profile.errors.maxLength' | t: { max: maxBioLength } }}</mat-error>
@@ -223,7 +248,13 @@
       </mat-form-field>
 
       <!-- ===== Контакты ===== -->
-      <h2>{{ 'profile.sections.contacts' | t }}</h2>
+      <h2>
+        {{ 'profile.sections.contacts' | t }}
+        <!-- Первый заход: контакты целиком можно заполнить потом — для подбора они не нужны. -->
+        @if (isNew()) {
+          <span class="optional-tag">{{ 'profile.optional' | t }}</span>
+        }
+      </h2>
       <p class="hint"><mat-icon inline>lock</mat-icon> {{ 'profile.contactsHint' | t }}</p>
 
       <div class="contacts" formGroupName="contacts">

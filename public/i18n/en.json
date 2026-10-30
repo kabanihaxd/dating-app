@@ -4,7 +4,8 @@
     "matches": "Matches",
     "profile": "Profile",
     "login": "Log in",
-    "logout": "Log out"
+    "logout": "Log out",
+    "skipToContent": "Skip to content"
   },
   "common": {
     "loading": "Loading…",
@@ -78,7 +79,6 @@
     "count": "Players found: {{count}}",
     "emptyTitle": "No other players yet",
     "empty": "Invite your gamer friends — they'll appear here once they sign up.",
-    "emptyFiltered": "Try loosening the filters or reset them all.",
     "noProfile": {
       "title": "Fill in your profile first",
       "text": "To find your player 2, we need to know your games and platforms.",
@@ -96,11 +96,13 @@
       "activeCount": "active: {{count}}",
       "myGames": "My games",
       "otherGames": "Other players' games",
-      "age": "Age"
+      "age": "Age",
+      "remove": "Remove filter {{label}}"
     },
     "card": {
       "match": "{{percent}}% match",
       "commonGames": "Games in common",
+      "games": "Games",
       "otherGames": "Other games",
       "likedMe": "Likes you",
       "like": "Player 2?",
@@ -170,8 +172,16 @@
       "improveHint": "More games and play times mean more matches with new players."
     },
     "hint": {
-      "title": "Add your play times and genres",
-      "text": "— players who game at the same times and like the same genres will rank higher.",
+      "title": {
+        "both": "Add your play times and genres",
+        "playTimes": "Add your play times",
+        "genres": "Add your favourite genres"
+      },
+      "text": {
+        "both": "— players who game at the same times and like the same genres will rank higher.",
+        "playTimes": "— players who game at the same times will rank higher.",
+        "genres": "— players who like the same genres will rank higher."
+      },
       "cta": "Add",
       "dismiss": "Hide tip"
     },
@@ -191,7 +201,7 @@
     "deckLabel": "Player deck",
     "emptyFilteredTitle": "No players found",
     "countShort": "Players: {{count}}",
-    "emptyFilteredBy": "Filters on: {{list}}. Loosen one of them or reset them all."
+    "emptyFilteredBy": "Remove a filter or reset them all."
   },
   "auth": {
     "loginTitle": "Log in",
@@ -233,8 +243,11 @@
     "you": "You",
     "unread": "New message",
     "chatWith": "Chat with {{name}}",
-    "copiedNickname": "{{platform}} nickname copied",
-    "copyFailed": "Couldn't copy. Select the nickname and copy it manually.",
+    "copiedValue": "Copied ({{platform}}): {{value}}",
+    "copied": "Copied",
+    "copyFailed": "Couldn't copy. The nickname is selected in the field under the contacts — copy it manually.",
+    "copyManually": "{{platform}} nickname — copy it manually (Ctrl+C or long press):",
+    "profileWord": "profile",
     "openProfileHint": "Open {{name}}'s {{platform}} profile in a new tab",
     "loadFailed": "Couldn't load matches: {{count}}",
     "new": "New match",
@@ -275,7 +288,9 @@
     "discard": "Delete",
     "newMessages": "New messages",
     "queuedOffline": "You're offline. Your messages will be sent when you're back online.",
-    "tooLong": "Too long: {{max}} characters max. Shorten it to send."
+    "tooLong": "Over {{max}} characters — shorten it to send.",
+    "docTitle": "{{name}} · Chat — DeadIsland",
+    "starter": "Something to talk about:"
   },
   "profile": {
     "title": "Profile",
@@ -338,7 +353,9 @@
     "firstRun": {
       "title": "Build your player profile",
       "subtitle": "Add your games and platforms. Players to match with appear right after you save.",
-      "save": "Save and find players"
+      "save": "Save and find players",
+      "required": "Required: games, platforms, genres, name, birth date, city. The rest can wait.",
+      "welcome": "All set! These are the players you have the most in common with"
     },
     "toFeed": "See players",
     "unsaved": "Unsaved changes",
@@ -357,6 +374,7 @@
       "playTimes": "Players who play at the same time as you rank higher."
     },
     "recommended": "Recommended",
+    "optional": "Optional",
     "allSaved": "All changes saved",
     "savedOnDevice": "Saved on this device"
   },

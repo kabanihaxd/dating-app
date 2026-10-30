@@ -11,6 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Title } from '@angular/platform-browser';
 import { Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TextFieldModule } from '@angular/cdk/text-field';
@@ -33,7 +34,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { matchScore } from '../../core/matching/match-score';
 import { NotificationService } from '../../core/notifications/notifications';
 import { ProfileService } from '../../core/profile/profile';
-import { UserProfile } from '../../core/profile/profile.model';
+import { PlayTime, UserProfile } from '../../core/profile/profile.model';
 import { ErrorState } from '../../shared/error-state/error-state';
 import { ModerationMenu } from '../../shared/moderation-menu/moderation-menu';
 import { StateMessage } from '../../shared/state-message/state-message';
@@ -60,6 +61,17 @@ const LEAVING_TIMEOUT_MS = 15000;
 // «Почти внизу» — до низа списка осталось меньше этого (в пикселях). Ровно 0 требовать нельзя:
 // поле ввода, вырастая на строку, чуть сдвигает низ, и человек «внизу» оказался бы «не внизу».
 const NEAR_BOTTOM_PX = 80;
+
+// «Тема для разговора» над полем ввода видна, пока переписка только начинается:
+// всего сообщений меньше STARTER_MAX, или их меньше STARTER_MAX_MY_TURN и последнее — от собеседника
+// (мой ход отвечать, а о чём — подскажут общие игры). Дальше разговор идёт сам, и строка исчезает.
+const STARTER_MAX = 3;
+const STARTER_MAX_MY_TURN = 6;
+// Сколько общих игр показывать в этой строке: она должна оставаться короткой и не съедать переписку.
+const STARTER_GAMES = 4;
+
+// Название вкладки, когда открыта не страница чата (в index.html то же самое).
+const DEFAULT_TITLE = 'DeadIsland';
 
 // Сообщения одного человека, отправленные с паузой не больше 5 минут, — одна «серия» (группа).
 const GROUP_GAP_MS = 5 * 60 * 1000;
@@ -143,6 +155,8 @@ export class Chat {
   private readonly notifications = inject(NotificationService);
   private readonly i18n = inject(I18n);
   private readonly router = inject(Router);
+  // Title — сервис Angular для заголовка вкладки браузера (<title> в <head>).
+  private readonly title = inject(Title);
 
   // id мэтча из адреса /chat/:matchId. Роутер сам кладёт параметр в input (withComponentInputBinding).
   // Если из одного чата перейти в другой, Angular переиспользует компонент и просто меняет input —
@@ -170,6 +184,8 @@ export class Chat {
   protected readonly partner = signal<UserProfile | null>(null);
   protected readonly partnerUid = signal<string | null>(null);
   protected readonly commonGames = signal<string[]>([]);
+  // Общее время игры (утром, вечером, на выходных…) — второй повод для разговора.
+  protected readonly commonPlayTimes = signal<PlayTime[]>([]);
   private readonly messages = signal<ChatMessage[]>([]);
   // Идёт ли сейчас отправка — пока да, второй Enter/нажатие кнопки ничего не делает (см. send).
   // Кнопку по нему НЕ выключаем: выключенная кнопка теряет фокус, и на телефоне закрывается клавиатура.
@@ -243,6 +259,20 @@ export class Chat {
     });
   });
 
+  // Строка «Тема для разговора» над полем ввода (см. STARTER_MAX). В пустом чате она не нужна:
+  // там те же общие игры уже показывает приветствие посреди списка.
+  protected readonly starter = computed(() => {
+    const list = this.messages();
+    const games = this.commonGames().slice(0, STARTER_GAMES);
+    const times = this.commonPlayTimes();
+    if (this.state() !== 'ready' || !list.length || (!games.length && !times.length)) {
+      return null;
+    }
+    const myTurn = list.at(-1)!.from !== this.me;
+    const early = list.length < STARTER_MAX || (myTurn && list.length < STARTER_MAX_MY_TURN);
+    return early ? { games, times } : null;
+  });
+
   // Подсказка над полем ввода «Отправим, когда появится сеть»: показываем, только когда есть мои
   // сообщения с «часиками» И браузер точно офлайн. Одни «часики» мелкие и ничего не обещают —
   // человек мог решить, что сообщения потерялись. А при живой сети «часики» висят доли секунды,
@@ -258,6 +288,10 @@ export class Chat {
 
   private readonly list = viewChild<ElementRef<HTMLElement>>('list');
   private readonly input = viewChild<ElementRef<HTMLTextAreaElement>>('input');
+  private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
+  // Для какого чата уже поставили фокус при открытии — чтобы не перехватывать его снова
+  // на каждом новом сообщении (см. afterRenderEffect «фокус при открытии»).
+  private focusedFor: string | null = null;
   private markReadFailed = false;
   // id сообщений, которые уже были на экране, — чтобы озвучивать только действительно новые.
   // null — «точки отсчёта» ещё нет (историю при открытии чата не зачитываем).
@@ -305,6 +339,8 @@ export class Chat {
         this.draft.reset(this.drafts.get(matchId), { emitEvent: false });
         this.partner.set(null);
         this.commonGames.set([]);
+        this.commonPlayTimes.set([]);
+        this.focusedFor = null;
         // Неотправленные сообщения относятся к тому чату, где их писали.
         this.failed.set([]);
         this.stopLeaving();
@@ -395,6 +431,39 @@ export class Chat {
       }
     });
 
+    // Заголовок вкладки: «Аня · Чат — DeadIsland». Так открытый чат видно в списке вкладок,
+    // в истории браузера, и программа чтения с экрана называет страницу при переходе.
+    // effect сам обновит его, когда загрузится имя или человек сменит язык.
+    effect(() => {
+      const name = this.partner()?.name;
+      this.title.setTitle(name ? this.i18n.translate('chat.docTitle', { name }) : DEFAULT_TITLE);
+    });
+
+    // Фокус при открытии чата. Без него он оставался на <body>: клавиатурный пользователь
+    // начинал «с нуля», а программа чтения с экрана не понимала, что страница сменилась.
+    // - мышь/тачпад (pointer: fine) — сразу в поле ввода: открыл чат — можно печатать;
+    // - сенсорный экран — на заголовок с именем: фокус в поле ввода открыл бы клавиатуру
+    //   и закрыл ею половину переписки.
+    // Только один раз на чат (focusedFor) и только если фокус никто не занял (он на <body>):
+    // если человек уже успел нажать что-то сам, не выдёргиваем его оттуда.
+    afterRenderEffect(() => {
+      const ready = this.state() === 'ready';
+      const target = this.touch ? this.heading() : this.input();
+      const matchId = this.matchId();
+      if (!ready || !target || this.focusedFor === matchId) {
+        return;
+      }
+      this.focusedFor = matchId;
+      const active = document.activeElement;
+      if (!active || active === document.body) {
+        // focusVisible: false — браузер не рисует рамку фокуса: её место — когда человек сам
+        // пришёл сюда клавишей. Без этой опции Chrome показывает рамку на заголовке, если страницу
+        // открыли «с нуля» (по ссылке или перезагрузкой) и ещё ни разу не касались её.
+        // FocusOptions в типах TypeScript пока без этого поля, поэтому — через приведение типа.
+        target.nativeElement.focus({ preventScroll: true, focusVisible: false } as FocusOptions);
+      }
+    });
+
     // Каждое изменение поля ввода сразу кладём в черновик ЭТОГО чата: уйдёт человек со страницы
     // (назад, по уведомлению, перезагрузит вкладку) — текст дождётся его возвращения.
     // После отправки send() очищает поле, и пустая строка стирает черновик.
@@ -415,6 +484,9 @@ export class Chat {
       clearTimeout(this.leavingTimer);
       window.removeEventListener('online', updateOnline);
       window.removeEventListener('offline', updateOnline);
+      // Другие страницы свой заголовок не ставят — возвращаем общий, иначе имя собеседника
+      // осталось бы во вкладке и на ленте, и в профиле.
+      this.title.setTitle(DEFAULT_TITLE);
     });
   }
 
@@ -778,7 +850,9 @@ export class Chat {
     }
     this.partner.set(partner);
     this.partnerUid.set(partnerUid);
-    this.commonGames.set(partner && myProfile ? matchScore(myProfile, partner).commonGames : []);
+    const match = partner && myProfile ? matchScore(myProfile, partner) : null;
+    this.commonGames.set(match?.commonGames ?? []);
+    this.commonPlayTimes.set(match?.commonPlayTimes ?? []);
     this.state.set('ready');
   }
 

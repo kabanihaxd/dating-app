@@ -1,5 +1,7 @@
 import { Component, Injector, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map } from 'rxjs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -26,6 +28,15 @@ export class Header {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
+  // Открыт чат: на телефоне шапка там ниже (см. .compact в header.scss) — у чата своя шапка
+  // с собеседником, и две полноразмерные шапки подряд отнимали бы у переписки почти 120px.
+  protected readonly compact = toSignal(
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map(() => this.router.url.startsWith('/chat/')),
+    ),
+    { initialValue: this.router.url.startsWith('/chat/') },
+  );
   // Выход уже идёт — второе нажатие ничего не делает (ждём лайки, потом signOut).
   private loggingOut = false;
 

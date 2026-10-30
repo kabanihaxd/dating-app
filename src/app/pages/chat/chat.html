@@ -50,7 +50,9 @@
         <!-- Имя собеседника — главный заголовок страницы (h1): по нему программа чтения с экрана
              понимает, где она. Размер задаёт CSS, а не уровень заголовка. -->
         <div class="who">
-          <h1 id="chat-title">{{ partnerName() }}</h1>
+          <!-- tabindex="-1" — заголовок можно сфокусировать из кода (так делаем при открытии чата
+               на телефоне), но клавиша Tab на нём не останавливается. -->
+          <h1 id="chat-title" #heading tabindex="-1">{{ partnerName() }}</h1>
           <!-- Общие игры — повод для разговора. Раньше они были только в пустом чате и пропадали
                после первого сообщения; теперь всегда под именем. Длинный список обрезается
                многоточием только визуально — программа чтения с экрана прочтёт его целиком. -->
@@ -201,6 +203,21 @@
       </div>
 
       @if (state() === 'ready') {
+        <!-- «Тема для разговора»: пока переписка только начинается, общие игры и время игры
+             остаются над полем ввода (в пустом чате их показывает приветствие посреди списка).
+             Метки неактивные — как в шапке: это подсказка, а не кнопки. Когда разговор пошёл,
+             строка исчезает и отдаёт место сообщениям. -->
+        @if (starter(); as topic) {
+          <div class="starter">
+            <span class="starter-label">{{ 'chat.starter' | t }}</span>
+            @for (game of topic.games; track game) {
+              <span class="tag">{{ game }}</span>
+            }
+            @for (time of topic.times; track time) {
+              <span class="tag time">{{ 'catalog.playTimes.' + time | t }}</span>
+            }
+          </div>
+        }
         <!-- Мои сообщения ждут сети («часики»), а браузер офлайн: спокойно обещаем, что они уйдут сами.
              role="status" (вежливая живая область) стоит на обёртке, которая есть в DOM всегда, —
              программа чтения с экрана надёжнее замечает текст, ПОЯВИВШИЙСЯ внутри уже знакомой
@@ -238,12 +255,12 @@
                 'chat.tooLong' | t: { max: maxLength }
               }}</mat-hint>
             } @else if (!touch) {
-              <mat-hint>{{ 'chat.hint' | t }}</mat-hint>
+              <mat-hint class="enter-hint">{{ 'chat.hint' | t }}</mat-hint>
             }
             <!-- Счётчик справа — только у длинных сообщений. Material сам связывает подсказки с полем
                  (aria-describedby), так что программа чтения прочтёт счётчик, встав в поле. -->
             @if (draft.value.length > counterFrom) {
-              <mat-hint align="end" class="counter" [class.over]="draft.value.length >= maxLength">
+              <mat-hint align="end" class="counter" [class.over]="draft.value.length > maxLength">
                 {{ draft.value.length }} / {{ maxLength }}
               </mat-hint>
             }

@@ -93,7 +93,13 @@
 
   <!-- Фильтры свёрнуты по умолчанию: на телефоне они занимали весь первый экран. -->
   @if (filtersOpen()) {
-    <form id="feed-filters" class="filters" [formGroup]="filters" animate.enter="di-enter">
+    <form
+      id="feed-filters"
+      class="filters"
+      [formGroup]="filters"
+      animate.enter="di-enter"
+      (focusout)="onFiltersFocusOut($event)"
+    >
       <mat-form-field appearance="outline">
         <mat-label>{{ 'feed.filters.game' | t }}</mat-label>
         <mat-select formControlName="game">
@@ -127,7 +133,14 @@
 
       <mat-form-field appearance="outline">
         <mat-label>{{ 'feed.filters.city' | t }}</mat-label>
-        <input matInput formControlName="city" autocomplete="address-level2" />
+        <!-- Подсказки — города загруженных игроков (cityOptions): так опечатка не обнулит выдачу.
+             [matAutocomplete] связывает поле со списком; autocomplete браузера Material выключит сам. -->
+        <input matInput formControlName="city" [matAutocomplete]="cityAuto" />
+        <mat-autocomplete #cityAuto="matAutocomplete">
+          @for (city of cityOptions(); track city) {
+            <mat-option [value]="city">{{ city }}</mat-option>
+          }
+        </mat-autocomplete>
       </mat-form-field>
 
       <div class="ages">
@@ -155,7 +168,9 @@
         </mat-form-field>
       </div>
 
-      @if (activeFilters()) {
+      <!-- Когда никто не подходит, «Сбросить фильтры» есть в самом сообщении — вторая такая же
+           кнопка здесь была бы дублем. -->
+      @if (activeFilters() && !filteredEmpty()) {
         <button mat-button type="button" class="reset" (click)="resetFilters()">
           <mat-icon aria-hidden="true">filter_alt_off</mat-icon>
           {{ 'feed.filters.reset' | t }}
@@ -166,11 +181,13 @@
 
   <!-- Подсказка «по месту»: время игры и жанры в профиле необязательны, но без них совпадения
        беднее. Показываем один раз, пока не заполнят или не скроют. -->
-  @if (profileHint()) {
-    <aside class="hint" [attr.aria-label]="'feed.hint.title' | t">
-      <mat-icon aria-hidden="true">schedule</mat-icon>
+  <!-- missing — чего именно нет: both / playTimes / genres. Текст ровно про это
+       (ключи feed.hint.title.both, feed.hint.text.genres и т. д.). -->
+  @if (profileHint(); as missing) {
+    <aside class="hint" [attr.aria-label]="'feed.hint.title.' + missing | t">
+      <mat-icon aria-hidden="true">{{ missing === 'genres' ? 'category' : 'schedule' }}</mat-icon>
       <p>
-        <b>{{ 'feed.hint.title' | t }}</b> {{ 'feed.hint.text' | t }}
+        <b>{{ 'feed.hint.title.' + missing | t }}</b> {{ 'feed.hint.text.' + missing | t }}
       </p>
       <a mat-button routerLink="/profile">{{ 'feed.hint.cta' | t }}</a>
       <button
@@ -365,9 +382,25 @@
     } @else {
       <app-state-message icon="search_off" tone="cyan">
         <h2>{{ 'feed.emptyFilteredTitle' | t }}</h2>
-        <!-- Называем включённые фильтры, а не гадаем, какой из них виноват (см. emptyFilteredHint). -->
-        <p>{{ emptyFilteredHint() }}</p>
-        <button mat-stroked-button type="button" (click)="resetFilters()">
+        <!-- Включённые фильтры со значениями, каждый — кнопка «снять только его»
+             (см. activeFilterChips). Список (ul) — скринридер скажет, сколько их. -->
+        <p>{{ 'feed.emptyFilteredBy' | t }}</p>
+        <ul class="filter-chips">
+          @for (chip of activeFilterChips(); track chip.name; let i = $index) {
+            <li>
+              <button
+                mat-stroked-button
+                type="button"
+                [attr.aria-label]="'feed.filters.remove' | t: { label: chip.label }"
+                (click)="clearFilter(chip.name, i)"
+              >
+                <span class="chip-label">{{ chip.label }}</span>
+                <mat-icon iconPositionEnd aria-hidden="true">close</mat-icon>
+              </button>
+            </li>
+          }
+        </ul>
+        <button mat-stroked-button type="button" class="empty-reset" (click)="resetFilters()">
           <mat-icon aria-hidden="true">filter_alt_off</mat-icon>
           {{ 'feed.filters.reset' | t }}
         </button>
