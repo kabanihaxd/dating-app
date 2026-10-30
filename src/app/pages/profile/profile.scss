@@ -118,43 +118,32 @@ mat-form-field {
   flex-direction: column;
 }
 
-// Поле ссылки + кнопка «Подключить Steam» справа. Сетка — только у полей, где кнопка есть (has-connect):
-// раньше сетка «1fr auto» стояла у всех, и у Discord/PSN/Xbox пустая колонка с зазором 12px
-// обрезала поле короче остальных полей формы.
+// Поле ссылки и, у Steam, кнопка «Подключить Steam» ПОД ним — на любой ширине.
+// Раньше на широком экране кнопка стояла справа, и поле Steam выходило на ~200px короче Discord,
+// PSN и Xbox: правый край колонки контактов «прыгал». Теперь все четыре поля одной ширины
+// и выровнены, как остальные поля формы.
 .contact {
-  // Сетка и у полей без кнопки: она растягивает поле на всю ширину (сам mat-form-field — inline-flex
+  // Сетка растягивает поле на всю ширину (сам mat-form-field — inline-flex
   // и в обычном блоке ужался бы по содержимому).
   display: grid;
 }
 
+// Кнопка под полем должна читаться как кнопка ЭТОГО поля, а не следующего.
+// Закон близости: 4px до своего поля и 20px до соседнего. Для этого у поля убираем нижний отступ
+// и пустую резервную строку подсказки (min-height 20px из правила выше): появится ошибка —
+// строка вырастет по тексту и просто сдвинет кнопку ниже.
 .contact.has-connect {
-  grid-template-columns: 1fr auto;
-  column-gap: 12px;
-  align-items: start;
-
-  .connect-btn {
-    margin-top: 10px;
+  mat-form-field {
+    margin-bottom: 0;
   }
 
-  // На телефоне кнопка уходит под поле — и должна читаться как кнопка ЭТОГО поля, а не следующего.
-  // Закон близости: 4px до своего поля и 20px до соседнего (раньше было наоборот: ~34px сверху, ~17px снизу).
-  // Для этого у поля убираем нижний отступ и пустую резервную строку подсказки (min-height 20px из
-  // правила выше): появится ошибка — строка вырастет по тексту и просто сдвинет кнопку ниже.
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
+  ::ng-deep .mat-mdc-form-field-subscript-dynamic-size {
+    min-height: 0;
+  }
 
-    mat-form-field {
-      margin-bottom: 0;
-    }
-
-    ::ng-deep .mat-mdc-form-field-subscript-dynamic-size {
-      min-height: 0;
-    }
-
-    .connect-btn {
-      margin: 4px 0 20px;
-      justify-self: start;
-    }
+  .connect-btn {
+    margin: 4px 0 20px;
+    justify-self: start;
   }
 }
 
@@ -169,20 +158,25 @@ mat-form-field {
     width: 112px;
     height: 112px;
     border-radius: 50%;
-    border: 2px solid var(--di-neon-pink);
-    box-shadow: 0 0 12px rgba(255, 46, 136, 0.5);
     flex-shrink: 0;
   }
 
+  // Настоящее фото — розовое кольцо со свечением, как аватар игрока в ленте (DESIGN.md → «Pink call»).
   img {
     object-fit: cover;
+    border: 2px solid var(--di-neon-pink);
+    box-shadow: 0 0 12px rgba(255, 46, 136, 0.5);
   }
 
+  // Пустое место под фото — тихое: фиолетовая «структурная» рамка 0.4 и без свечения.
+  // Сильное розовое свечение (0.45+) — только для призывов и сигналов человеку (правило
+  // «свечение растёт со смыслом»), а пустой кружок ничего не зовёт: зовёт кнопка «Добавить фото» рядом.
   .photo-placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--di-bg);
+    border: 2px solid rgba(168, 85, 247, 0.4);
 
     mat-icon {
       font-size: 56px;
@@ -204,8 +198,9 @@ mat-form-field {
   margin: 8px 0 20px;
 }
 
+// Подпись группы, под ней — строка «что это даёт подбору» и чипы.
 .group-label {
-  margin: 0 0 10px;
+  margin: 0;
   color: var(--di-text-muted);
 
   // Как звёздочка обязательного текстового поля у Material: сразу за словом, тем же цветом.
@@ -225,6 +220,15 @@ mat-form-field {
     letter-spacing: 0.5px;
     vertical-align: 1px;
   }
+}
+
+// «Что это даёт подбору» — мельче и тише подписи группы (13px, Haze Grey), как подсказка
+// под текстовым полем у Material: читается как пояснение к подписи, а не как ещё один заголовок.
+.group-help {
+  margin: 2px 0 10px;
+  color: var(--di-text-muted);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 // Выбранный чип-фильтр. По умолчанию Material красит его в secondary-container — на тёмной теме
@@ -305,6 +309,31 @@ mat-chip-listbox {
 
   .form-error {
     margin: 0 0 8px;
+  }
+}
+
+// Имя поля в списке «Поправь поля: …» — кнопка, которая ведёт к полю. Выглядит как ссылка внутри
+// текста ошибки: тот же цвет и шрифт, подчёркивание показывает, что на него можно нажать.
+// Сброс кнопочных стилей браузера (рамка, фон, отступы), чтобы она встала в строку как слово.
+.field-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  // Рамка фокуса с клавиатуры — того же цвета ошибки, чтобы было видно, на каком поле стоишь.
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+    border-radius: 2px;
   }
 }
 

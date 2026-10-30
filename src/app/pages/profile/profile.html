@@ -20,8 +20,8 @@
       <!-- Идёт первым: ради него человек и пришёл, по нему строится подбор. На первом заходе
            он виден сразу, а не после 900px формы «о себе». -->
       <h2>{{ 'profile.sections.gaming' | t }}</h2>
-      <!-- Зачем заполнять жанры и время игры: одна приглушённая строка с правилом подбора.
-           Без неё необязательные группы ниже выглядят как анкета ради анкеты. -->
+      <!-- Главное правило подбора — одной строкой: общие игры весят больше всего.
+           Что дают платформы, жанры и время игры, сказано отдельно, под заголовком каждой группы. -->
       <p class="hint">{{ 'profile.gamingHint' | t }}</p>
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -91,15 +91,21 @@
           <!-- Звёздочка — как у текстовых полей (там её ставит mat-form-field). Для диктора она
                лишняя: «обязательно» он узнает из aria-required, который выставит [required] у списка. -->
           <!-- Необязательная группа (время игры) — не «молча без звёздочки», а с пометкой «рекомендуем»:
-               заполнять не обязательно, но подбор её учитывает (см. строку под заголовком раздела). -->
+               заполнять не обязательно, но подбор её учитывает (см. строку под подписью группы). -->
           <p class="group-label">
             {{ 'profile.' + group.control | t
             }}@if (groupRequired) {<span class="required-marker" aria-hidden="true">*</span>} @else {
               <span class="recommended-tag">{{ 'profile.recommended' | t }}</span>
             }
           </p>
-          <!-- У списка чипов нет mat-form-field, который сам связал бы ошибку с полем.
-               Связываем вручную: aria-describedby → id текста ошибки, aria-invalid — «здесь ошибка». -->
+          <!-- Подсказка «в месте использования»: что эта группа даёт подбору. Ответ на «зачем мне
+               отмечать жанры?» стоит прямо над чипами, а не в общем абзаце выше, который никто не связывает с группой. -->
+          <p class="group-help" [id]="group.control + '-help'">
+            {{ 'profile.groupHint.' + group.control | t }}
+          </p>
+          <!-- У списка чипов нет mat-form-field, который сам связал бы подсказку и ошибку с полем.
+               Связываем вручную: aria-describedby → id подсказки (и текста ошибки, если она есть) —
+               диктор прочитает их, когда фокус придёт в список; aria-invalid — «здесь ошибка». -->
           <mat-chip-listbox
             multiple
             [required]="groupRequired"
@@ -107,7 +113,9 @@
             [attr.data-field]="group.control"
             [attr.aria-label]="'profile.' + group.control | t"
             [attr.aria-invalid]="groupError || null"
-            [attr.aria-describedby]="groupError ? group.control + '-error' : null"
+            [attr.aria-describedby]="
+              group.control + '-help' + (groupError ? ' ' + group.control + '-error' : '')
+            "
           >
             @for (option of group.options; track option) {
               <mat-chip-option [value]="option">{{
@@ -284,20 +292,27 @@
        Ошибки показываем здесь же — там, куда человек только что нажал. -->
   <div class="action-bar">
     <div class="messages">
-      @if (showInvalid() && invalidLabels().length) {
+      @if (showInvalid() && invalidFields().length) {
         <!-- Список БЕЗ живой области: он меняется на каждое исправленное поле, и диктор
-             не должен твердить его заново. Озвучивает снимок ниже — один раз на нажатие «Сохранить». -->
+             не должен твердить его заново. Озвучивает снимок ниже — один раз на нажатие «Сохранить».
+             Каждое имя поля — кнопка: нажал «Город» — фокус и прокрутка уходят в поле «Город».
+             Кнопка, а не ссылка: она ничего не открывает, а действует на этой же странице.
+             fixFieldsText делит перевод на «до списка» и «после него» — порядок слов задаёт сам перевод. -->
         <p class="form-error">
-          {{
-            'profile.errors.fixFields'
-              | t: { count: invalidLabels().length, fields: invalidLabels().join(', ') }
-          }}
+          {{ fixFieldsText().before
+          }}@for (field of invalidFields(); track field.path; let last = $last) {<button
+              type="button"
+              class="field-link"
+              (click)="focusField(field.path)"
+            >{{ field.label }}</button
+            >@if (!last) {<span>, </span>}
+          }{{ fixFieldsText().after }}
         </p>
       }
       <!-- role="alert" — экранный диктор прочитает текст сразу, как только он появится или изменится.
            Ошибка сохранения меняется только от попытки к попытке, поэтому её можно объявлять так. -->
       <div role="alert">
-        @if (!(showInvalid() && invalidLabels().length) && errorKey(); as key) {
+        @if (!(showInvalid() && invalidFields().length) && errorKey(); as key) {
           <p class="form-error">{{ key | t }}</p>
         }
         <span class="sr-only">{{ invalidAnnouncement() }}</span>
@@ -327,11 +342,13 @@
            - идёт сохранение — тот же розовый, приглушённый, с текстом «Сохраняем…»;
            - всё сохранено (allSaved) — тихая надпись «Все изменения сохранены ✓» вместо мёртвой серой
              таблетки. Высота та же 48px, так что панель не прыгает, когда форма становится «чистой». -->
+      <!-- aria-keyshortcuts: диктор сообщит, что то же самое делает Ctrl+S / Cmd+S (см. onSaveShortcut). -->
       <button
         mat-flat-button
         type="submit"
         form="profile-form"
         class="bar-btn save-btn"
+        aria-keyshortcuts="Control+S Meta+S"
         [class.cta]="!allSaved()"
         [class.is-saving]="saving()"
         [class.is-saved]="allSaved()"

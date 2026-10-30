@@ -274,11 +274,12 @@
     "retry": "Skúsiť znova",
     "discard": "Vymazať",
     "newMessages": "Nové správy",
-    "queuedOffline": "Si offline. Správy sa odošlú, keď sa pripojenie obnoví."
+    "queuedOffline": "Si offline. Správy sa odošlú, keď sa pripojenie obnoví.",
+    "tooLong": "Príliš dlhá: najviac {{max}} znakov. Skráťte ju, aby sa dala odoslať."
   },
   "profile": {
     "title": "Profil",
-    "subtitle": "Povedz nám o sebe a svojich hrách — nájdeme ti spoluhráča.",
+    "subtitle": "Toto vidia ostatní hráči a podľa toho ti hľadáme spoluhráča.",
     "sections": {
       "about": "O mne",
       "gaming": "Herný profil",
@@ -349,7 +350,12 @@
     },
     "queued": "Bez pripojenia. Profil je uložený v tomto zariadení a odošle sa, keď sa pripojenie obnoví. Dovtedy nezatváraj túto kartu.",
     "synced": "Pripojenie je späť. Profil bol odoslaný",
-    "gamingHint": "Zhody sa radia najprv podľa spoločných hier, potom podľa platforiem, žánrov a času hrania.",
+    "gamingHint": "Spoločné hry majú najväčšiu váhu: hráčov s tvojimi hrami uvidíš ako prvých.",
+    "groupHint": {
+      "platforms": "Hráči na rovnakých platformách sú vyššie, takže si naozaj zahráte spolu.",
+      "genres": "Pomôžu, keď nemáte žiadne spoločné hry.",
+      "playTimes": "Kto hrá v rovnakom čase ako ty, je v poradí vyššie."
+    },
     "recommended": "Odporúčané",
     "allSaved": "Všetky zmeny sú uložené",
     "savedOnDevice": "Uložené v zariadení"

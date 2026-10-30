@@ -274,11 +274,12 @@
     "retry": "Retry",
     "discard": "Delete",
     "newMessages": "New messages",
-    "queuedOffline": "You're offline. Your messages will be sent when you're back online."
+    "queuedOffline": "You're offline. Your messages will be sent when you're back online.",
+    "tooLong": "Too long: {{max}} characters max. Shorten it to send."
   },
   "profile": {
     "title": "Profile",
-    "subtitle": "Tell us about yourself and your games so we can find you a teammate.",
+    "subtitle": "This is what other players see, and what we use to find you a teammate.",
     "sections": {
       "about": "About you",
       "gaming": "Gaming profile",
@@ -349,7 +350,12 @@
     },
     "queued": "No connection. Your profile is saved on this device and will sync when you're back online. Keep this tab open until then.",
     "synced": "Back online. Profile synced",
-    "gamingHint": "Matches rank by shared games first, then platforms, genres and play times.",
+    "gamingHint": "Shared games count most: players with your games show up first.",
+    "groupHint": {
+      "platforms": "Players on your platforms rank higher, so you can actually team up.",
+      "genres": "Helps when you have no games in common.",
+      "playTimes": "Players who play at the same time as you rank higher."
+    },
     "recommended": "Recommended",
     "allSaved": "All changes saved",
     "savedOnDevice": "Saved on this device"

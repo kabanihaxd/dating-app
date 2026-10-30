@@ -23,7 +23,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth';
 import { firestoreErrorKey } from '../../core/firebase/firestore-errors';
@@ -115,6 +115,9 @@ function yearsAgo(years: number): string {
     // beforeunload — событие браузера перед закрытием вкладки или перезагрузкой.
     // Роутер (и наш canDeactivate guard) про такой уход не знает, поэтому ловим его здесь.
     '(window:beforeunload)': 'onBeforeUnload($event)',
+    // Ctrl+S / Cmd+S — привычное «сохранить» из редакторов. Слушаем на document: фокус может быть
+    // где угодно (в поле, на чипе, на кнопке панели), а не только внутри нашего элемента.
+    '(document:keydown)': 'onSaveShortcut($event)',
   },
 })
 export class Profile implements HasUnsavedChanges {
@@ -221,14 +224,28 @@ export class Profile implements HasUnsavedChanges {
     return this.form.dirty;
   });
 
-  // Подписи полей с ошибками, в порядке страницы: ['Город', 'Платформы'].
+  // Поля с ошибками, в порядке страницы: путь (по нему ищем элемент для фокуса) и подпись ('Город').
   // Подписи идут списком после двоеточия, поэтому падеж не важен — в любом языке это просто перечень.
-  protected readonly invalidLabels = computed(() => {
+  protected readonly invalidFields = computed(() => {
     this.formEvent();
     this.i18n.lang(); // сменили язык — пересобираем подписи на новом
-    return FIELD_LABELS.filter(([path]) => this.form.get(path)?.invalid).map(([, key]) =>
-      this.i18n.translate(key),
-    );
+    return FIELD_LABELS.filter(([path]) => this.form.get(path)?.invalid).map(([path, key]) => ({
+      path,
+      label: this.i18n.translate(key),
+    }));
+  });
+
+  // Текст «Поправь поля (3): …» вокруг списка-кнопок. Переводим его с меткой вместо списка и режем
+  // по метке: before — всё до списка, after — после. Так каждое имя поля в шаблоне — своя кнопка,
+  // а порядок слов (вдруг в каком-то языке список стоит не в конце) по-прежнему решает перевод.
+  protected readonly fixFieldsText = computed(() => {
+    const marker = '\u0000';
+    const text = this.i18n.translate('profile.errors.fixFields', {
+      count: this.invalidFields().length,
+      fields: marker,
+    });
+    const [before, after = ''] = text.split(marker);
+    return { before, after };
   });
 
   // Кнопку «Сохранить» гасим, пока нечего сохранять. Исключение — первый заход:
@@ -354,6 +371,34 @@ export class Profile implements HasUnsavedChanges {
     }
   }
 
+  // Ctrl+S (Cmd+S на Mac) сохраняет анкету, когда есть что сохранять. Тогда preventDefault
+  // отменяет окно браузера «Сохранить страницу как…»: оно тут явно не то, чего хотели.
+  // Нечего сохранять — клавиши не трогаем, браузер ведёт себя как обычно.
+  protected onSaveShortcut(event: KeyboardEvent): void {
+    const isSaveKeys =
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      !event.shiftKey &&
+      // code — физическая клавиша: на русской или украинской раскладке key был бы «ы» / «і»,
+      // а браузер своё «Сохранить страницу» всё равно открывает по этой клавише.
+      (event.code === 'KeyS' || event.key.toLowerCase() === 's');
+    // Пока анкета грузится (или не загрузилась), формы на экране нет — сохранять нечего.
+    // Открытый диалог (например, «уйти без сохранения?») — не время сохранять из-под него.
+    if (!isSaveKeys || this.loading() || this.loadErrorKey() || this.dialog.openDialogs.length) {
+      return;
+    }
+    // Набранная, но не подтверждённая Enter игра — тоже правка: сначала превращаем её в чип.
+    this.flushGameInput();
+    if (!this.hasUnsavedChanges() && !this.isNew()) {
+      return;
+    }
+    event.preventDefault();
+    // Держим клавиши — браузер шлёт keydown повторно; второе сохранение подряд не нужно.
+    if (!event.repeat) {
+      void this.save();
+    }
+  }
+
   protected async save(): Promise<void> {
     // У кнопки disabledInteractive: «погасшая», она остаётся в фокусе и её можно нажать —
     // поэтому проверяем здесь. Это же ловит Enter в поле, пока прошлое сохранение ещё в пути.
@@ -404,7 +449,7 @@ export class Profile implements HasUnsavedChanges {
     // Об успехе говорит снекбар: он сам живая область (aria-live), диктор прочитает его, не трогая фокус.
     // onAction() срабатывает, когда нажали кнопку на самом снекбаре.
     this.snackBar
-      .open(saved, this.i18n.translate('profile.toFeed'), { duration: 5000 })
+      .open(saved, this.i18n.translate('profile.toFeed'), this.barSnack(5000))
       .onAction()
       .subscribe(() => void this.router.navigate(['/feed']));
   }
@@ -418,6 +463,19 @@ export class Profile implements HasUnsavedChanges {
     if (!doc.activeElement || doc.activeElement === doc.body) {
       this.host.nativeElement.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
     }
+  }
+
+  // Настройки снекбара с результатом действия на этой странице («Профиль сохранён», «Steam подключён»).
+  // На широком экране он встаёт в строку липкой панели, слева (класс di-bar-snack, см. styles.scss),
+  // а не над ней — иначе ложился бы на поля анкеты. Только когда метки «не сохранено» в панели нет
+  // (форма чистая) — иначе снекбар закрыл бы её; и только пока страница открыта (панель на месте).
+  // На телефоне панель занимает всю ширину — там снекбар как везде, над ней по центру.
+  private barSnack(duration: number): MatSnackBarConfig {
+    const inBar =
+      !this.destroyed && !this.form.dirty && this.window.matchMedia('(min-width: 601px)').matches;
+    return inBar
+      ? { duration, horizontalPosition: 'start', panelClass: 'di-bar-snack' }
+      : { duration };
   }
 
   // Сама запись анкеты. Её зовут и «Сохранить», и «Подключить». Ответ:
@@ -492,7 +550,7 @@ export class Profile implements HasUnsavedChanges {
         if (this.statusKey() === 'profile.queued') {
           this.statusKey.set(null);
         }
-        this.snackBar.open(this.i18n.translate('profile.synced'), undefined, { duration: 3000 });
+        this.snackBar.open(this.i18n.translate('profile.synced'), undefined, this.barSnack(3000));
       },
       (error: unknown) => {
         console.error(error);
@@ -557,9 +615,10 @@ export class Profile implements HasUnsavedChanges {
   // Если текст совпал с прошлым, role="alert" не заметил бы «изменения», поэтому сначала очищаем,
   // а новый текст ставим чуть позже, отдельным обновлением страницы.
   private announceInvalid(): void {
+    const labels = this.invalidFields().map((field) => field.label);
     const text = this.i18n.translate('profile.errors.fixFields', {
-      count: this.invalidLabels().length,
-      fields: this.invalidLabels().join(', '),
+      count: labels.length,
+      fields: labels.join(', '),
     });
     this.invalidAnnouncement.set('');
     setTimeout(() => this.invalidAnnouncement.set(text), 100);
@@ -570,8 +629,15 @@ export class Profile implements HasUnsavedChanges {
   // Нужные элементы помечены в шаблоне атрибутом data-field="путь поля".
   private focusFirstInvalid(): void {
     const first = FIELD_LABELS.find(([path]) => this.form.get(path)?.invalid);
-    const element =
-      first && this.host.nativeElement.querySelector<HTMLElement>(`[data-field="${first[0]}"]`);
+    if (first) {
+      this.focusField(first[0]);
+    }
+  }
+
+  // Фокус в поле по его пути ('city', 'contacts.steam'). Зовут и «первое поле с ошибкой» после
+  // неудачной отправки, и кнопки-имена полей в списке «Поправь поля: …» на панели внизу.
+  protected focusField(path: string): void {
+    const element = this.host.nativeElement.querySelector<HTMLElement>(`[data-field="${path}"]`);
     if (!element) {
       return;
     }
@@ -598,9 +664,11 @@ export class Profile implements HasUnsavedChanges {
         this.window,
       );
       const platform = this.i18n.translate(`profile.contacts.${result.field}`);
-      this.snackBar.open(this.i18n.translate('profile.connect.done', { platform }), undefined, {
-        duration: 3000,
-      });
+      this.snackBar.open(
+        this.i18n.translate('profile.connect.done', { platform }),
+        undefined,
+        this.barSnack(3000),
+      );
     } catch (error) {
       if (error instanceof NetworkTimeoutError) {
         // Ссылку получили, и она стоит в очереди на устройстве — это не «не удалось подключить».

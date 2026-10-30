@@ -31,7 +31,14 @@
          на экране «замороженной», а вместо поля ввода — сообщение о завершении. -->
     <section class="chat">
       <header class="chat-header">
-        <a mat-icon-button routerLink="/matches" [attr.aria-label]="'chat.back' | t">
+        <!-- matTooltip — для зрячих: значок «←» сам по себе не говорит, куда ведёт.
+             Программе чтения хватает aria-label. -->
+        <a
+          mat-icon-button
+          routerLink="/matches"
+          [attr.aria-label]="'chat.back' | t"
+          [matTooltip]="'chat.back' | t"
+        >
           <mat-icon>arrow_back</mat-icon>
         </a>
         <!-- alt="" — картинка декоративная: имя и так написано рядом в заголовке. -->
@@ -82,8 +89,25 @@
           (scroll)="onScroll()"
         >
           @for (message of messageViews(); track message.id) {
-            <!-- Новое сообщение «выпрыгивает» из своего угла: своё справа, чужое слева. -->
-            <div class="message" [class.mine]="message.mine" animate.enter="pop-in">
+            <!-- Разделитель дней: «Сегодня», «Вчера», «12 октября» — перед первым сообщением дня.
+                 role="separator" + aria-label: программа чтения скажет «разделитель, Вчера»
+                 при чтении переписки. Живая область входящих (ниже) его не озвучивает —
+                 она получает только тексты новых сообщений. -->
+            @if (message.day) {
+              <div class="day" role="separator" [attr.aria-label]="message.day">
+                <time [attr.datetime]="message.dayIso" aria-hidden="true">{{ message.day }}</time>
+              </div>
+            }
+            <!-- Новое сообщение «выпрыгивает» из своего угла: своё справа, чужое слева.
+                 group-start — первое в серии (над ним обычный отступ), tail — последнее в серии
+                 (только у него острый угол-«хвостик»), остальные пузыри серии стоят плотно. -->
+            <div
+              class="message"
+              [class.mine]="message.mine"
+              [class.group-start]="message.groupStart"
+              [class.tail]="message.groupEnd"
+              animate.enter="pop-in"
+            >
               <!-- Кто говорит: глазами это видно по стороне и цвету пузыря, а на слух — нет. -->
               <span class="sr-only">{{
                 message.mine
@@ -135,7 +159,7 @@
           <!-- Мои сообщения, которые сервер отклонил: остаются в конце переписки с пометкой
              и кнопками «Повторить» / «Удалить». Отдельно от списка выше — Firestore их уже убрал. -->
           @for (message of failed(); track message.id) {
-            <div class="message mine failed" animate.enter="pop-in">
+            <div class="message mine failed group-start tail" animate.enter="pop-in">
               <span class="sr-only">{{ 'chat.speaker.me' | t }}</span>
               <p>{{ message.text }}</p>
               <div class="meta">
@@ -201,14 +225,27 @@
               cdkTextareaAutosize
               cdkAutosizeMinRows="1"
               cdkAutosizeMaxRows="5"
-              [maxlength]="maxLength"
               [placeholder]="'chat.placeholder' | t"
               [attr.aria-label]="'chat.messageTo' | t: { name: partnerName() }"
               (keydown.enter)="onEnter($event)"
             ></textarea>
-            <!-- Подсказка про Enter нужна только с физической клавиатурой: на телефоне отправляют кнопкой. -->
-            @if (!touch) {
+            <!-- Слева — подсказка про Enter (нужна только с физической клавиатурой: на телефоне
+                 отправляют кнопкой) или, если текст длиннее лимита, объяснение, почему кнопка
+                 «Отправить» выключена. role="alert" — фраза прозвучит один раз, когда появится,
+                 а не на каждую нажатую клавишу (её текст не меняется, пока она на экране). -->
+            @if (draft.value.length > maxLength) {
+              <mat-hint class="over" role="alert">{{
+                'chat.tooLong' | t: { max: maxLength }
+              }}</mat-hint>
+            } @else if (!touch) {
               <mat-hint>{{ 'chat.hint' | t }}</mat-hint>
+            }
+            <!-- Счётчик справа — только у длинных сообщений. Material сам связывает подсказки с полем
+                 (aria-describedby), так что программа чтения прочтёт счётчик, встав в поле. -->
+            @if (draft.value.length > counterFrom) {
+              <mat-hint align="end" class="counter" [class.over]="draft.value.length >= maxLength">
+                {{ draft.value.length }} / {{ maxLength }}
+              </mat-hint>
             }
           </mat-form-field>
           <!-- pointerdown — не отдаём фокус кнопке, он остаётся в поле (клавиатура телефона не прячется).
@@ -217,7 +254,7 @@
             mat-icon-button
             type="submit"
             class="send"
-            [disabled]="!draft.value.trim()"
+            [disabled]="!draft.value.trim() || draft.value.length > maxLength"
             [attr.aria-label]="'chat.send' | t"
             (pointerdown)="keepFocus($event)"
           >

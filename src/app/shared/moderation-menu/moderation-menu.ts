@@ -4,6 +4,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '../../core/auth/auth';
 import { I18n } from '../../core/i18n/i18n';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -15,7 +16,7 @@ import { ReportDialog, ReportDialogData, ReportDialogResult } from '../report-di
 // Одна на ленту, мэтчи и чат — поэтому лежит в shared, а не в какой-то странице.
 @Component({
   selector: 'app-moderation-menu',
-  imports: [MatButtonModule, MatIconModule, MatMenuModule, TranslatePipe],
+  imports: [MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule, TranslatePipe],
   templateUrl: './moderation-menu.html',
   styleUrl: './moderation-menu.scss',
 })

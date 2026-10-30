@@ -61,6 +61,52 @@ const LEAVING_TIMEOUT_MS = 15000;
 // поле ввода, вырастая на строку, чуть сдвигает низ, и человек «внизу» оказался бы «не внизу».
 const NEAR_BOTTOM_PX = 80;
 
+// Сообщения одного человека, отправленные с паузой не больше 5 минут, — одна «серия» (группа).
+const GROUP_GAP_MS = 5 * 60 * 1000;
+
+// Один и тот же календарный день (по местному времени устройства, а не по UTC:
+// «вчера» должно значить «вчера» для человека, а не для Гринвича).
+function sameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+// «2026-10-28» — день по местному календарю для атрибута datetime у <time>.
+function isoDay(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// Делает функцию «дата → подпись разделителя дней» на нужном языке.
+// «Сегодня» и «Вчера» даёт сам браузер: Intl.RelativeTimeFormat с numeric: 'auto' превращает
+// «−1 день» в слово «вчера» на любом языке — отдельные переводы не нужны. Только пишет он их
+// со строчной буквы («вчера», «today»), а подпись стоит отдельно — поднимаем первую букву.
+// Остальные дни — полной датой без года («12 октября»), а для прошлых лет — с годом.
+function dayLabeller(lang: string): (date: Date) => string {
+  const relative = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+  const thisYear = new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'long' });
+  const otherYear = new Intl.DateTimeFormat(lang, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const capitalize = (text: string) => text.charAt(0).toLocaleUpperCase(lang) + text.slice(1);
+  return (date) => {
+    const now = new Date();
+    // Сколько календарных дней назад: сравниваем полночи, а не разницу в часах
+    // (вчера в 23:50 — это «вчера», хотя прошло всего 20 минут).
+    const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const daysAgo = Math.round((midnight(now) - midnight(date)) / (24 * 60 * 60 * 1000));
+    if (daysAgo === 0 || daysAgo === 1) {
+      return capitalize(relative.format(-daysAgo, 'day'));
+    }
+    return (date.getFullYear() === now.getFullYear() ? thisYear : otherYear).format(date);
+  };
+}
+
 // Моё сообщение, которое сервер ОТКЛОНИЛ (правила, ошибка записи). Firestore в этом случае
 // сам убирает его из списка (откатывает локальную запись), поэтому храним его отдельно —
 // чтобы человек видел, что именно не ушло, и мог отправить ещё раз одной кнопкой.
@@ -107,6 +153,11 @@ export class Chat {
   private readonly me = this.auth.user()!.uid;
 
   protected readonly maxLength = MAX_MESSAGE_LENGTH;
+  // Счётчик «850 / 1000» под полем появляется только у длинных сообщений: в обычной
+  // переписке он был бы лишним шумом. Обрезать текст молча (атрибутом maxlength) мы больше
+  // не даём: вставленный длинный текст остаётся целиком, счётчик краснеет, а кнопка
+  // «Отправить» выключается, пока сообщение не станет короче, — человек видит, что не так.
+  protected readonly counterFrom = 800;
   protected readonly state = signal<ChatState>('loading');
   protected readonly errorKey = signal('errors.unknown');
   // Пузыри-заготовки для скелетона: чьё сообщение и какой ширины (в %).
@@ -146,21 +197,50 @@ export class Chat {
   );
 
   // Сообщения в том виде, в каком их рисует шаблон. Время — в формате выбранного языка сайта.
+  // Кроме текста и времени, каждому сообщению заранее считаем две вещи для вёрстки:
+  // - day: подпись разделителя «Сегодня» / «Вчера» / «12 октября», если с этого сообщения
+  //   начинается новый календарный день (иначе null — разделителя нет);
+  // - groupStart / groupEnd: сообщение начинает / завершает «серию» — подряд от одного
+  //   человека с паузами не больше GROUP_GAP_MS. Внутри серии пузыри стоят плотнее,
+  //   а «хвостик» (острый угол) есть только у последнего — как в привычных мессенджерах.
   protected readonly messageViews = computed(() => {
-    const format = new Intl.DateTimeFormat(this.i18n.lang(), {
+    const lang = this.i18n.lang();
+    const format = new Intl.DateTimeFormat(lang, {
       hour: '2-digit',
       minute: '2-digit',
     });
-    return this.messages().map((message) => ({
-      id: message.id,
-      text: message.text,
-      mine: message.from === this.me,
-      time: message.createdAt ? format.format(message.createdAt) : '',
-      // Машиночитаемое время для <time datetime="...">: ISO-строка вида 2026-10-28T18:05:00.000Z.
-      datetime: message.createdAt?.toISOString() ?? null,
-      // Состояние доставки показываем только у своих: «часики» — ждём сервер, галочка — записано.
-      pending: message.pending,
-    }));
+    // Форматтеры создаём один раз на весь пересчёт, а не на каждое сообщение: это недёшево.
+    const dayLabel = dayLabeller(lang);
+    const list = this.messages();
+    // У сообщения без времени (бывает у только что отправленного, пока нет оценки сервера)
+    // считаем время «сейчас» — оно и правда только что появилось.
+    const at = (m: ChatMessage) => m.createdAt ?? new Date();
+    return list.map((message, i) => {
+      const prev = list[i - 1];
+      const next = list[i + 1];
+      const time = at(message);
+      const newDay = !prev || !sameDay(at(prev), time);
+      // С соседом в одной серии: тот же отправитель, тот же день и пауза не больше 5 минут.
+      const joined = (a: ChatMessage, b: ChatMessage) =>
+        a.from === b.from &&
+        sameDay(at(a), at(b)) &&
+        Math.abs(at(b).getTime() - at(a).getTime()) <= GROUP_GAP_MS;
+      return {
+        id: message.id,
+        text: message.text,
+        mine: message.from === this.me,
+        time: message.createdAt ? format.format(message.createdAt) : '',
+        // Машиночитаемое время для <time datetime="...">: ISO-строка вида 2026-10-28T18:05:00.000Z.
+        datetime: message.createdAt?.toISOString() ?? null,
+        // Состояние доставки показываем только у своих: «часики» — ждём сервер, галочка — записано.
+        pending: message.pending,
+        day: newDay ? dayLabel(time) : null,
+        // Дата дня для <time datetime> в разделителе: «2026-10-28» (по местному календарю).
+        dayIso: newDay ? isoDay(time) : null,
+        groupStart: !prev || !joined(prev, message),
+        groupEnd: !next || !joined(message, next),
+      };
+    });
   });
 
   // Подсказка над полем ввода «Отправим, когда появится сеть»: показываем, только когда есть мои

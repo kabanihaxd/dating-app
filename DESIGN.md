@@ -195,7 +195,7 @@ A single centred column: `max-width: 960px`, padding 24px vertical and 16px hori
 
 Collections use auto-fill grids that reflow with no fixed breakpoints: player cards `minmax(260px, 1fr)`, matches `minmax(300px, 1fr)`, home features `minmax(220px, 1fr)`, feed filters `minmax(180px, 1fr)`, profile field rows `minmax(240px, 1fr)`. Gaps are 16px between cards and 6–12px inside clusters.
 
-The only hard breakpoint is **600px**. Below it nav labels hide (icons only), the logo shrinks, the chat Enter-hint hides, chat bubbles widen to 85%, and contact "Connect" buttons drop under their field.
+The main hard breakpoint is **600px**. Below it nav labels hide (icons only), the logo shrinks, the chat Enter-hint hides, chat bubbles widen to 85%, and contact "Connect" buttons drop under their field. The feed deck adds a second one at **840px** (see Feed Deck).
 
 Chat is the one full-height surface: `calc(100dvh - 112px)`, with a fixed header and composer and a scrolling message list.
 
@@ -263,7 +263,7 @@ The heart of the feed, read top to bottom in priority order:
 
 ### Feed Deck (signature)
 The default "one by one" feed view. A grid view stays available through the toolbar's view toggle, and the choice is remembered.
-- **Column:** max 440px, centred.
+- **Column:** max 440px, centred. From 840px the column widens to 760px and the deck card splits into two columns: photo on the left (5fr, full card height, min 280px; a silhouette placeholder with the badges on it when there is no photo, and no ring avatar by the name) and details on the right (7fr). The sticky action bar becomes one row: Skip left, Player 2? right, the consent note, keys hint or last-action chip between them, so at 1280×720 the whole card sits above the bar. Grid cards and phones are unchanged.
 - **Next player:** peeks from behind the current card, 12px up, scaled 0.94, at 45% opacity, inert and hidden from assistive tech. Only its frame shows: its contents are hidden until it becomes the current card, so badges never poke out above the front card. When the current card flies off, the same element glides forward (0.35s, `cubic-bezier(0.16, 1, 0.3, 1)`).
 - **Action bar:** Skip (stroked) and Like (pink), each 48px tall. It is sticky to the bottom of the viewport with a Void Black fade behind it, so it sits under the thumb on phones.
 - **Keyboard:** ← skips and → likes (deck only). Z or Backspace undoes the last like or skip in both views, except while typing in a field or list; the Undo button carries `aria-keyshortcuts`. A hint line ("← skip · → player 2 · Z / Backspace undo") appears only on fine-pointer devices.
@@ -303,10 +303,14 @@ The one way to ask "are you sure?" (`shared/confirm-dialog`); the browser `confi
 ### Inputs / Fields
 - **Style:** Angular Material form fields (outline/fill per Material defaults) on the dark violet theme.
 - **Errors:** 13px `--mat-sys-error` text under the field or centred above submit.
-- **Chat composer:** a Material textarea with a 48px send icon button: pink when there is text, Haze Grey when disabled. The hint is hidden on mobile. Each match keeps its own draft (per account, mirrored to sessionStorage), restored when the chat reopens and cleared on send or sign-out. While offline with messages still pending, a quiet status line above the field says they will send when the connection returns; the pending clock and sent check carry tooltips and accessible names.
+- **Chat composer:** a Material textarea with a 48px send icon button: pink when there is text, Haze Grey when disabled. The hint is hidden on mobile. Each match keeps its own draft (per account, mirrored to sessionStorage), restored when the chat reopens and cleared on send or sign-out. While offline with messages still pending, a quiet status line above the field says they will send when the connection returns; the pending clock and sent check carry tooltips and accessible names. Nothing is truncated silently: past 800 characters a quiet "N / 1000" counter (tabular numerals) shows at the end of the hint line, turning error colour at 1000; over the limit an alert line explains it and Send is disabled.
 - **Notification toasts:** likes, matches and messages from other chats appear at the top, under the header (full width minus 8px on phones, at most 480px on desktop), one line with a pink icon and a "View" action, 6s, paused while hovered or focused, announced politely and never taking focus. They are not shown when the page already says the same thing ("liked you" on the feed, messages on /matches or in that chat), and they queue while a dialog is open. Action results ("Profile saved", "Nick copied") stay as bottom snackbars, lifted above the chat composer, the profile save bar and the feed's action area.
 - **Report dialog:** "Also block" starts unchecked, with a muted line saying what blocking removes; ticking it renames the submit button to "Report and block".
 - **Profile form order:** gaming profile first (games, platforms, genres, play times), then About you (photo, name, birth date, city, bio), then contacts, so on first run the matching inputs sit in the first viewport. Error summary and focus-first-invalid follow the same order. Signing in or registering without a profile (and without a `returnUrl`) lands on /profile, not on the feed's "fill your profile" blocker.
+- **Profile pickers:** under each group label (platforms, genres, play times) a muted 13px line says what the group does for matching, linked by `aria-describedby`; the section hint states only the main rule (shared games count most).
+- **Profile error summary:** each field name in "Fix fields (N): …" is an inline underlined button that focuses and scrolls to that field. Ctrl/Cmd+S saves when there are changes (`aria-keyshortcuts` on Save).
+- **Profile contacts and photo:** "Connect Steam" sits under its field at every width, so all contact fields share one width. The empty photo placeholder has a violet 0.4 ring and no glow; the pink ring with glow is only for a real photo.
+- **Profile action results** on wide screens appear inside the save bar row, left-aligned with the form (`.di-bar-snack`), never over fields; on phones or with unsaved changes they sit above the bar.
 - **Profile save bar:** Save is the pink call-to-action with dark text; while saving it dims; with nothing to save it becomes a quiet "✓ All changes saved" (or "Saved on this device" while a write is queued), keeping the bar height. "Save and find players" carries a forward arrow. Only one pink button shows at a time. The unsaved-changes leave dialog is destructive: "Leave" in the error colour, "Stay" focused, and focus returns to where it was after "Stay".
 
 ### Navigation
@@ -318,6 +322,8 @@ The one way to ask "are you sure?" (`shared/confirm-dialog`); the browser `confi
 - **Theirs:** Void Black fill, cyan border at 35%, tail bottom-left, left-aligned, max 75% width.
 - **Mine:** Pulse Pink at 22% fill, no border, tail bottom-right, right-aligned.
 - Both preserve line breaks (`pre-wrap`) and break long words. An 11px timestamp sits right-aligned. A bubble pops in from its tail corner (0.2s).
+- **Days and groups:** a centred Haze Grey 12px day separator between hairlines ("Today" / "Yesterday" via `Intl.RelativeTimeFormat`, otherwise "12 October", with the year for past years; `role="separator"`, never announced by the live region). Same-sender messages within 5 minutes on the same day form a group: 2px gap inside, 8px between groups; only the last bubble keeps the 4px tail corner, the rest are fully 16px (a failed bubble always keeps its tail). Bubble width is `min(75%, 60ch)`, `min(85%, 60ch)` on phones.
+- **Common-game tags in the chat header and empty state** are inert: cyan 0.5 border, no fill, no hover, default cursor.
 - Each bubble carries a visually hidden speaker label ("You:" / "{name}:"). Only incoming messages are announced, through a separate polite live region.
 - **Layout:** the chat fills the space between the header (and the offline banner) and the bottom as a flex column, and resizes with the soft keyboard (`interactive-widget=resizes-content`). Below 600px it is full-bleed. On touch screens Enter adds a new line; on desktop Enter sends.
 - **Ended:** when the match disappears (unmatch or block by either side), the list freezes and a neutral "This chat has ended" bar with "Back to matches" replaces the composer. It never blames anyone.

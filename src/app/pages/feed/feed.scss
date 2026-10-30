@@ -65,14 +65,15 @@
 }
 
 .count {
-  flex: 1;
-  min-width: 0;
+  // 1 0 auto — растёт (прижимает переключатель вида вправо), но не сжимается уже своего текста:
+  // раньше на 390px с бейджем фильтров «Игроков: 2» обрезалось до «Игроко…» — число пропадало.
+  // Если места совсем не хватит, панель перенесёт на новую строку переключатель вида,
+  // а не обрежет и не разорвёт счётчик.
+  flex: 1 0 auto;
   margin: 0;
   color: var(--di-text-muted);
   // Число не переносится на вторую строку: «Знайдено гравців:» / «3» читалось как два факта.
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .count-short {
@@ -86,6 +87,16 @@
 
   .count-short {
     display: inline;
+  }
+
+  // На телефоне панель теснее: меньше промежутки и поля у «Фильтров» (24 → 16px),
+  // чтобы короткий счётчик помещался рядом даже с бейджем «Фильтры 1» в RU/UK.
+  .toolbar {
+    column-gap: 8px;
+  }
+
+  .filters-toggle {
+    --mat-button-outlined-horizontal-padding: 16px;
   }
 }
 
@@ -707,5 +718,74 @@ app-state-message {
     width: 14px;
     height: 14px;
     vertical-align: -2px;
+  }
+}
+
+// ===== Колода на широком экране =====
+// В конце файла намеренно: правила ниже переопределяют базовые правила колоды выше
+// (.like-hint, .status-slot, заготовка) при той же специфичности — побеждает последнее.
+// От 840px колонка колоды шире (760px), а карточка внутри — в две колонки: фото слева,
+// анкета справа (см. player-card.scss, тот же порог). Так вся карточка помещается над кнопками
+// на ноутбуке 1280×720, а колода не висит узкой полоской посреди пустого экрана.
+// Телефоны и планшеты до 840px остаются как были.
+@media (min-width: 840px) {
+  .deck,
+  .deck-skeleton {
+    max-width: 760px;
+  }
+
+  // Кнопки — по краям одного ряда, пояснения — между ними, по центру.
+  // Раньше подсказка о контактах и подсказка про клавиши шли под кнопками отдельными рядами,
+  // и липкая панель занимала ~180px — четверть экрана высотой 720px. В одном ряду — ~90px.
+  // grid-template-areas — «карта» сетки словами: кнопки занимают обе строки (skip/like
+  // повторены сверху и снизу), а в средней колонке друг под другом — пояснение и статус.
+  // Пустой строки (пояснение уже не показываем) у сетки просто нет: она высотой 0.
+  .deck-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+    grid-template-areas:
+      'skip hint like'
+      'skip status like';
+    align-items: center;
+    column-gap: 16px;
+    row-gap: 4px;
+
+    .skip {
+      grid-area: skip;
+    }
+
+    .like {
+      grid-area: like;
+    }
+
+    .like-hint {
+      grid-area: hint;
+    }
+
+    .status-slot {
+      grid-area: status;
+    }
+  }
+
+  // Заготовка повторяет раскладку карточки: фото слева на всю высоту, строки — справа.
+  .deck-skeleton .skeleton-card {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-content: start;
+    min-height: 280px;
+    padding-bottom: 0;
+
+    .photo {
+      grid-row: 1 / span 2;
+      aspect-ratio: auto;
+      max-height: none;
+    }
+
+    .lines {
+      padding: 16px 20px 0;
+    }
+
+    .buttons {
+      display: none;
+    }
   }
 }

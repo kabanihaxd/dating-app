@@ -122,8 +122,35 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  // Базовый зазор — плотный, 2px: так стоят пузыри одной «серии» (см. .group-start ниже).
+  gap: 2px;
   padding: 16px;
+}
+
+// Разделитель дней: маленькая подпись по центру между тонкими линиями — «— Вчера —».
+// Тихий (Haze Grey, мелкий текст), чтобы не спорить с сообщениями; линии рисуют ::before/::after.
+.day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 6px;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.5px;
+  color: var(--di-text-muted);
+
+  // Первый разделитель в списке — без верхнего отступа: над ним и так padding списка.
+  &:first-child {
+    margin-top: 0;
+  }
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(154, 154, 176, 0.2);
+  }
 }
 
 // Пустой чат: приветствие по центру списка и общие игры как повод начать разговор.
@@ -153,21 +180,30 @@
   gap: 6px;
 }
 
+// Общие игры — метки (tags из DESIGN.md «Chips / Tags»), а не кнопки: нажать на них нельзя.
+// Чтобы они и не выглядели нажимаемыми: без заливки, без тени и подсветки при наведении,
+// обычный курсор-стрелка, а рамка cyan чуть прозрачнее текста — кнопки-пилюли рядом
+// (например, «Новые сообщения») с насыщенной рамкой и заливкой фона от них отличаются.
 .tag {
   padding: 3px 10px;
   border-radius: 999px;
   font-size: 13px;
-  border: 1px solid var(--di-neon-cyan);
+  line-height: 18px;
+  border: 1px solid rgba(0, 229, 255, 0.5);
   color: var(--di-neon-cyan);
+  cursor: default;
 }
 
 // «Пузырь» сообщения: чужие — слева, мои — справа и в цвет бренда.
+// Ширина пузыря ограничена и долей списка (75%), и длиной строки в символах (60ch):
+// на широком экране 75% — это 900px, и строка в сотню символов читалась бы тяжело.
+// Скругление: все углы 16px; острый угол-«хвостик» (4px) — только у последнего пузыря серии (.tail).
 .message {
   position: relative;
   align-self: flex-start;
-  max-width: 75%;
+  max-width: min(75%, 60ch);
   padding: 8px 12px;
-  border-radius: 16px 16px 16px 4px;
+  border-radius: 16px;
   background: var(--di-bg);
   border: 1px solid rgba(0, 229, 255, 0.35);
 
@@ -199,9 +235,28 @@
 
   &.mine {
     align-self: flex-end;
-    border-radius: 16px 16px 4px 16px;
     border-color: transparent;
     background: rgba(255, 46, 136, 0.22);
+  }
+
+  // Новая серия — обычный отступ над ней; внутри серии остаётся плотный зазор списка (2px).
+  &.group-start {
+    margin-top: 8px;
+  }
+
+  // …кроме пузыря сразу под разделителем дней: отступ уже дал сам разделитель.
+  .day + &.group-start {
+    margin-top: 0;
+  }
+
+  // «Хвостик» смотрит в сторону говорящего: у чужих — нижний левый угол, у моих — нижний правый.
+  &.tail {
+    border-bottom-left-radius: 4px;
+  }
+
+  &.mine.tail {
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 4px;
   }
 
   // Ещё не подтверждено сервером: пузырь чуть приглушён, рядом «часики».
@@ -413,6 +468,21 @@
   white-space: nowrap;
 }
 
+// Сообщение длиннее лимита: счётчик и пояснение — цветом ошибки (как все ошибки сайта).
+// Счётчик в остальное время — тихий Haze Grey: это справка, а не предупреждение.
+// nowrap + flex-shrink: 0 — счётчик никогда не ломается на «1100 / / 1000» в узком поле,
+// переносится только пояснение слева.
+.counter {
+  flex-shrink: 0;
+  white-space: nowrap;
+  color: var(--di-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.over {
+  color: var(--mat-sys-error);
+}
+
 // На телефоне чат во всю ширину и до низа экрана: без рамки и скруглений —
 // каждый пиксель отдаём переписке (отступы страницы убирает app.scss).
 @media (max-width: 600px) {
@@ -423,7 +493,7 @@
   }
 
   .message {
-    max-width: 85%;
+    max-width: min(85%, 60ch);
   }
 }
 
