@@ -15,6 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { AuthService } from '../../core/auth/auth';
 import { authErrorKey } from '../../core/auth/auth-errors';
+import { ProfileService } from '../../core/profile/profile';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 type Mode = 'login' | 'register';
@@ -42,6 +43,7 @@ export class Login {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly profiles = inject(ProfileService);
 
   protected readonly minPasswordLength = 6;
   protected readonly mode = signal<Mode>('login');
@@ -105,7 +107,7 @@ export class Login {
     this.errorKey.set(null);
     try {
       await action();
-      await this.router.navigateByUrl(this.returnUrl());
+      await this.router.navigateByUrl(await this.nextUrl());
     } catch (error) {
       this.errorKey.set(authErrorKey(error));
     } finally {
@@ -113,9 +115,21 @@ export class Login {
     }
   }
 
-  // Куда вернуть после входа: guard положил адрес в ?returnUrl=. Пускаем только адреса нашего сайта.
-  private returnUrl(): string {
+  // Куда идти после входа. Guard положил адрес в ?returnUrl= — возвращаем туда (только адреса нашего
+  // сайта). Иначе — в ленту, но если анкеты ещё нет (только что зарегистрировался, первый вход через
+  // Google), сразу в профиль: лента без анкеты показала бы лишь заглушку «сначала заполни профиль».
+  private async nextUrl(): Promise<string> {
     const url = this.route.snapshot.queryParamMap.get('returnUrl');
-    return url?.startsWith('/') && !url.startsWith('//') ? url : '/feed';
+    if (url?.startsWith('/') && !url.startsWith('//')) {
+      return url;
+    }
+    const uid = this.auth.user()?.uid;
+    if (!uid) {
+      return '/feed';
+    }
+    // Не смогли прочитать анкету (нет сети) — не держим человека на форме входа: лента сама
+    // покажет понятную ошибку с кнопкой «Повторить».
+    const profile = await this.profiles.loadPublic(uid).catch(() => undefined);
+    return profile === null ? '/profile' : '/feed';
   }
 }

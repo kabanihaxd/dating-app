@@ -76,14 +76,14 @@ function contactValidator(domains: readonly string[]) {
 // По этому списку ищем ПЕРВОЕ поле с ошибкой (на него уйдёт фокус) и собираем текст «Поправь поля: Город, Платформы».
 // Путь 'contacts.discord' — вложенное поле: form.get() понимает такие пути через точку.
 const FIELD_LABELS: readonly (readonly [path: string, labelKey: string])[] = [
-  ['name', 'profile.name'],
-  ['birthDate', 'profile.birthDate'],
-  ['city', 'profile.city'],
-  ['bio', 'profile.bio'],
   ['games', 'profile.games.label'],
   ['platforms', 'profile.platforms'],
   ['genres', 'profile.genres'],
   ['playTimes', 'profile.playTimes'],
+  ['name', 'profile.name'],
+  ['birthDate', 'profile.birthDate'],
+  ['city', 'profile.city'],
+  ['bio', 'profile.bio'],
   ...CONTACT_FIELDS.map((field) => [`contacts.${field}`, `profile.contacts.${field}`] as const),
 ];
 

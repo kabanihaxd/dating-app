@@ -16,98 +16,9 @@
   } @else {
     <!-- id нужен кнопке «Сохранить»: она стоит в липкой панели ВНЕ формы и ссылается на неё через form="profile-form". -->
     <form id="profile-form" [formGroup]="form" (ngSubmit)="save()">
-      <!-- ===== О себе ===== -->
-      <h2>{{ 'profile.sections.about' | t }}</h2>
-
-      <div class="photo">
-        @if (photo(); as src) {
-          <img [src]="src" [alt]="'profile.photo.alt' | t" />
-        } @else {
-          <div class="photo-placeholder"><mat-icon>person</mat-icon></div>
-        }
-        <div class="photo-actions">
-          <!-- Настоящий input type="file" некрасивый, поэтому прячем его и «нажимаем» кнопкой. -->
-          <input
-            #photoInput
-            type="file"
-            accept="image/*"
-            hidden
-            (change)="onPhotoSelected(photoInput)"
-          />
-          <button mat-stroked-button type="button" (click)="photoInput.click()">
-            <mat-icon>photo_camera</mat-icon>
-            {{ (photo() ? 'profile.photo.change' : 'profile.photo.add') | t }}
-          </button>
-          @if (photo()) {
-            <button mat-button type="button" (click)="removePhoto()">
-              {{ 'profile.photo.remove' | t }}
-            </button>
-          }
-          @if (photoErrorKey(); as key) {
-            <!-- role="alert": фото выбирают в системном окне, глазами ошибку легко пропустить — диктор прочитает сразу. -->
-            <p class="field-error" role="alert">{{ key | t }}</p>
-          }
-        </div>
-      </div>
-
-      <!-- subscriptSizing="dynamic" у всех полей: по умолчанию Material оставляет под подсказку/ошибку
-           ровно одну строку, а длинный текст (две строки в RU/UK, «…Enter. До 20 игр.») вылезает
-           поверх подписи следующего поля. dynamic — строка подсказки растёт по тексту и сдвигает
-           всё ниже. Одну строку всё равно резервируем в profile.scss, чтобы короткая ошибка не дёргала форму. -->
-      <div class="row">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>{{ 'profile.name' | t }}</mat-label>
-          <input matInput formControlName="name" data-field="name" autocomplete="given-name" />
-          @if (form.controls.name.hasError('required')) {
-            <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
-          } @else if (form.controls.name.hasError('maxlength')) {
-            <mat-error>{{ 'profile.errors.maxLength' | t: { max: 30 } }}</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>{{ 'profile.birthDate' | t }}</mat-label>
-          <input
-            matInput
-            type="date"
-            formControlName="birthDate"
-            data-field="birthDate"
-            [max]="maxBirthDate"
-          />
-          @if (form.controls.birthDate.hasError('required')) {
-            <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
-          } @else if (form.controls.birthDate.hasError('underage')) {
-            <mat-error>{{ 'profile.errors.underage' | t }}</mat-error>
-          }
-        </mat-form-field>
-      </div>
-
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>{{ 'profile.city' | t }}</mat-label>
-        <input matInput formControlName="city" data-field="city" autocomplete="address-level2" />
-        @if (form.controls.city.hasError('required')) {
-          <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
-        } @else if (form.controls.city.hasError('maxlength')) {
-          <mat-error>{{ 'profile.errors.maxLength' | t: { max: 50 } }}</mat-error>
-        }
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>{{ 'profile.bio' | t }}</mat-label>
-        <textarea
-          matInput
-          formControlName="bio"
-          data-field="bio"
-          rows="4"
-          [placeholder]="'profile.bioPlaceholder' | t"
-        ></textarea>
-        <mat-hint align="end">{{ form.controls.bio.value.length }} / {{ maxBioLength }}</mat-hint>
-        @if (form.controls.bio.hasError('maxlength')) {
-          <mat-error>{{ 'profile.errors.maxLength' | t: { max: maxBioLength } }}</mat-error>
-        }
-      </mat-form-field>
-
       <!-- ===== Игровой профиль ===== -->
+      <!-- Идёт первым: ради него человек и пришёл, по нему строится подбор. На первом заходе
+           он виден сразу, а не после 900px формы «о себе». -->
       <h2>{{ 'profile.sections.gaming' | t }}</h2>
       <!-- Зачем заполнять жанры и время игры: одна приглушённая строка с правилом подбора.
            Без неё необязательные группы ниже выглядят как анкета ради анкеты. -->
@@ -211,6 +122,97 @@
           }
         </div>
       }
+
+      <!-- ===== О себе ===== -->
+      <h2>{{ 'profile.sections.about' | t }}</h2>
+
+      <div class="photo">
+        @if (photo(); as src) {
+          <img [src]="src" [alt]="'profile.photo.alt' | t" />
+        } @else {
+          <div class="photo-placeholder"><mat-icon>person</mat-icon></div>
+        }
+        <div class="photo-actions">
+          <!-- Настоящий input type="file" некрасивый, поэтому прячем его и «нажимаем» кнопкой. -->
+          <input
+            #photoInput
+            type="file"
+            accept="image/*"
+            hidden
+            (change)="onPhotoSelected(photoInput)"
+          />
+          <button mat-stroked-button type="button" (click)="photoInput.click()">
+            <mat-icon>photo_camera</mat-icon>
+            {{ (photo() ? 'profile.photo.change' : 'profile.photo.add') | t }}
+          </button>
+          @if (photo()) {
+            <button mat-button type="button" (click)="removePhoto()">
+              {{ 'profile.photo.remove' | t }}
+            </button>
+          }
+          @if (photoErrorKey(); as key) {
+            <!-- role="alert": фото выбирают в системном окне, глазами ошибку легко пропустить — диктор прочитает сразу. -->
+            <p class="field-error" role="alert">{{ key | t }}</p>
+          }
+        </div>
+      </div>
+
+      <!-- subscriptSizing="dynamic" у всех полей: по умолчанию Material оставляет под подсказку/ошибку
+           ровно одну строку, а длинный текст (две строки в RU/UK, «…Enter. До 20 игр.») вылезает
+           поверх подписи следующего поля. dynamic — строка подсказки растёт по тексту и сдвигает
+           всё ниже. Одну строку всё равно резервируем в profile.scss, чтобы короткая ошибка не дёргала форму. -->
+      <div class="row">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>{{ 'profile.name' | t }}</mat-label>
+          <input matInput formControlName="name" data-field="name" autocomplete="given-name" />
+          @if (form.controls.name.hasError('required')) {
+            <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
+          } @else if (form.controls.name.hasError('maxlength')) {
+            <mat-error>{{ 'profile.errors.maxLength' | t: { max: 30 } }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>{{ 'profile.birthDate' | t }}</mat-label>
+          <input
+            matInput
+            type="date"
+            formControlName="birthDate"
+            data-field="birthDate"
+            [max]="maxBirthDate"
+          />
+          @if (form.controls.birthDate.hasError('required')) {
+            <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
+          } @else if (form.controls.birthDate.hasError('underage')) {
+            <mat-error>{{ 'profile.errors.underage' | t }}</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>{{ 'profile.city' | t }}</mat-label>
+        <input matInput formControlName="city" data-field="city" autocomplete="address-level2" />
+        @if (form.controls.city.hasError('required')) {
+          <mat-error>{{ 'profile.errors.required' | t }}</mat-error>
+        } @else if (form.controls.city.hasError('maxlength')) {
+          <mat-error>{{ 'profile.errors.maxLength' | t: { max: 50 } }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>{{ 'profile.bio' | t }}</mat-label>
+        <textarea
+          matInput
+          formControlName="bio"
+          data-field="bio"
+          rows="4"
+          [placeholder]="'profile.bioPlaceholder' | t"
+        ></textarea>
+        <mat-hint align="end">{{ form.controls.bio.value.length }} / {{ maxBioLength }}</mat-hint>
+        @if (form.controls.bio.hasError('maxlength')) {
+          <mat-error>{{ 'profile.errors.maxLength' | t: { max: maxBioLength } }}</mat-error>
+        }
+      </mat-form-field>
 
       <!-- ===== Контакты ===== -->
       <h2>{{ 'profile.sections.contacts' | t }}</h2>
