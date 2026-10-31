@@ -131,6 +131,9 @@ export class ModerationMenu {
         panelClass: 'di-framed-dialog',
         maxWidth: 440,
         width: 'calc(100vw - 32px)',
+        // Фокус — на заголовок, а не на первую причину: кольцо фокуса на радиокнопке
+        // выглядело так, будто причина уже выбрана за человека.
+        autoFocus: 'first-heading',
         restoreFocus: this.triggerElement,
       })
       .afterClosed()

@@ -16,6 +16,29 @@
   padding: 0;
 }
 
+// .one-row (карточка мэтча на телефоне): все чипы в одну строку с прокруткой вбок, а не столбиком
+// по чипу на строку — иначе три мэтча с четырьмя контактами занимали пару экранов.
+// Отступ снизу — место под кольцо фокуса, которое иначе обрезал бы overflow.
+// contain: inline-size — строка не сообщает родителям свою «естественную» ширину (все чипы в ряд).
+// Иначе она распирала карточку и всю сетку мэтчей шире экрана.
+@media (max-width: 600px) {
+  :host(.one-row) {
+    contain: inline-size;
+  }
+
+  :host(.one-row) .contacts {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 2px 2px 4px;
+    margin: -2px -2px -4px;
+    scrollbar-width: none;
+
+    .contact {
+      flex-shrink: 0;
+    }
+  }
+}
+
 .contact {
   // У <a> по умолчанию content-box, у <button> — border-box: выравниваем, чтобы чипы были одной высоты.
   box-sizing: border-box;

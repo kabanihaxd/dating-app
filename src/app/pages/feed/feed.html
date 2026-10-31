@@ -393,7 +393,8 @@
       </app-state-message>
     } @else {
       <app-state-message icon="search_off" tone="cyan">
-        <h2>{{ 'feed.emptyFilteredTitle' | t }}</h2>
+        <!-- Сам только что разобрал последних под этими фильтрами — «никого не нашли» звучало бы как ошибка. -->
+        <h2>{{ (filteredDone() ? 'feed.emptyFilteredDoneTitle' : 'feed.emptyFilteredTitle') | t }}</h2>
         <!-- Включённые фильтры со значениями, каждый — кнопка «снять только его»
              (см. activeFilterChips). Список (ul) — скринридер скажет, сколько их. -->
         <p>{{ 'feed.emptyFilteredBy' | t }}</p>

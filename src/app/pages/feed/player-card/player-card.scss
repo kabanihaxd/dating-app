@@ -147,6 +147,13 @@
     border-color: var(--di-neon-cyan);
     color: var(--di-neon-cyan);
   }
+
+  // Немного общего — не провал: спокойная фиолетовая «структура» и обычный текст, а не серый.
+  &.low {
+    border-color: rgba(168, 85, 247, 0.5);
+    color: var(--mat-sys-on-surface);
+    font-weight: 500;
+  }
 }
 
 .body {
@@ -178,9 +185,11 @@
     overflow-wrap: anywhere;
     border-radius: 4px;
 
+    // Фокус сюда ставит лента после лайка/пропуска — это «вы здесь», а не элемент управления.
+    // Тонкая полупрозрачная рамка: заметно, где фокус, но не громче кнопок под карточкой.
     &:focus-visible {
-      outline: 2px solid var(--di-neon-cyan);
-      outline-offset: 2px;
+      outline: 1px solid rgba(0, 229, 255, 0.5);
+      outline-offset: 4px;
     }
   }
 }

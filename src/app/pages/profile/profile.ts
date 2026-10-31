@@ -293,6 +293,16 @@ export class Profile implements HasUnsavedChanges {
   // Это saveDisabled без «идёт сохранение»: у сохранения свой вид («Сохраняем…»).
   protected readonly allSaved = computed(() => !this.saving() && !this.isNew() && !this.dirty());
 
+  // Сохранять нечего и сказать нечего — на телефоне панель тогда не липкая (см. .idle в profile.scss).
+  protected readonly barIdle = computed(
+    () =>
+      this.allSaved() &&
+      !this.readyForFeed() &&
+      !this.showInvalid() &&
+      !this.errorKey() &&
+      !this.statusKey(),
+  );
+
   // Подпись кнопки «Сохранить» для каждого её вида (сами виды описаны в profile.html).
   protected readonly saveLabelKey = computed(() => {
     if (this.allSaved()) {

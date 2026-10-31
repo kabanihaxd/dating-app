@@ -101,6 +101,14 @@
   }
 }
 
+// «Пожаловаться и заблокировать» — как разрушительная кнопка ConfirmDialog (через токены Material).
+.send.destructive {
+  --mat-button-filled-container-color: var(--mat-sys-error);
+  --mat-button-filled-label-text-color: var(--mat-sys-on-error);
+  --mat-button-filled-state-layer-color: var(--mat-sys-on-error);
+  font-weight: 600;
+}
+
 // Узкий экран — кнопки во всю ширину друг под другом в порядке разметки («Отмена» сверху),
 // чтобы видимый порядок совпадал с порядком Tab.
 @media (max-width: 399.98px) {

@@ -103,6 +103,7 @@
     },
     "card": {
       "match": "совпадение {{percent}}%",
+      "matchLow": "Немного общего",
       "commonGames": "Общие игры",
       "games": "Игры",
       "otherGames": "Другие игры",
@@ -206,7 +207,8 @@
     "deckLabel": "Колода игроков",
     "emptyFilteredTitle": "Никого не нашлось",
     "countShort": "Игроков: {{count}}",
-    "emptyFilteredBy": "Сними один из фильтров или сбрось все."
+    "emptyFilteredBy": "Сними один из фильтров или сбрось все.",
+    "emptyFilteredDoneTitle": "Под эти фильтры больше никого"
   },
   "auth": {
     "loginTitle": "Вход",

@@ -94,7 +94,11 @@
 
   // Имя и строка общих игр под ним. min-width: 0 — иначе flex-элемент не сжимается,
   // и многоточие у длинного имени или списка игр не сработало бы.
+  // flex: 1 — ширину шапки берёт себе блок имени. Без строки игр под именем (она прячется, пока
+  // видна «Тема для разговора» или карточка игрока) блок сжимался до max-width: 100% у кнопки-имени,
+  // и от «Катя» оставалось «К…».
   .who {
+    flex: 1;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -212,6 +216,34 @@
   font-size: 13px;
   line-height: 18px;
   color: var(--di-text-muted);
+}
+
+// Фото 96px с розовым кольцом (как аватары мэтчей), рядом — факты и «о себе».
+.person {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  img {
+    flex-shrink: 0;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--di-neon-pink);
+  }
+
+  > div {
+    min-width: 0;
+  }
+}
+
+.bio {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .card-actions {

@@ -164,8 +164,14 @@
             }
           </a>
 
-          <!-- Контакты: чипы «PSN · ник» с копированием (общий компонент, тот же — в чате). -->
-          <app-contact-chips [contacts]="match.contacts" [name]="name" [idPrefix]="match.id" />
+          <!-- Контакты: чипы «PSN · ник» с копированием (общий компонент, тот же — в чате).
+               one-row — на телефоне одной строкой с прокруткой вбок. -->
+          <app-contact-chips
+            class="one-row"
+            [contacts]="match.contacts"
+            [name]="name"
+            [idPrefix]="match.id"
+          />
         </div>
       </article>
     }

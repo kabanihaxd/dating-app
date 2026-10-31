@@ -323,6 +323,8 @@ export class Chat {
     return {
       age: partner.birthDate ? ageFrom(partner.birthDate) : null,
       city: partner.city,
+      photo: partner.photo,
+      bio: partner.bio.trim(),
       games: [...games.filter((g) => g.shared), ...games.filter((g) => !g.shared)],
       platforms: sharedFirst(partner.platforms, this.commonPlatforms()),
       times: sharedFirst(partner.playTimes, this.commonPlayTimes()),

@@ -193,6 +193,8 @@ export class Feed {
   protected readonly players = signal<Player[]>([]);
   // uid тех, кого я уже лайкнул или пропустил.
   private readonly swiped = signal(new Set<string>());
+  // Кого я лайкнул или пропустил ещё до этого визита (как пришло из базы) — для filteredDone.
+  private swipedBeforeVisit = new Set<string>();
   // Куда улетает карточка: лайк — вправо, пропуск — влево. Шаблон берёт отсюда класс для animate.leave.
   private readonly swipeDirections = new Map<string, Direction>();
   // Незавершённые сохранения пропусков: «Вернуть» сначала дождётся записи, потом удалит её.
@@ -389,13 +391,9 @@ export class Feed {
     return { mine, others: [...others.values()].sort((a, b) => a.localeCompare(b)) };
   });
 
-  // Главная часть ленты: считаем совместимость, фильтруем.
-  // Порядок: сначала те, кто уже лайкнул меня (лайк в ответ = мэтч), дальше — по совместимости.
-  protected readonly results = computed<FeedItem[]>(() => {
-    const me = this.me();
-    if (!me) {
-      return [];
-    }
+  // Проходит ли игрок фильтры. Отдельно от results: «Таких больше нет» (filteredDone) проверяет
+  // им и тех, кого уже лайкнули или пропустили.
+  private readonly passesFilters = computed(() => {
     const { game, platform, city, minAge, maxAge } = this.filterValues();
     // Пустое числовое поле даёт null — тогда считаем, что ограничения нет.
     // «От 40 до 25» не ошибка, а перепутанные поля: просто меняем их местами.
@@ -404,24 +402,37 @@ export class Feed {
     const from = Math.min(a, b);
     const to = Math.max(a, b);
     const cityQuery = city.trim().toLowerCase();
+    return (player: Player): boolean => {
+      const age = ageFrom(player.birthDate);
+      return (
+        age >= from &&
+        age <= to &&
+        (!game || player.games.some((g) => gameKey(g) === gameKey(game))) &&
+        (!platform || player.platforms.includes(platform)) &&
+        (!cityQuery || player.city.toLowerCase().includes(cityQuery))
+      );
+    };
+  });
+
+  // Главная часть ленты: считаем совместимость, фильтруем.
+  // Порядок: сначала те, кто уже лайкнул меня (лайк в ответ = мэтч), дальше — по совместимости.
+  protected readonly results = computed<FeedItem[]>(() => {
+    const me = this.me();
+    if (!me) {
+      return [];
+    }
+    const passes = this.passesFilters();
     const likedMe = this.notifications.likedMe();
     const front = this.frontUid();
 
     return this.remaining()
+      .filter(passes)
       .map((player) => ({
         player,
         age: ageFrom(player.birthDate),
         match: matchScore(me, player),
         likedMe: likedMe.has(player.uid),
       }))
-      .filter(
-        ({ player, age }) =>
-          age >= from &&
-          age <= to &&
-          (!game || player.games.some((g) => gameKey(g) === gameKey(game))) &&
-          (!platform || player.platforms.includes(platform)) &&
-          (!cityQuery || player.city.toLowerCase().includes(cityQuery)),
-      )
       .sort(
         (a, b) =>
           Number(b.player.uid === front) - Number(a.player.uid === front) ||
@@ -434,6 +445,20 @@ export class Feed {
   protected readonly filteredEmpty = computed(
     () => !!this.me() && !this.results().length && this.remaining().length > 0,
   );
+
+  // Под фильтрами пусто, потому что я сам только что лайкнул или пропустил последних, кто под них
+  // подходил. Тогда это не «никого не нашли», а «ты всех посмотрел»: заголовок другой.
+  protected readonly filteredDone = computed(() => {
+    if (!this.filteredEmpty()) {
+      return false;
+    }
+    const swiped = this.swiped();
+    const passes = this.passesFilters();
+    return this.players().some(
+      (player) =>
+        swiped.has(player.uid) && !this.swipedBeforeVisit.has(player.uid) && passes(player),
+    );
+  });
 
   // В колоде рисуем двух: текущего и следующего «выглядывающего» из-за него.
   protected readonly deck = computed(() => this.results().slice(0, 2));
@@ -1239,6 +1264,7 @@ export class Feed {
       this.me.set(profile);
       this.players.set(players);
       this.swiped.set(swiped);
+      this.swipedBeforeVisit = swiped;
       // Сохранённая игра из прошлого визита могла исчезнуть из анкет — тогда фильтр по ней
       // молча показывал бы пустоту. Сбрасываем.
       const { mine, others } = this.gameOptions();

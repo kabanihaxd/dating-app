@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -67,9 +67,13 @@ export class ReportDialog {
     initialValue: this.form.controls.block.value,
   });
 
+  // Ошибку «выберите причину» показываем только после попытки отправить. По touched она всплывала,
+  // стоило Tab пройти через список причин, — человек ещё ничего не отправлял.
+  protected readonly submitted = signal(false);
+
   protected submit(): void {
     if (this.form.invalid) {
-      this.form.markAllAsTouched();
+      this.submitted.set(true);
       return;
     }
     const { reason, comment, block } = this.form.getRawValue();

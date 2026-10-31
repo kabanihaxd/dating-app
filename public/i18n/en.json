@@ -103,6 +103,7 @@
     },
     "card": {
       "match": "{{percent}}% match",
+      "matchLow": "A bit in common",
       "commonGames": "Games in common",
       "games": "Games",
       "otherGames": "Other games",
@@ -206,7 +207,8 @@
     "deckLabel": "Player deck",
     "emptyFilteredTitle": "No players found",
     "countShort": "Players: {{count}}",
-    "emptyFilteredBy": "Remove a filter or reset them all."
+    "emptyFilteredBy": "Remove a filter or reset them all.",
+    "emptyFilteredDoneTitle": "That's everyone for these filters"
   },
   "auth": {
     "loginTitle": "Log in",

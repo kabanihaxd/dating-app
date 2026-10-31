@@ -103,6 +103,7 @@
     },
     "card": {
       "match": "збіг {{percent}}%",
+      "matchLow": "Трохи спільного",
       "commonGames": "Спільні ігри",
       "games": "Ігри",
       "otherGames": "Інші ігри",
@@ -206,7 +207,8 @@
     "deckLabel": "Колода гравців",
     "emptyFilteredTitle": "Нікого не знайшлося",
     "countShort": "Гравців: {{count}}",
-    "emptyFilteredBy": "Зніми один із фільтрів або скинь усі."
+    "emptyFilteredBy": "Зніми один із фільтрів або скинь усі.",
+    "emptyFilteredDoneTitle": "Під ці фільтри більше нікого"
   },
   "auth": {
     "loginTitle": "Вхід",

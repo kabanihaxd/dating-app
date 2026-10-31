@@ -17,8 +17,8 @@
           }}</mat-radio-button>
         }
       </mat-radio-group>
-      @if (form.controls.reason.touched && form.controls.reason.invalid) {
-        <p class="field-error">{{ 'moderation.reasonRequired' | t }}</p>
+      @if (submitted() && form.controls.reason.invalid) {
+        <p class="field-error" role="alert">{{ 'moderation.reasonRequired' | t }}</p>
       }
 
       <mat-form-field appearance="outline" class="comment">
@@ -39,7 +39,8 @@
 
     <mat-dialog-actions class="actions">
       <button mat-stroked-button type="button" mat-dialog-close>{{ 'moderation.cancel' | t }}</button>
-      <button mat-flat-button type="submit">
+      <!-- С галочкой блока кнопка разрушительная (удалит мэтч и переписку) — красим цветом ошибки. -->
+      <button mat-flat-button type="submit" class="send" [class.destructive]="blocking()">
         {{ (blocking() ? 'moderation.sendAndBlock' : 'moderation.send') | t }}
       </button>
     </mat-dialog-actions>

@@ -32,9 +32,16 @@
           [class]="level()"
           #tip="matTooltip"
           [matTooltip]="'feed.card.matchHint' | t"
+          matTooltipPosition="above"
           (click)="tip.toggle()"
         >
-          {{ 'feed.card.match' | t: { percent: match().percent } }}
+          <!-- Ниже 40% цифра читается как провал («12%»), хотя общее есть. Вместо неё — слова.
+               Подсказка — над бейджем: под ним имя игрока, его она закрывала. -->
+          @if (level() === 'low') {
+            {{ 'feed.card.matchLow' | t }}
+          } @else {
+            {{ 'feed.card.match' | t: { percent: match().percent } }}
+          }
         </button>
       }
     </div>

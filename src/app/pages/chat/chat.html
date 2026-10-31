@@ -74,9 +74,11 @@
             </button>
           </h1>
           <!-- Общие игры — повод для разговора. Раньше они были только в пустом чате и пропадали
-               после первого сообщения; теперь всегда под именем. Длинный список обрезается
-               многоточием только визуально — программа чтения с экрана прочтёт его целиком. -->
-          @if (commonGames().length) {
+               после первого сообщения; теперь под именем. Длинный список обрезается
+               многоточием только визуально — программа чтения с экрана прочтёт его целиком.
+               Не дублируем: пока над полем ввода «Тема для начала» или открыта карточка игрока,
+               игры уже видны там. -->
+          @if (commonGames().length && !starter() && !partnerOpen()) {
             <p class="games">
               <mat-icon aria-hidden="true">sports_esports</mat-icon>
               <span>{{ 'chat.commonGames' | t: { games: commonGames().join(', ') } }}</span>
@@ -107,16 +109,27 @@
           [attr.aria-label]="'chat.partner.region' | t: { name: partnerName() }"
           (keydown.escape)="closePartner()"
         >
-          @if (card.age || card.city) {
-            <p class="facts">
-              @if (card.age) {
-                <span>{{ card.age }}</span>
+          <!-- Сначала человек: фото крупнее, чем в шапке, возраст, город и пара слов о себе. -->
+          <div class="person">
+            @if (card.photo; as src) {
+              <img [src]="src" [alt]="'feed.card.photoAlt' | t: { name: partnerName() }" />
+            }
+            <div>
+              @if (card.age || card.city) {
+                <p class="facts">
+                  @if (card.age) {
+                    <span>{{ card.age }}</span>
+                  }
+                  @if (card.city) {
+                    <span><mat-icon inline aria-hidden="true">place</mat-icon> {{ card.city }}</span>
+                  }
+                </p>
               }
-              @if (card.city) {
-                <span><mat-icon inline aria-hidden="true">place</mat-icon> {{ card.city }}</span>
+              @if (card.bio) {
+                <p class="bio">{{ card.bio }}</p>
               }
-            </p>
-          }
+            </div>
+          </div>
           @if (card.games.length) {
             <h2 class="label">{{ 'chat.partner.games' | t }}</h2>
             <ul class="tags left">

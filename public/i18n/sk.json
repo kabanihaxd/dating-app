@@ -103,6 +103,7 @@
     },
     "card": {
       "match": "zhoda {{percent}}%",
+      "matchLow": "Trochu spoločného",
       "commonGames": "Spoločné hry",
       "games": "Hry",
       "otherGames": "Ďalšie hry",
@@ -206,7 +207,8 @@
     "deckLabel": "Balíček hráčov",
     "emptyFilteredTitle": "Nikoho sme nenašli",
     "countShort": "Hráči: {{count}}",
-    "emptyFilteredBy": "Odstráň niektorý filter alebo ich zruš všetky."
+    "emptyFilteredBy": "Odstráň niektorý filter alebo ich zruš všetky.",
+    "emptyFilteredDoneTitle": "Pre tieto filtre už nikto nie je"
   },
   "auth": {
     "loginTitle": "Prihlásenie",
