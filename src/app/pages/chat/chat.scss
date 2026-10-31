@@ -45,10 +45,48 @@
       outline-offset: 2px;
     }
 
+    display: flex;
     min-width: 0;
     font-size: 18px;
     font-weight: 500;
     line-height: 1.3;
+  }
+
+  // Имя — кнопка, раскрывающая карточку игрока. Выглядит как имя (шрифт заголовка), а не как
+  // кнопка: стрелка ▾ рядом и мягкая подсветка при наведении говорят, что оно нажимается.
+  // Многоточие — у самого имени (.who-name), а не у h1: overflow: hidden на h1 срезал бы рамку фокуса.
+  .who-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    max-width: 100%;
+    margin: -2px -4px;
+    padding: 2px 4px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    mat-icon {
+      flex-shrink: 0;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: var(--di-text-muted);
+    }
+  }
+
+  .who-name {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -107,12 +145,134 @@
     object-fit: cover;
   }
 
+  img,
+  .avatar {
+    cursor: pointer;
+  }
+
   .avatar {
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--di-bg);
     color: var(--di-text-muted);
+  }
+}
+
+// Карточка игрока под шапкой. Не всплывающее окно: переписка остаётся видна ниже, а карточка
+// занимает не больше 60% высоты чата и сама прокручивается, если в ней много игр;
+// кнопки при этом прилипают к её низу и видны всегда.
+// Фон — Void Black как «вкладка» внутри Lobby Indigo (DESIGN.md: void-bg и как inset).
+.partner-card {
+  flex-shrink: 0;
+  max-height: 60%;
+  overflow-y: auto;
+  padding: 12px 16px 0;
+  background: var(--di-bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  // Подписи разделов — тип label: мелко, Haze Grey. h2 по смыслу (разделы карточки),
+  // поэтому сбрасываем браузерный размер заголовка.
+  .label {
+    margin: 14px 0 6px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 16px;
+    letter-spacing: 0.5px;
+    color: var(--di-text-muted);
+  }
+
+  > .label:first-child {
+    margin-top: 0;
+  }
+
+  .tags {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+// Возраст и город — одной тихой строкой над играми.
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--di-text-muted);
+}
+
+.card-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 0 16px;
+  background: var(--di-bg);
+
+  // «Позвать играть» — главное действие карточки: Pulse Pink, тёмный текст (правило Dark-on-Neon).
+  .invite {
+    --mat-button-filled-container-color: var(--di-neon-pink);
+    --mat-button-filled-label-text-color: var(--di-bg);
+    --mat-button-filled-state-layer-color: var(--di-bg);
+    font-weight: 600;
+  }
+}
+
+// Карточка выезжает из-под шапки, а не возникает из ниоткуда.
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.sheet-in {
+  animation: sheet-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+// «Позвать играть» в строке темы и в пустом чате — тихая текстовая кнопка цвета «общей почвы»:
+// она про то, что у вас общего, и не спорит с розовой «Отправить».
+.invite-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--di-neon-cyan);
+  font: 500 13px/1 Roboto, sans-serif;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    background: rgba(0, 229, 255, 0.08);
+  }
+
+  @media (pointer: coarse) {
+    min-height: 44px;
   }
 }
 
@@ -209,6 +369,17 @@
   border: 1px solid rgba(0, 229, 255, 0.5);
   color: var(--di-neon-cyan);
   cursor: default;
+
+  // Не общее — тихим серым (DESIGN.md: unmatched tags, рамка Haze Grey 35%).
+  &.other {
+    border-color: rgba(154, 154, 176, 0.35);
+    color: var(--di-text-muted);
+  }
+}
+
+// Метки в карточке игрока — по левому краю (в пустом чате — по центру).
+.tags.left {
+  justify-content: flex-start;
 }
 
 // «Пузырь» сообщения: чужие — слева, мои — справа и в цвет бренда.
@@ -422,6 +593,11 @@
     padding: 1px 8px;
     font-size: 12px;
   }
+
+  // Кнопка — в конце строки, справа: сначала повод, потом действие.
+  .invite-link {
+    margin-left: auto;
+  }
 }
 
 .starter-label {
@@ -596,4 +772,17 @@
     align-self: flex-end;
     border-radius: 16px 16px 4px 16px;
   }
+}
+
+// В пустом чате «Позвать играть» стоит под общими играми, с отступом от них.
+.empty .invite-link {
+  margin-top: 12px;
+}
+
+// Значок кнопки — обычного размера и цвета кнопки, а не крупная розовая «ладошка» приветствия.
+.empty .invite-link mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: inherit;
 }

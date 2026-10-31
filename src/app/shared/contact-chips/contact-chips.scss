@@ -1,0 +1,124 @@
+// Чипы ставятся друг под другом с полем запасного копирования — колонка с зазором 8px.
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+// Контакты — ряд компактных чипов. Они вторичны по отношению к чату, поэтому без заливки,
+// с тихой бирюзовой рамкой (0.35); иконка справа говорит, что будет: копировать или открыть.
+.contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.contact {
+  // У <a> по умолчанию content-box, у <button> — border-box: выравниваем, чтобы чипы были одной высоты.
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  // Чип не шире строки карточки: длинный ник обрежется многоточием, а не вылезет за край.
+  max-width: 100%;
+  min-height: 40px;
+  padding: 0 12px 0 14px;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: 500 13px/1 Roboto, sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+  // Серая вспышка, которой мобильный браузер подсвечивает нажатие, на тёмной карточке
+  // выглядит как грязное пятно. Нажатие и так видно: чип меняется (hover / «Скопировано»).
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+
+  // Платформа — тихим цветом и «·» после неё, значение — основным: глаз сразу ловит ник.
+  .platform {
+    flex-shrink: 0;
+    color: var(--di-text-muted);
+
+    &::after {
+      content: ' ·';
+    }
+  }
+
+  // Значение: одна строка, длинное — с многоточием. 16ch — хватает на типичный ник
+  // (di_tester_1, PSN до 16 символов), а два-три чипа всё равно помещаются в ряд.
+  .value {
+    min-width: 0;
+    max-width: 16ch;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    // line-height 1 срезал бы хвосты букв «у», «р» при overflow: hidden.
+    line-height: 1.3;
+  }
+
+  mat-icon {
+    flex-shrink: 0;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--di-neon-cyan);
+  }
+
+  &:hover {
+    background: rgba(0, 229, 255, 0.08);
+    border-color: var(--di-neon-cyan);
+  }
+
+  // «Скопировано»: чип на 1,5 с загорается бирюзовым — подтверждение прямо там, куда нажали.
+  &.copied {
+    border-color: var(--di-neon-cyan);
+    background: rgba(0, 229, 255, 0.12);
+
+    .value {
+      color: var(--di-neon-cyan);
+    }
+  }
+
+  // На сенсорном экране палец толще курсора — чип не ниже 44px.
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
+}
+
+// Запасное копирование: подпись и поле только для чтения с ником (уже выделенным).
+.manual-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--di-text-muted);
+
+  input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--di-neon-cyan);
+    border-radius: 8px;
+    background: var(--di-bg);
+    color: var(--mat-sys-on-surface);
+    font: 500 15px/1 Roboto, sans-serif;
+
+    &:focus-visible {
+      outline: 2px solid var(--di-neon-cyan);
+      outline-offset: 2px;
+    }
+  }
+}
+
+.no-contacts {
+  margin: 0;
+  font-size: 13px;
+  color: var(--di-text-muted);
+}

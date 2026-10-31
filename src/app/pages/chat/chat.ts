@@ -34,7 +34,14 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { matchScore } from '../../core/matching/match-score';
 import { NotificationService } from '../../core/notifications/notifications';
 import { ProfileService } from '../../core/profile/profile';
-import { PlayTime, UserProfile } from '../../core/profile/profile.model';
+import {
+  Platform,
+  PlayTime,
+  UserContacts,
+  UserProfile,
+  ageFrom,
+} from '../../core/profile/profile.model';
+import { ContactChips } from '../../shared/contact-chips/contact-chips';
 import { ErrorState } from '../../shared/error-state/error-state';
 import { ModerationMenu } from '../../shared/moderation-menu/moderation-menu';
 import { StateMessage } from '../../shared/state-message/state-message';
@@ -141,6 +148,7 @@ interface FailedMessage {
     MatTooltipModule,
     TranslatePipe,
     ModerationMenu,
+    ContactChips,
     ErrorState,
     StateMessage,
   ],
@@ -186,6 +194,13 @@ export class Chat {
   protected readonly commonGames = signal<string[]>([]);
   // Общее время игры (утром, вечером, на выходных…) — второй повод для разговора.
   protected readonly commonPlayTimes = signal<PlayTime[]>([]);
+  // Общие платформы — на чём можно сыграть вместе (первая из них попадает в приглашение).
+  private readonly commonPlatforms = signal<Platform[]>([]);
+  // Контакты собеседника (Discord, Steam, PSN, Xbox) — для карточки игрока. Правила базы отдают
+  // их только при взаимном мэтче; не загрузились — карточка просто скажет, что контактов нет.
+  protected readonly partnerContacts = signal<UserContacts | null>(null);
+  // Раскрыта ли карточка игрока под шапкой (кнопка — имя собеседника).
+  protected readonly partnerOpen = signal(false);
   private readonly messages = signal<ChatMessage[]>([]);
   // Идёт ли сейчас отправка — пока да, второй Enter/нажатие кнопки ничего не делает (см. send).
   // Кнопку по нему НЕ выключаем: выключенная кнопка теряет фокус, и на телефоне закрывается клавиатура.
@@ -273,6 +288,36 @@ export class Chat {
     return early ? { games, times } : null;
   });
 
+  // Карточка игрока под шапкой чата: всё, что нужно, чтобы договориться о совместной игре, не уходя
+  // из переписки. Общее (cyan) идёт первым — ради него и случился мэтч, остальное — тише следом.
+  protected readonly partnerCard = computed(() => {
+    const partner = this.partner();
+    if (!partner) {
+      return null;
+    }
+    const sharedFirst = <T>(all: T[], shared: T[]) => {
+      const common = new Set(shared);
+      return [
+        ...all.filter((item) => common.has(item)).map((item) => ({ item, shared: true })),
+        ...all.filter((item) => !common.has(item)).map((item) => ({ item, shared: false })),
+      ];
+    };
+    // Общие игры matchScore отдаёт в МОЁМ написании («valorant»), а у собеседника может быть
+    // «Valorant» — поэтому сравниваем без учёта регистра.
+    const commonGames = new Set(this.commonGames().map((game) => game.toLocaleLowerCase()));
+    const games = partner.games.map((game) => ({
+      item: game,
+      shared: commonGames.has(game.toLocaleLowerCase()),
+    }));
+    return {
+      age: partner.birthDate ? ageFrom(partner.birthDate) : null,
+      city: partner.city,
+      games: [...games.filter((g) => g.shared), ...games.filter((g) => !g.shared)],
+      platforms: sharedFirst(partner.platforms, this.commonPlatforms()),
+      times: sharedFirst(partner.playTimes, this.commonPlayTimes()),
+    };
+  });
+
   // Подсказка над полем ввода «Отправим, когда появится сеть»: показываем, только когда есть мои
   // сообщения с «часиками» И браузер точно офлайн. Одни «часики» мелкие и ничего не обещают —
   // человек мог решить, что сообщения потерялись. А при живой сети «часики» висят доли секунды,
@@ -289,6 +334,7 @@ export class Chat {
   private readonly list = viewChild<ElementRef<HTMLElement>>('list');
   private readonly input = viewChild<ElementRef<HTMLTextAreaElement>>('input');
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
+  private readonly partnerToggle = viewChild<ElementRef<HTMLButtonElement>>('partnerToggle');
   // Для какого чата уже поставили фокус при открытии — чтобы не перехватывать его снова
   // на каждом новом сообщении (см. afterRenderEffect «фокус при открытии»).
   private focusedFor: string | null = null;
@@ -340,6 +386,9 @@ export class Chat {
         this.partner.set(null);
         this.commonGames.set([]);
         this.commonPlayTimes.set([]);
+        this.commonPlatforms.set([]);
+        this.partnerContacts.set(null);
+        this.partnerOpen.set(false);
         this.focusedFor = null;
         // Неотправленные сообщения относятся к тому чату, где их писали.
         this.failed.set([]);
@@ -505,6 +554,57 @@ export class Chat {
     // Фокус остаётся в поле ввода: на телефоне клавиатура не закрывается, можно писать дальше.
     this.input()?.nativeElement.focus();
     void this.deliver(this.matchId(), text);
+  }
+
+  // Кнопка-имя в шапке раскрывает и прячет карточку игрока.
+  protected togglePartner(): void {
+    this.partnerOpen.update((open) => !open);
+  }
+
+  // Esc или «Закрыть» в карточке: прячем её и возвращаем фокус на кнопку-имя, откуда её открыли, —
+  // иначе фокус «упал» бы на <body> вместе с исчезнувшей кнопкой.
+  protected closePartner(): void {
+    this.partnerOpen.set(false);
+    this.partnerToggle()?.nativeElement.focus();
+  }
+
+  // «Позвать играть»: собираем черновик приглашения из того, что у вас общего, — первая общая
+  // игра, платформа и время («Сыграем вместе в Valorant? Я на PC. Мне удобно: вечером.»).
+  // Не отправляем сами: человек допишет или поправит и отправит, когда захочет. Уже набранный
+  // текст не стираем — приглашение встаёт после него.
+  protected inviteToPlay(): void {
+    const lang = this.i18n.lang();
+    const game = this.commonGames()[0];
+    const platform = this.commonPlatforms()[0];
+    const time = this.commonPlayTimes()[0];
+    const parts = [
+      game
+        ? this.i18n.translate('chat.invite.game', { game })
+        : this.i18n.translate('chat.invite.any'),
+    ];
+    if (platform) {
+      parts.push(
+        this.i18n.translate('chat.invite.platform', {
+          platform: this.i18n.translate(`catalog.platforms.${platform}`),
+        }),
+      );
+    }
+    if (time) {
+      // «Вечером» в середине фразы — со строчной: «Мне удобно: вечером.»
+      const label = this.i18n.translate(`catalog.playTimes.${time}`).toLocaleLowerCase(lang);
+      parts.push(this.i18n.translate('chat.invite.time', { time: label }));
+    }
+    const invite = parts.join(' ');
+    const current = this.draft.value.trimEnd();
+    // setValue (а не reset) — это правка черновика, её подхватит подписка и сохранит в ChatDrafts.
+    this.draft.setValue(current ? `${current} ${invite}` : invite);
+    this.partnerOpen.set(false);
+    // Фокус — в поле с курсором в конце: остаётся нажать «Отправить» или дописать.
+    const field = this.input()?.nativeElement;
+    if (field) {
+      field.focus();
+      field.setSelectionRange(field.value.length, field.value.length);
+    }
   }
 
   // Отправка формы кнопкой: отменяем «родное» поведение браузера (перезагрузку страницы)
@@ -840,9 +940,10 @@ export class Chat {
       return;
     }
     // Анкеты нужны только для красоты (имя, фото, общие игры) — без них чат всё равно работает.
-    const [partner, myProfile] = await Promise.all([
+    const [partner, myProfile, contacts] = await Promise.all([
       this.profiles.loadPublic(partnerUid).catch(() => null),
       this.profiles.loadPublic(this.me).catch(() => null),
+      this.profiles.loadContacts(partnerUid).catch(() => null),
     ]);
     // Пока грузили, пользователь мог уйти в другой чат — тогда этот результат уже не нужен.
     if (matchId !== this.matchId()) {
@@ -853,6 +954,8 @@ export class Chat {
     const match = partner && myProfile ? matchScore(myProfile, partner) : null;
     this.commonGames.set(match?.commonGames ?? []);
     this.commonPlayTimes.set(match?.commonPlayTimes ?? []);
+    this.commonPlatforms.set(match?.commonPlatforms ?? []);
+    this.partnerContacts.set(contacts);
     this.state.set('ready');
   }
 

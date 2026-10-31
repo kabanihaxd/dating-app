@@ -46,6 +46,18 @@ export class PlayerCard {
   readonly headingId = computed(() => `player-${this.player().uid}-name`);
   protected readonly detailsId = computed(() => `player-${this.player().uid}-details`);
 
+  // Первая буква имени для монограммы вместо фото. Intl.Segmenter режет по «видимым символам»
+  // (графемам), а не по кодовым единицам: у имени с эмодзи или «й» из двух символов Юникода
+  // name[0] дал бы половинку знака. Пустое имя — нейтральный «?».
+  protected readonly initial = computed(() => {
+    const name = this.player().name.trim();
+    const first = new Intl.Segmenter(this.i18n.lang(), { granularity: 'grapheme' })
+      .segment(name)
+      [Symbol.iterator]()
+      .next().value?.segment;
+    return first ? first.toLocaleUpperCase(this.i18n.lang()) : '?';
+  });
+
   protected readonly hasOverlap = computed(() => {
     const m = this.match();
     return m.commonGames.length + m.commonPlayTimes.length + m.commonGenres.length > 0;

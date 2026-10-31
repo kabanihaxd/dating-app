@@ -1,0 +1,56 @@
+<!-- Контакты — компактные чипы «PSN · di_tester_1»: значение видно сразу, его можно
+     прочитать и набрать на консоли. Длинное обрезается многоточием, целиком — в подсказке
+     и в имени кнопки. -->
+@if (list().length) {
+  <ul class="contacts" [attr.aria-label]="'matches.contactsOf' | t: { name: name() }">
+    @for (contact of list(); track contact.field) {
+      @let platform = 'profile.contacts.' + contact.field | t;
+      <li>
+        @if (contact.isLink) {
+          <a
+            class="contact"
+            [href]="contact.value"
+            target="_blank"
+            rel="noopener noreferrer"
+            [matTooltip]="contact.value"
+            [attr.aria-label]="'matches.openProfileHint' | t: { platform, name: name() }"
+          >
+            <span class="platform">{{ contact.short }}</span>
+            <span class="value">{{ contact.shown ?? ('matches.profileWord' | t) }}</span>
+            <mat-icon aria-hidden="true">open_in_new</mat-icon>
+          </a>
+        } @else {
+          @let copied = copiedField() === contact.field;
+          <button
+            type="button"
+            class="contact"
+            [class.copied]="copied"
+            [matTooltip]="contact.value"
+            (click)="copy(contact, platform)"
+            [attr.aria-label]="
+              'matches.copyNicknameValue' | t: { platform, name: name(), nickname: contact.value }
+            "
+          >
+            <span class="platform">{{ contact.short }}</span>
+            <span class="value">{{ copied ? ('matches.copied' | t) : contact.shown }}</span>
+            <mat-icon aria-hidden="true">{{ copied ? 'check' : 'content_copy' }}</mat-icon>
+          </button>
+        }
+      </li>
+    }
+  </ul>
+  <!-- Запасной путь, если буфер обмена недоступен: поле только для чтения с ником.
+       Код ставит в него фокус и выделяет текст — остаётся Ctrl+C или «Копировать». -->
+  @for (contact of list(); track contact.field) {
+    @if (copyFailedField() === contact.field) {
+      <div class="manual-copy">
+        <label [for]="manualId(contact.field)">
+          {{ 'matches.copyManually' | t: { platform: ('profile.contacts.' + contact.field | t) } }}
+        </label>
+        <input [id]="manualId(contact.field)" type="text" readonly [value]="contact.value" />
+      </div>
+    }
+  }
+} @else {
+  <p class="no-contacts">{{ 'matches.noContacts' | t }}</p>
+}

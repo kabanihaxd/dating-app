@@ -13,8 +13,6 @@ import {
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '../../core/auth/auth';
 import { firestoreErrorKey } from '../../core/firebase/firestore-errors';
 import { I18n } from '../../core/i18n/i18n';
@@ -23,16 +21,13 @@ import { matchScore } from '../../core/matching/match-score';
 import { LiveMatch, NotificationService } from '../../core/notifications/notifications';
 import { ProfileService } from '../../core/profile/profile';
 import {
-  CONTACT_FIELDS,
-  CONTACT_SITES,
-  ContactField,
   Platform,
   PlayTime,
   UserContacts,
   UserProfile,
   ageFrom,
-  isProfileLink,
 } from '../../core/profile/profile.model';
+import { ContactChips } from '../../shared/contact-chips/contact-chips';
 import { ErrorState } from '../../shared/error-state/error-state';
 import { ModerationMenu } from '../../shared/moderation-menu/moderation-menu';
 import { StateMessage } from '../../shared/state-message/state-message';
@@ -47,30 +42,14 @@ interface MatchView {
   commonGames: string[];
   commonPlatforms: Platform[];
   commonPlayTimes: PlayTime[];
-  // short — короткое имя платформы для чипа («PSN» вместо «PlayStation Network»).
-  // shown — что написать на чипе после платформы: ник как есть, у ссылки — читаемый хвост
-  // адреса (steamcommunity.com/id/anya → «anya»). null — хвост бессмысленный (числовой id),
-  // тогда шаблон пишет переведённое слово «профиль».
-  contacts: {
-    field: ContactField;
-    short: string;
-    value: string;
-    shown: string | null;
-    isLink: boolean;
-  }[];
+  // Контакты как они лежат в базе: чипы из них строит ContactChips.
+  contacts: UserContacts | null;
 }
 
 // Запись кэша карточек по uid — одно из трёх состояний. Это «размеченное объединение»
 // (discriminated union): по полю state TypeScript сам понимает, какие ещё поля есть у записи.
 // view — карточка готова; deleted — анкеты нет, показывать нечего;
 // error — не удалось загрузить (сеть, сбой). Это НЕ «удалён»: такую карточку можно перезапросить.
-// Короткие названия платформ для чипов контактов. Это имена брендов, их не переводят.
-const CONTACT_SHORT: Record<ContactField, string> = {
-  discord: 'Discord',
-  steam: 'Steam',
-  psn: 'PSN',
-  xbox: 'Xbox',
-};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -85,9 +64,9 @@ type CardEntry =
     RouterLink,
     MatButtonModule,
     MatIconModule,
-    MatTooltipModule,
     TranslatePipe,
     ModerationMenu,
+    ContactChips,
     ErrorState,
     StateMessage,
   ],
@@ -97,7 +76,6 @@ type CardEntry =
 export class Matches {
   private readonly auth = inject(AuthService);
   private readonly profiles = inject(ProfileService);
-  private readonly snackBar = inject(MatSnackBar);
   private readonly i18n = inject(I18n);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly document = inject(DOCUMENT);
@@ -129,13 +107,6 @@ export class Matches {
   // Мэтчи новее этого момента получают метку «Новый».
   private readonly seenBefore: number;
 
-  // Какой чип контакта сейчас показывает «Скопировано» (ключ «id мэтча:поле»). Обратная связь
-  // прямо на чипе, под пальцем, а не только снекбаром внизу экрана. Через 1,5 с чип возвращается.
-  protected readonly copiedKey = signal<string | null>(null);
-  private copiedTimer: ReturnType<typeof setTimeout> | undefined;
-  // Чип, у которого копирование не удалось: под контактами показываем поле с выделенным ником,
-  // чтобы его можно было скопировать руками (Ctrl+C или долгим нажатием на телефоне).
-  protected readonly copyFailedKey = signal<string | null>(null);
 
   // Три серые заготовки карточек на время загрузки.
   protected readonly skeletons = [0, 1, 2];
@@ -412,37 +383,6 @@ export class Matches {
     return new Date(at).toISOString();
   }
 
-  // Буфер обмена может быть недоступен (нет разрешения, старый браузер, не https) —
-  // тогда честно говорим об этом и даём запасной путь: поле с уже выделенным ником.
-  protected async copy(key: string, value: string, platform: string): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(value);
-      this.copyFailedKey.set(null);
-      // Чип на 1,5 с меняет иконку на галочку и пишет «Скопировано». Снекбар остаётся:
-      // он ещё и вежливо озвучивает результат скринридеру (MatSnackBar — это live-регион).
-      this.copiedKey.set(key);
-      clearTimeout(this.copiedTimer);
-      this.copiedTimer = setTimeout(() => this.copiedKey.set(null), 1500);
-      this.snackBar.open(
-        this.i18n.translate('matches.copiedValue', { platform, value }),
-        undefined,
-        { duration: 2000 },
-      );
-    } catch (error) {
-      console.error(error);
-      this.copiedKey.set(null);
-      this.copyFailedKey.set(key);
-      this.snackBar.open(this.i18n.translate('matches.copyFailed'), undefined, { duration: 6000 });
-      // Поле запасного копирования появится после перерисовки — тогда ставим в него фокус
-      // и выделяем ник целиком: остаётся нажать Ctrl+C (на телефоне — «Копировать»).
-      setTimeout(() => {
-        const input = this.document.getElementById(`manual-${key}`) as HTMLInputElement | null;
-        input?.focus();
-        input?.select();
-      });
-    }
-  }
-
   // Карточка с фокусом исчезла сама (собеседник разорвал мэтч или заблокировал меня) или
   // переехала из-за сортировки. В обоих случаях браузер сбрасывает фокус на body, и тот,
   // кто ходит клавиатурой, теряется. Возвращаем фокус туда, где ему разумно быть.
@@ -587,46 +527,7 @@ export class Matches {
       commonGames: score?.commonGames ?? [],
       commonPlatforms: score?.commonPlatforms ?? [],
       commonPlayTimes: score?.commonPlayTimes ?? [],
-      contacts: this.toContactList(contacts),
+      contacts,
     };
-  }
-
-  // Только заполненные контакты. Ссылкой считаем лишь проверенную ссылку на сайт платформы —
-  // всё остальное показываем как обычный текст (ник), даже если там что-то похожее на адрес.
-  private toContactList(contacts: UserContacts | null): MatchView['contacts'] {
-    return CONTACT_FIELDS.flatMap((field) => {
-      const value = contacts?.[field]?.trim() ?? '';
-      return value
-        ? [
-            {
-              field,
-              short: CONTACT_SHORT[field],
-              value,
-              ...this.shownValue(value, CONTACT_SITES[field].domains),
-            },
-          ]
-        : [];
-    });
-  }
-
-  // Что показать на чипе. Ник — как есть. У ссылки — последний кусок пути без хоста:
-  // steamcommunity.com/id/anya → «anya». Если этот кусок — одни цифры (discord.com/users/1234…,
-  // steamcommunity.com/profiles/7656…), человеку он ничего не скажет: возвращаем null,
-  // и шаблон напишет слово «профиль» на языке интерфейса.
-  private shownValue(
-    value: string,
-    domains: readonly string[],
-  ): { isLink: boolean; shown: string | null } {
-    if (!isProfileLink(value, domains)) {
-      return { isLink: false, shown: value };
-    }
-    const tail = new URL(value).pathname.split('/').filter(Boolean).pop() ?? '';
-    let shown = tail;
-    try {
-      shown = decodeURIComponent(tail); // %D0%B0%D0%BD%D1%8F → «аня»
-    } catch {
-      // битая %-последовательность — оставляем как есть
-    }
-    return { isLink: true, shown: shown && !/^\d+$/.test(shown) ? shown : null };
   }
 }

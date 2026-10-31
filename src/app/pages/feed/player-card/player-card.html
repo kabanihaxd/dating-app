@@ -1,12 +1,14 @@
 <!-- aria-labelledby: скринридер называет карточку по имени игрока («Alex, 27, статья»). -->
 <article class="card" [attr.aria-labelledby]="headingId()">
-  <!-- empty — фото нет: в колоде вместо большой заглушки остаётся только ряд меток,
-       а у имени появляется аватар-кольцо 64px. В сетке заглушка остаётся (ровный ряд карточек). -->
+  <!-- empty — фото нет: вместо большой заглушки остаётся только ряд меток, а у имени появляется
+       кольцо 64px с первой буквой имени (и в колоде, и в сетке). Пустой силуэт на полкарточки
+       говорил «здесь ничего нет», а не «вот игрок». Только в широкой колоде (от 840px) левая
+       колонка остаётся — там вместо силуэта крупная монограмма. -->
   <div class="photo" [class.empty]="!player().photo">
     @if (player().photo; as src) {
       <img [src]="src" [alt]="'feed.card.photoAlt' | t: { name: player().name }" />
     } @else {
-      <mat-icon aria-hidden="true">person</mat-icon>
+      <span class="monogram" aria-hidden="true">{{ initial() }}</span>
     }
     <!-- Обе метки в одном ряду: в узкой карточке длинные подписи (RU/UK) переносятся,
          а не наезжают друг на друга. -->
@@ -41,7 +43,7 @@
   <div class="body">
     <div class="title-row">
       @if (!player().photo) {
-        <span class="avatar" aria-hidden="true"><mat-icon>person</mat-icon></span>
+        <span class="avatar" aria-hidden="true">{{ initial() }}</span>
       }
       <div class="who">
         <!-- tabindex="-1": на заголовок можно перевести фокус из кода (после лайка), но Tab на нём не

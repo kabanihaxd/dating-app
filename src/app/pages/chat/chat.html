@@ -41,18 +41,38 @@
         >
           <mat-icon>arrow_back</mat-icon>
         </a>
-        <!-- alt="" — картинка декоративная: имя и так написано рядом в заголовке. -->
+        <!-- alt="" — картинка декоративная: имя и так написано рядом в заголовке.
+             Нажатие на аватар — то же, что на имя (для мыши и пальца; с клавиатуры — кнопка-имя). -->
         @if (partner()?.photo; as src) {
-          <img [src]="src" alt="" />
+          <img [src]="src" alt="" (click)="togglePartner()" />
         } @else {
-          <div class="avatar" aria-hidden="true"><mat-icon>person</mat-icon></div>
+          <div class="avatar" aria-hidden="true" (click)="togglePartner()">
+            <mat-icon>person</mat-icon>
+          </div>
         }
         <!-- Имя собеседника — главный заголовок страницы (h1): по нему программа чтения с экрана
              понимает, где она. Размер задаёт CSS, а не уровень заголовка. -->
         <div class="who">
           <!-- tabindex="-1" — заголовок можно сфокусировать из кода (так делаем при открытии чата
                на телефоне), но клавиша Tab на нём не останавливается. -->
-          <h1 id="chat-title" #heading tabindex="-1">{{ partnerName() }}</h1>
+          <!-- Имя — кнопка-раскрывашка карточки игрока (aria-expanded говорит, открыта ли она).
+               Кнопка внутри заголовка, а не наоборот: h1 нельзя класть в <button>. -->
+          <h1 id="chat-title" #heading tabindex="-1">
+            <button
+              #partnerToggle
+              type="button"
+              class="who-toggle"
+              aria-controls="partner-card"
+              [attr.aria-expanded]="partnerOpen()"
+              [matTooltip]="(partnerOpen() ? 'chat.partner.hide' : 'chat.partner.show') | t"
+              [matTooltipDisabled]="touch"
+              (click)="togglePartner()"
+              (keydown.escape)="partnerOpen() && closePartner()"
+            >
+              <span class="who-name">{{ partnerName() }}</span>
+              <mat-icon aria-hidden="true">{{ partnerOpen() ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </button>
+          </h1>
           <!-- Общие игры — повод для разговора. Раньше они были только в пустом чате и пропадали
                после первого сообщения; теперь всегда под именем. Длинный список обрезается
                многоточием только визуально — программа чтения с экрана прочтёт его целиком. -->
@@ -75,6 +95,86 @@
           />
         }
       </header>
+
+      <!-- Карточка игрока: что у вас общего, на чём и когда он играет, его контакты и «Позвать
+           играть». Раскрывается под шапкой и не закрывает переписку целиком: договориться об игре
+           можно, не уходя из чата. Esc прячет её и возвращает фокус на имя. -->
+      @if (partnerOpen() && partnerCard(); as card) {
+        <section
+          id="partner-card"
+          class="partner-card"
+          animate.enter="sheet-in"
+          [attr.aria-label]="'chat.partner.region' | t: { name: partnerName() }"
+          (keydown.escape)="closePartner()"
+        >
+          @if (card.age || card.city) {
+            <p class="facts">
+              @if (card.age) {
+                <span>{{ card.age }}</span>
+              }
+              @if (card.city) {
+                <span><mat-icon inline aria-hidden="true">place</mat-icon> {{ card.city }}</span>
+              }
+            </p>
+          }
+          @if (card.games.length) {
+            <h2 class="label">{{ 'chat.partner.games' | t }}</h2>
+            <ul class="tags left">
+              @for (game of card.games; track game.item) {
+                <li class="tag" [class.other]="!game.shared">
+                  {{ game.item }}
+                  @if (game.shared) {
+                    <span class="sr-only">({{ 'chat.partner.shared' | t }})</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+          @if (card.platforms.length) {
+            <h2 class="label">{{ 'chat.partner.platforms' | t }}</h2>
+            <ul class="tags left">
+              @for (platform of card.platforms; track platform.item) {
+                <li class="tag" [class.other]="!platform.shared">
+                  {{ 'catalog.platforms.' + platform.item | t }}
+                  @if (platform.shared) {
+                    <span class="sr-only">({{ 'chat.partner.shared' | t }})</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+          @if (card.times.length) {
+            <h2 class="label">{{ 'chat.partner.times' | t }}</h2>
+            <ul class="tags left">
+              @for (time of card.times; track time.item) {
+                <li class="tag" [class.other]="!time.shared">
+                  {{ 'catalog.playTimes.' + time.item | t }}
+                  @if (time.shared) {
+                    <span class="sr-only">({{ 'chat.partner.shared' | t }})</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+          <h2 class="label">{{ 'chat.partner.contacts' | t }}</h2>
+          <app-contact-chips
+            [contacts]="partnerContacts()"
+            [name]="partnerName()"
+            [idPrefix]="matchId()"
+          />
+          <div class="card-actions">
+            @if (state() === 'ready') {
+              <button mat-flat-button type="button" class="invite" (click)="inviteToPlay()">
+                <mat-icon>sports_esports</mat-icon>
+                {{ 'chat.invite.button' | t }}
+              </button>
+            }
+            <button mat-button type="button" (click)="closePartner()">
+              {{ 'chat.partner.close' | t }}
+            </button>
+          </div>
+        </section>
+      }
 
       <!-- Список сообщений сам ничего не озвучивает (иначе программа чтения с экрана повторяла бы
            и мои только что отправленные сообщения). Новые входящие озвучивает .sr-only ниже.
@@ -155,6 +255,10 @@
                     }
                   </div>
                 }
+                <button type="button" class="invite-link" (click)="inviteToPlay()">
+                  <mat-icon aria-hidden="true">sports_esports</mat-icon>
+                  {{ 'chat.invite.button' | t }}
+                </button>
               </div>
             }
           }
@@ -216,6 +320,11 @@
             @for (time of topic.times; track time) {
               <span class="tag time">{{ 'catalog.playTimes.' + time | t }}</span>
             }
+            <!-- Мостик от разговора к игре: одним нажатием — готовый черновик приглашения. -->
+            <button type="button" class="invite-link" (click)="inviteToPlay()">
+              <mat-icon aria-hidden="true">sports_esports</mat-icon>
+              {{ 'chat.invite.button' | t }}
+            </button>
           </div>
         }
         <!-- Мои сообщения ждут сети («часики»), а браузер офлайн: спокойно обещаем, что они уйдут сами.

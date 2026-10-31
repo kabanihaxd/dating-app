@@ -339,6 +339,17 @@ app-player-card {
   padding: 0 8px;
   pointer-events: none;
 
+  // Затухание под таблеткой: карточки уходят под неё в фон страницы, а не обрываются
+  // на полуслове под плавающим островком. Полоса растёт вверх от низа экрана; нажатия
+  // проходят сквозь неё (pointer-events: none у контейнера), так что кнопки под ней живые.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: auto -8px 0;
+    height: calc(88px + env(safe-area-inset-bottom));
+    background: linear-gradient(to bottom, transparent, var(--di-bg) 65%);
+  }
+
   .last-action {
     pointer-events: auto;
     margin-bottom: calc(12px + env(safe-area-inset-bottom));

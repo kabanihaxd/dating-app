@@ -49,6 +49,14 @@
   padding: 12px 24px 0;
 }
 
+// «Аня не узнает, кто отправил жалобу» — тихая строка над причинами.
+.private {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--di-text-muted);
+}
+
 .label {
   margin: 0 0 4px;
   color: var(--di-text-muted);

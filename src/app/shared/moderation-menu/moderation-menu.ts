@@ -72,7 +72,11 @@ export class ModerationMenu {
     const name = { name: this.name() };
     this.confirm({
       title: this.i18n.translate('moderation.unmatchTitle', name),
-      message: this.i18n.translate('moderation.unmatchText'),
+      // Вторая фраза отвечает на главный страх: «он узнает?» — нет, уведомления не будет.
+      message: [
+        this.i18n.translate('moderation.unmatchText'),
+        this.i18n.translate('moderation.quiet', name),
+      ].join(' '),
       confirm: this.i18n.translate('moderation.unmatchAction', name),
       icon: 'heart_broken',
     }).subscribe((ok) => {
@@ -93,11 +97,15 @@ export class ModerationMenu {
     const name = { name: this.name() };
     this.confirm({
       title: this.i18n.translate('moderation.blockTitle', name),
+      // Вторая фраза — та же, что у разрыва мэтча: уведомления о блокировке не будет.
       // Последствия зависят от того, где открыто меню: в ленте мэтча и чата ещё нет —
       // и упоминать их значит пугать тем, чего не случится.
-      message: this.i18n.translate(
-        this.matched() ? 'moderation.blockTextMatched' : 'moderation.blockTextFeed',
-      ),
+      message: [
+        this.i18n.translate(
+          this.matched() ? 'moderation.blockTextMatched' : 'moderation.blockTextFeed',
+        ),
+        this.i18n.translate('moderation.quiet', name),
+      ].join(' '),
       confirm: this.i18n.translate('moderation.blockAction', name),
       icon: 'block',
     }).subscribe((ok) => {

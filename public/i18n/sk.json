@@ -42,7 +42,9 @@
     "blockTextFeed": "V zozname hráčov sa už navzájom neuvidíte.",
     "blockTextMatched": "Match, konverzácia aj kontakty sa vymažú a už sa navzájom neuvidíte.",
     "blockAction": "Zablokovať",
-    "sendAndBlock": "Nahlásiť a zablokovať"
+    "sendAndBlock": "Nahlásiť a zablokovať",
+    "quiet": "{{name}} nedostane žiadne upozornenie.",
+    "reportPrivate": "{{name}} sa nedozvie, kto nahlásenie poslal."
   },
   "notifications": {
     "liked": "{{name}} ti dáva lajk",
@@ -290,7 +292,25 @@
     "queuedOffline": "Si offline. Správy sa odošlú, keď sa pripojenie obnoví.",
     "tooLong": "Viac ako {{max}} znakov — skráť ju, aby sa dala odoslať.",
     "docTitle": "{{name}} · Chat — DeadIsland",
-    "starter": "Téma na rozhovor:"
+    "starter": "Téma na rozhovor:",
+    "partner": {
+      "show": "Zobraziť kartu hráča",
+      "hide": "Skryť kartu hráča",
+      "games": "Hry",
+      "platforms": "Platformy",
+      "times": "Čas hrania",
+      "contacts": "Kontakty",
+      "shared": "spoločné",
+      "region": "Karta hráča: {{name}}",
+      "close": "Zavrieť"
+    },
+    "invite": {
+      "button": "Pozvať hrať",
+      "game": "Zahráme si spolu {{game}}?",
+      "any": "Zahráme si spolu niečo?",
+      "platform": "Hrám na {{platform}}.",
+      "time": "Hodí sa mi: {{time}}."
+    }
   },
   "profile": {
     "title": "Profil",

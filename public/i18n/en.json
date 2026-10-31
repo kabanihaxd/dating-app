@@ -42,7 +42,9 @@
     "blockTextFeed": "You won't see each other in the feed anymore.",
     "blockTextMatched": "Your match, chat and contacts will be removed, and you won't see each other anymore.",
     "blockAction": "Block {{name}}",
-    "sendAndBlock": "Report and block"
+    "sendAndBlock": "Report and block",
+    "quiet": "{{name}} won't get a notification.",
+    "reportPrivate": "{{name}} won't know who sent the report."
   },
   "notifications": {
     "liked": "{{name}} liked you",
@@ -290,7 +292,25 @@
     "queuedOffline": "You're offline. Your messages will be sent when you're back online.",
     "tooLong": "Over {{max}} characters — shorten it to send.",
     "docTitle": "{{name}} · Chat — DeadIsland",
-    "starter": "Something to talk about:"
+    "starter": "Something to talk about:",
+    "partner": {
+      "show": "Show player card",
+      "hide": "Hide player card",
+      "games": "Games",
+      "platforms": "Platforms",
+      "times": "Play times",
+      "contacts": "Contacts",
+      "shared": "shared",
+      "region": "{{name}}'s player card",
+      "close": "Close"
+    },
+    "invite": {
+      "button": "Invite to play",
+      "game": "Up for {{game}} together?",
+      "any": "Want to play something together?",
+      "platform": "I'm on {{platform}}.",
+      "time": "Usually free: {{time}}."
+    }
   },
   "profile": {
     "title": "Profile",

@@ -7,6 +7,8 @@
 
   <form [formGroup]="form" (ngSubmit)="submit()">
     <mat-dialog-content>
+      <!-- Жалоба анонимна — говорим об этом сразу: так проще решиться её отправить. -->
+      <p class="private">{{ 'moderation.reportPrivate' | t: { name: data.name } }}</p>
       <p class="label">{{ 'moderation.reason' | t }}</p>
       <mat-radio-group formControlName="reason" class="reasons">
         @for (reason of reasons; track reason) {
