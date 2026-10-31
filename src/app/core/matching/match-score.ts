@@ -1,4 +1,4 @@
-import { Genre, Platform, PlayTime, UserProfile } from '../profile/profile.model';
+import { Genre, Platform, PlayTime, UserProfile, gameKey } from '../profile/profile.model';
 
 // «Вес» совпадений: общая игра важнее всего — в неё можно сразу играть вместе.
 const WEIGHTS = { games: 5, platforms: 3, genres: 2, playTimes: 1 };
@@ -12,9 +12,9 @@ export interface MatchInfo {
 }
 
 export function matchScore(me: UserProfile, other: UserProfile): MatchInfo {
-  // Игры вписывают руками, поэтому сравниваем без учёта регистра: «dota 2» = «Dota 2».
-  const otherGames = new Set(other.games.map((game) => game.toLowerCase()));
-  const commonGames = me.games.filter((game) => otherGames.has(game.toLowerCase()));
+  // Игры вписывают руками, поэтому сравниваем по ключу из каталога: «dota 2» = «Dota 2», «CS2» = «Counter-Strike 2».
+  const otherGames = new Set(other.games.map(gameKey));
+  const commonGames = me.games.filter((game) => otherGames.has(gameKey(game)));
   const commonPlatforms = intersect(me.platforms, other.platforms);
   const commonGenres = intersect(me.genres, other.genres);
   const commonPlayTimes = intersect(me.playTimes, other.playTimes);

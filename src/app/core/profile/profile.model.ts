@@ -91,6 +91,71 @@ export const POPULAR_GAMES = [
   'World of Warcraft',
 ];
 
+// Как игроки на самом деле пишут игры из каталога. Ключ — в нижнем регистре и без лишних пробелов
+// (см. normalizeGameText). Значение — название ровно как в POPULAR_GAMES.
+const GAME_ALIASES: Record<string, string> = {
+  apex: 'Apex Legends',
+  bg3: "Baldur's Gate 3",
+  'baldurs gate 3': "Baldur's Gate 3",
+  warzone: 'Call of Duty: Warzone',
+  'cod warzone': 'Call of Duty: Warzone',
+  'cod: warzone': 'Call of Duty: Warzone',
+  cs2: 'Counter-Strike 2',
+  'cs 2': 'Counter-Strike 2',
+  'cs:go': 'Counter-Strike 2',
+  csgo: 'Counter-Strike 2',
+  'counter strike 2': 'Counter-Strike 2',
+  'counter-strike': 'Counter-Strike 2',
+  'counter strike': 'Counter-Strike 2',
+  cyberpunk: 'Cyberpunk 2077',
+  dbd: 'Dead by Daylight',
+  dota: 'Dota 2',
+  dota2: 'Dota 2',
+  'fc 24': 'EA Sports FC',
+  'fc 25': 'EA Sports FC',
+  fifa: 'EA Sports FC',
+  'ea fc': 'EA Sports FC',
+  'elden ring nightreign': 'Elden Ring',
+  genshin: 'Genshin Impact',
+  'gta 5': 'GTA V',
+  gta5: 'GTA V',
+  'gta online': 'GTA V',
+  'grand theft auto v': 'GTA V',
+  'grand theft auto 5': 'GTA V',
+  helldivers: 'Helldivers 2',
+  lol: 'League of Legends',
+  ow2: 'Overwatch 2',
+  overwatch: 'Overwatch 2',
+  pubg: 'PUBG: Battlegrounds',
+  'pubg battlegrounds': 'PUBG: Battlegrounds',
+  rl: 'Rocket League',
+  witcher: 'The Witcher 3',
+  'witcher 3': 'The Witcher 3',
+  wow: 'World of Warcraft',
+};
+
+// Короче этого своё название не принимаем: «Hal» — почти всегда недописанная подсказка, а не игра.
+export const MIN_CUSTOM_GAME_LENGTH = 3;
+
+function normalizeGameText(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+const CATALOG_BY_KEY = new Map(POPULAR_GAMES.map((game) => [normalizeGameText(game), game]));
+
+// Название из каталога для того, что набрал игрок («cs2», «dota 2 », «WoW»), или null, если такой игры
+// в каталоге нет. Тогда игра своя: её сохраняем как набрали, только без лишних пробелов.
+export function catalogGame(name: string): string | null {
+  const key = normalizeGameText(name);
+  return CATALOG_BY_KEY.get(key) ?? GAME_ALIASES[key] ?? null;
+}
+
+// Ключ для сравнения игр двух игроков. Старые анкеты могут хранить «CS2» или «dota 2» —
+// сравниваем по каталожному названию, так они всё равно совпадут с «Counter-Strike 2» и «Dota 2».
+export function gameKey(name: string): string {
+  return normalizeGameText(catalogGame(name) ?? name);
+}
+
 // Публичная анкета: users/{uid}. Её увидят другие игроки в ленте.
 export interface UserProfile {
   name: string;

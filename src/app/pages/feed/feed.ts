@@ -42,6 +42,7 @@ import {
   Player,
   UserProfile,
   ageFrom,
+  gameKey,
 } from '../../core/profile/profile.model';
 import { ErrorState } from '../../shared/error-state/error-state';
 import { StateMessage } from '../../shared/state-message/state-message';
@@ -417,7 +418,7 @@ export class Feed {
         ({ player, age }) =>
           age >= from &&
           age <= to &&
-          (!game || player.games.some((g) => g.toLowerCase() === game.toLowerCase())) &&
+          (!game || player.games.some((g) => gameKey(g) === gameKey(game))) &&
           (!platform || player.platforms.includes(platform)) &&
           (!cityQuery || player.city.toLowerCase().includes(cityQuery)),
       )

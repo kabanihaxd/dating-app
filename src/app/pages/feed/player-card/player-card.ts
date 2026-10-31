@@ -5,7 +5,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { I18n } from '../../../core/i18n/i18n';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { MatchInfo } from '../../../core/matching/match-score';
-import { Player } from '../../../core/profile/profile.model';
+import { Player, gameKey } from '../../../core/profile/profile.model';
 import { initialOf } from '../../../shared/initial';
 import { ModerationMenu } from '../../../shared/moderation-menu/moderation-menu';
 
@@ -27,12 +27,15 @@ export class PlayerCard {
 
   // input.required — без этих данных карточку использовать нельзя, Angular проверит это при сборке.
   readonly player = input.required<Player>();
-  readonly age = input.required<number>();
+  // null — возраст неизвестен (в превью анкеты дату рождения ещё не ввели): после имени ничего не пишем.
+  readonly age = input.required<number | null>();
   readonly match = input.required<MatchInfo>();
   // Этот игрок уже лайкнул меня — показываем метку.
   readonly likedMe = input(false);
   // false — кнопки «Лайк/Пропустить» рисует лента (режим «по одному»).
   readonly showActions = input(true);
+  // Превью своей анкеты в профиле: без «⋮» (на себя не жалуются) и без кнопок.
+  readonly preview = input(false);
 
   // output — «событие» компонента. Лента подписывается на него так: (liked)="like(...)".
   readonly liked = output<void>();
@@ -57,8 +60,8 @@ export class PlayerCard {
 
   // Остальные игры игрока — те, что не совпали с моими.
   protected readonly otherGames = computed(() => {
-    const common = new Set(this.match().commonGames.map((game) => game.toLowerCase()));
-    return this.player().games.filter((game) => !common.has(game.toLowerCase()));
+    const common = new Set(this.match().commonGames.map(gameKey));
+    return this.player().games.filter((game) => !common.has(gameKey(game)));
   });
   // Скрыть ровно одну игру за «+1» и кнопкой «Подробнее» — дороже, чем просто её показать:
   // пилюля «+1» и кнопка занимают больше места, чем сама игра. Поэтому сворачиваем,

@@ -48,16 +48,22 @@
       <div class="who">
         <!-- tabindex="-1": на заголовок можно перевести фокус из кода (после лайка), но Tab на нём не
              останавливается. -->
-        <h2 [id]="headingId()" tabindex="-1">{{ player().name }}, {{ age() }}</h2>
-        <p class="city"><mat-icon inline aria-hidden="true">place</mat-icon> {{ player().city }}</p>
+        <h2 [id]="headingId()" tabindex="-1">
+          {{ player().name }}@if (age() !== null) {<span>, {{ age() }}</span>}
+        </h2>
+        @if (player().city) {
+          <p class="city"><mat-icon inline aria-hidden="true">place</mat-icon> {{ player().city }}</p>
+        }
       </div>
       <!-- Заблокировать или пожаловаться можно прямо из ленты.
            Карточку после блокировки убирать не нужно: лента сама скрывает заблокированных. -->
-      <app-moderation-menu
-        [otherUid]="player().uid"
-        [name]="player().name"
-        (removed)="removed.emit()"
-      />
+      @if (!preview()) {
+        <app-moderation-menu
+          [otherUid]="player().uid"
+          [name]="player().name"
+          (removed)="removed.emit()"
+        />
+      }
     </div>
 
     <!-- «Почему вы совпали» — главная причина лайкнуть, поэтому сразу под именем. -->
@@ -149,7 +155,7 @@
   </div>
 
   <!-- В режиме «по одному» кнопки живут в ленте под карточкой (у большого пальца), а не здесь. -->
-  @if (showActions()) {
+  @if (showActions() && !preview()) {
     <div class="actions">
       <button
         mat-stroked-button

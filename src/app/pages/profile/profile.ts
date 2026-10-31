@@ -44,13 +44,18 @@ import {
   PLAY_TIMES,
   Platform,
   PlayTime,
+  MIN_CUSTOM_GAME_LENGTH,
   POPULAR_GAMES,
   UserContacts,
   ageFrom,
+  catalogGame,
+  gameKey,
   isProfileLink,
   isValidContact,
 } from '../../core/profile/profile.model';
 import { resizeImage } from '../../core/profile/resize-image';
+import { MatchInfo } from '../../core/matching/match-score';
+import { PlayerCard } from '../feed/player-card/player-card';
 import { ErrorState } from '../../shared/error-state/error-state';
 
 const MIN_AGE = 18;
@@ -95,6 +100,10 @@ function yearsAgo(years: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+// С этой ширины (вся колонка страницы, 960px) рядом с формой помещается превью карточки шириной
+// как в сетке ленты. Уже — форма осталась бы узкой, и превью открывается кнопкой над ней.
+const WIDE_PREVIEW_QUERY = '(min-width: 960px)';
+
 @Component({
   selector: 'app-profile',
   imports: [
@@ -108,6 +117,7 @@ function yearsAgo(years: number): string {
     RouterLink,
     TranslatePipe,
     ErrorState,
+    PlayerCard,
   ],
   templateUrl: './profile.html',
   styleUrl: './profile.scss',
@@ -161,6 +171,11 @@ export class Profile implements HasUnsavedChanges {
   protected readonly photo = signal<string | null>(null);
   protected readonly photoErrorKey = signal<string | null>(null);
   protected readonly gameQuery = signal('');
+  // Превью «как меня видят» стоит сбоку от формы, только когда рядом есть место (WIDE_PREVIEW_QUERY).
+  // Уже — превью открывается кнопкой над формой. Две карточки сразу не рисуем: у заголовка карточки есть id.
+  private readonly widePreviewMedia = this.window.matchMedia(WIDE_PREVIEW_QUERY);
+  protected readonly widePreview = signal(this.widePreviewMedia.matches);
+  protected readonly previewOpen = signal(false);
   // Показать ВЕСЬ список популярных игр при пустом поле. Только по явной просьбе — стрелке вниз.
   // Просто фокус (Tab, клик, переход из списка ошибок) список не открывает: он закрыл бы
   // текст ошибки под полем и группу «Платформы», а диктор прочитал бы список вместо ошибки.
@@ -292,19 +307,69 @@ export class Profile implements HasUnsavedChanges {
   // Подсказки: популярные игры, которые подходят под набранный текст и ещё не выбраны.
   // Пустое поле и стрелку вниз не нажимали — подсказок нет. Пустой mat-autocomplete панель
   // не показывает вовсе, даже если фокус пришёл в поле: так список не всплывает «сам».
+  // Сокращение из каталога («cs2», «wow») поднимает свою игру в начало списка.
   protected readonly suggestions = computed(() => {
     const query = this.gameQuery().trim().toLowerCase();
     if (!query && !this.browseGames()) {
       return [];
     }
-    const chosen = new Set(this.games().map((game) => game.toLowerCase()));
-    return POPULAR_GAMES.filter(
-      (game) => !chosen.has(game.toLowerCase()) && game.toLowerCase().includes(query),
+    const chosen = new Set(this.games().map(gameKey));
+    const alias = catalogGame(query);
+    const matches = POPULAR_GAMES.filter(
+      (game) => game !== alias && game.toLowerCase().includes(query),
     );
+    return (alias ? [alias, ...matches] : matches).filter((game) => !chosen.has(gameKey(game)));
   });
+
+  // Последний пункт подсказок — «Добавить „…“»: набранное своё название, которого нет в каталоге.
+  // Так видно заранее, что игра добавится как своя, а не исправится в каталожную.
+  protected readonly customGame = computed(() => {
+    const name = this.gameQuery().trim().replace(/\s+/g, ' ');
+    const taken = new Set(this.games().map(gameKey));
+    return name.length >= MIN_CUSTOM_GAME_LENGTH && !catalogGame(name) && !taken.has(gameKey(name))
+      ? name
+      : null;
+  });
+
+  // Карточка из ленты, собранная из того, что сейчас в форме, — видно, как анкета выглядит для других,
+  // ещё до сохранения. Своих совпадений с собой нет, поэтому все игры идут под подписью «Игры».
+  protected readonly previewPlayer = computed(() => {
+    this.formEvent();
+    // Контакты в карточку не берём: в ленте их не видно до взаимного лайка.
+    const { name, birthDate, city, bio, games, platforms, genres, playTimes } =
+      this.form.getRawValue();
+    return {
+      uid: 'preview',
+      name: name.trim() || this.i18n.translate('profile.preview.noName'),
+      birthDate,
+      city: city.trim(),
+      bio: bio.trim(),
+      photo: this.photo(),
+      games,
+      platforms,
+      genres,
+      playTimes,
+    };
+  });
+  protected readonly previewAge = computed(() => {
+    const birthDate = this.previewPlayer().birthDate;
+    return birthDate ? ageFrom(birthDate) : null;
+  });
+  protected readonly previewMatch: MatchInfo = {
+    percent: 0,
+    commonGames: [],
+    commonPlatforms: [],
+    commonGenres: [],
+    commonPlayTimes: [],
+  };
 
   constructor() {
     inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+    const onWidthChange = (event: MediaQueryListEvent) => this.widePreview.set(event.matches);
+    this.widePreviewMedia.addEventListener('change', onWidthChange);
+    inject(DestroyRef).onDestroy(() =>
+      this.widePreviewMedia.removeEventListener('change', onWidthChange),
+    );
     // Любая правка — новая попытка: старые сообщения об ошибке («не удалось подключить», «нет сети»)
     // и текст для диктора уже не про то, что сейчас в форме. takeUntilDestroyed отпишется, когда страницу закроют.
     this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
@@ -315,13 +380,19 @@ export class Profile implements HasUnsavedChanges {
   }
 
   protected addGame(value: string, input: HTMLInputElement): void {
-    const name = value.trim();
-    if (!name) {
+    const typed = value.trim().replace(/\s+/g, ' ');
+    if (!typed) {
       return;
     }
+    // «cs2» сохраняем как «Counter-Strike 2»: так игра совпадёт с теми, кто выбрал её из списка.
+    const name = catalogGame(typed) ?? typed;
     const games = this.form.controls.games.value;
-    const duplicate = games.find((game) => game.toLowerCase() === name.toLowerCase());
-    if (duplicate) {
+    const duplicate = games.find((game) => gameKey(game) === gameKey(name));
+    if (name === typed && typed.length < MIN_CUSTOM_GAME_LENGTH) {
+      // «Ha» — скорее недописанное название, чем игра. Текст оставляем в поле: допишут или выберут из списка.
+      this.gameRejection.set({ key: 'profile.games.tooShort', game: typed });
+      return;
+    } else if (duplicate) {
       // Такая игра уже есть — набранное стираем (оно ничего не добавит) и говорим почему.
       this.gameRejection.set({ key: 'profile.games.duplicate', game: duplicate });
     } else if (games.length >= this.maxGames) {

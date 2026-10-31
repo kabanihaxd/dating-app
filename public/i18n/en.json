@@ -343,7 +343,9 @@
       "hint": "Pick from the list or type your own and press Enter. Up to {{max}} games.",
       "remove": "Remove {{game}}",
       "duplicate": "{{game}} is already on the list",
-      "limit": "That's the max: {{max}} games. Remove one to add another"
+      "limit": "That's the max: {{max}} games. Remove one to add another",
+      "addCustom": "Add “{{game}}”",
+      "tooShort": "Type at least 3 letters or pick a game from the list"
     },
     "platforms": "Platforms",
     "genres": "Genres",
@@ -400,7 +402,14 @@
     "recommended": "Recommended",
     "optional": "Optional",
     "allSaved": "All changes saved",
-    "savedOnDevice": "Saved on this device"
+    "savedOnDevice": "Saved on this device",
+    "preview": {
+      "title": "How other players see you",
+      "show": "Preview your card",
+      "hide": "Hide preview",
+      "noName": "Your name",
+      "hint": "Updates as you type. Contacts stay hidden until a mutual match."
+    }
   },
   "catalog": {
     "platforms": {

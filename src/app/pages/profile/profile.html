@@ -1,3 +1,5 @@
+<!-- Форма и (на широком экране) превью карточки рядом. Липкая панель «Сохранить» — ниже, вне этой сетки. -->
+<div class="profile-layout" [class.with-preview]="widePreview() && !loading() && !loadErrorKey()">
 <section class="profile-card">
   <!-- Первый заход (анкеты ещё нет) — приветствие и обещание: после сохранения сразу откроется лента. -->
   <h1 tabindex="-1">{{ (isNew() ? 'profile.firstRun.title' : 'profile.title') | t }}</h1>
@@ -22,6 +24,31 @@
   } @else if (loadErrorKey(); as key) {
     <app-error-state [errorKey]="key" (retry)="retry()" />
   } @else {
+    @if (!widePreview()) {
+      <!-- Узкий экран: колонке с превью места нет, поэтому превью открывается здесь, над формой. -->
+      <button
+        mat-stroked-button
+        type="button"
+        class="preview-toggle"
+        aria-controls="profile-preview"
+        [attr.aria-expanded]="previewOpen()"
+        (click)="previewOpen.set(!previewOpen())"
+      >
+        <mat-icon aria-hidden="true">{{ previewOpen() ? 'visibility_off' : 'visibility' }}</mat-icon>
+        {{ (previewOpen() ? 'profile.preview.hide' : 'profile.preview.show') | t }}
+      </button>
+      @if (previewOpen()) {
+        <div id="profile-preview" class="preview inline">
+          <app-player-card
+            [player]="previewPlayer()"
+            [age]="previewAge()"
+            [match]="previewMatch"
+            [showActions]="false"
+            [preview]="true"
+          />
+        </div>
+      }
+    }
     <!-- id нужен кнопке «Сохранить»: она стоит в липкой панели ВНЕ формы и ссылается на неё через form="profile-form". -->
     <form id="profile-form" [formGroup]="form" (ngSubmit)="save()">
       <!-- ===== Игровой профиль ===== -->
@@ -76,6 +103,12 @@
             <!-- preventDefault на mousedown: клик по подсказке не уводит фокус с поля.
                  Иначе сработал бы addOnBlur и добавил недописанный текст («Hal») рядом с выбранной игрой. -->
             <mat-option [value]="game" (mousedown)="$event.preventDefault()">{{ game }}</mat-option>
+          }
+          <!-- Своё название, которого нет в каталоге, — отдельной строкой «Добавить „…“» в конце списка. -->
+          @if (customGame(); as custom) {
+            <mat-option [value]="custom" (mousedown)="$event.preventDefault()">
+              <mat-icon>add</mat-icon>{{ 'profile.games.addCustom' | t: { game: custom } }}
+            </mat-option>
           }
         </mat-autocomplete>
         <mat-hint>
@@ -317,6 +350,23 @@
     </form>
   }
 </section>
+@if (widePreview() && !loading() && !loadErrorKey()) {
+  <!-- Колонка «Так вас видят игроки»: карточка из ленты, собранная из того, что сейчас в форме. -->
+  <aside class="preview" [attr.aria-label]="'profile.preview.title' | t">
+    <p class="preview-title">{{ 'profile.preview.title' | t }}</p>
+    <!-- in-grid: колонка шириной с карточку сетки ленты — и раскладка та же, что там. -->
+    <app-player-card
+      class="in-grid preview"
+      [player]="previewPlayer()"
+      [age]="previewAge()"
+      [match]="previewMatch"
+      [showActions]="false"
+      [preview]="true"
+    />
+    <p class="hint">{{ 'profile.preview.hint' | t }}</p>
+  </aside>
+}
+</div>
 
 @if (!loading() && !loadErrorKey()) {
   <!-- Липкая панель внизу экрана, как кнопки в ленте: «Сохранить» всегда под рукой, даже посреди длинной формы.

@@ -1,4 +1,4 @@
-import { ageFrom, isProfileLink, isValidContact } from './profile.model';
+import { ageFrom, catalogGame, gameKey, isProfileLink, isValidContact } from './profile.model';
 
 describe('isValidContact', () => {
   const steam = ['steamcommunity.com'];
@@ -66,5 +66,24 @@ describe('ageFrom', () => {
 
   it('turns 18 exactly on the birthday', () => {
     expect(ageFrom('2008-10-26', today)).toBe(18);
+  });
+});
+
+describe('catalogGame', () => {
+  it('maps any casing, extra spaces and common abbreviations to the catalog title', () => {
+    expect(catalogGame('  dota   2 ')).toBe('Dota 2');
+    expect(catalogGame('CS2')).toBe('Counter-Strike 2');
+    expect(catalogGame('wow')).toBe('World of Warcraft');
+  });
+
+  it('returns null for games outside the catalog', () => {
+    expect(catalogGame('Hollow Knight')).toBeNull();
+  });
+});
+
+describe('gameKey', () => {
+  it('matches an old free-typed title with its catalog title', () => {
+    expect(gameKey('CS2')).toBe(gameKey('Counter-Strike 2'));
+    expect(gameKey('hollow  knight')).toBe(gameKey('Hollow Knight'));
   });
 });

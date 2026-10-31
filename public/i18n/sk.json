@@ -343,7 +343,9 @@
       "hint": "Vyber zo zoznamu alebo napíš vlastnú a stlač Enter. Najviac {{max}} hier.",
       "remove": "Odstrániť {{game}}",
       "duplicate": "{{game}} už v zozname je",
-      "limit": "Viac sa nedá: najviac {{max}} hier. Odstráň jednu a pridaj inú"
+      "limit": "Viac sa nedá: najviac {{max}} hier. Odstráň jednu a pridaj inú",
+      "addCustom": "Pridať „{{game}}“",
+      "tooShort": "Napíš aspoň 3 písmená alebo vyber hru zo zoznamu"
     },
     "platforms": "Platformy",
     "genres": "Žánre",
@@ -400,7 +402,14 @@
     "recommended": "Odporúčané",
     "optional": "Nepovinné",
     "allSaved": "Všetky zmeny sú uložené",
-    "savedOnDevice": "Uložené v zariadení"
+    "savedOnDevice": "Uložené v zariadení",
+    "preview": {
+      "title": "Takto ťa vidia ostatní hráči",
+      "show": "Zobraziť moju kartu",
+      "hide": "Skryť kartu",
+      "noName": "Tvoje meno",
+      "hint": "Mení sa, kým vypĺňaš profil. Kontakty sú skryté až do vzájomného lajku."
+    }
   },
   "catalog": {
     "platforms": {

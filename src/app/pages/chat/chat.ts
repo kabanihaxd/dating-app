@@ -41,6 +41,7 @@ import {
   UserContacts,
   UserProfile,
   ageFrom,
+  gameKey,
 } from '../../core/profile/profile.model';
 import { ContactChips } from '../../shared/contact-chips/contact-chips';
 import { initialOf } from '../../shared/initial';
@@ -313,11 +314,11 @@ export class Chat {
       ];
     };
     // Общие игры matchScore отдаёт в МОЁМ написании («valorant»), а у собеседника может быть
-    // «Valorant» — поэтому сравниваем без учёта регистра.
-    const commonGames = new Set(this.commonGames().map((game) => game.toLocaleLowerCase()));
+    // «Valorant» или «CS2» вместо «Counter-Strike 2» — поэтому сравниваем по ключу из каталога (gameKey).
+    const commonGames = new Set(this.commonGames().map(gameKey));
     const games = partner.games.map((game) => ({
       item: game,
-      shared: commonGames.has(game.toLocaleLowerCase()),
+      shared: commonGames.has(gameKey(game)),
     }));
     return {
       age: partner.birthDate ? ageFrom(partner.birthDate) : null,
