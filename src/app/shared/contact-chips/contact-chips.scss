@@ -32,6 +32,8 @@
     padding: 2px 2px 4px;
     margin: -2px -2px -4px;
     scrollbar-width: none;
+    // Правый край строки гаснет: видно, что чипы продолжаются за краем и строку можно прокрутить.
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
 
     .contact {
       flex-shrink: 0;
@@ -70,6 +72,15 @@
 
     &::after {
       content: ' ·';
+    }
+
+    // Только платформа («Discord ↗»): она и есть подпись чипа — основной цвет, без «·».
+    &.solo {
+      color: inherit;
+
+      &::after {
+        content: none;
+      }
     }
   }
 

@@ -56,6 +56,7 @@ import {
 import { resizeImage } from '../../core/profile/resize-image';
 import { MatchInfo } from '../../core/matching/match-score';
 import { PlayerCard } from '../feed/player-card/player-card';
+import { initialOf } from '../../shared/initial';
 import { ErrorState } from '../../shared/error-state/error-state';
 
 const MIN_AGE = 18;
@@ -360,6 +361,11 @@ export class Profile implements HasUnsavedChanges {
       genres,
       playTimes,
     };
+  });
+  // Первая буква имени для монограммы в пустом слоте фото (см. shared/initial.ts).
+  protected readonly initial = computed(() => {
+    this.formEvent();
+    return initialOf(this.form.controls.name.value, this.i18n.lang());
   });
   protected readonly previewAge = computed(() => {
     const birthDate = this.previewPlayer().birthDate;

@@ -259,6 +259,12 @@
     font-weight: 500;
     color: var(--di-neon-cyan);
   }
+
+  // Своё, а не общее (превью анкеты): бирюзовый значит «совпало», поэтому здесь тихий Haze Grey.
+  &.own mat-icon,
+  &.own b {
+    color: var(--di-text-muted);
+  }
 }
 
 .tags {

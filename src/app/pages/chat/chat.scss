@@ -436,6 +436,39 @@
     overflow-wrap: anywhere;
   }
 
+  // Приглашение поиграть: бирюзовая «шапка» с геймпадом (общая игра — это «общее», циан)
+  // и рамка ярче обычной — пузырь читается как карточка, а не ещё одна реплика.
+  &.invite-msg {
+    border: 1px solid var(--di-neon-cyan);
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.2);
+  }
+
+  .invite-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 4px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    color: var(--di-neon-cyan);
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  // «Я в деле» — ответ-действие, поэтому розовый (желание и действие), с тёмным текстом.
+  .accept {
+    margin-top: 8px;
+    --mat-button-filled-container-color: var(--di-neon-pink);
+    --mat-button-filled-label-text-color: var(--di-bg);
+    --mat-button-filled-state-layer-color: var(--di-bg);
+    font-weight: 600;
+  }
+
   // Строка под текстом: время и (у своих) состояние доставки — справа, мелко, Haze Grey.
   .meta {
     display: flex;
@@ -459,6 +492,11 @@
     align-self: flex-end;
     border-color: transparent;
     background: rgba(255, 46, 136, 0.22);
+  }
+
+  // Моё приглашение тоже с бирюзовой рамкой — правило выше её снимало у всех моих пузырей.
+  &.mine.invite-msg {
+    border-color: var(--di-neon-cyan);
   }
 
   // Новая серия — обычный отступ над ней; внутри серии остаётся плотный зазор списка (2px).

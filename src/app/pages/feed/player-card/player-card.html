@@ -35,10 +35,10 @@
           matTooltipPosition="above"
           (click)="tip.toggle()"
         >
-          <!-- Ниже 40% цифра читается как провал («12%»), хотя общее есть. Вместо неё — слова.
-               Подсказка — над бейджем: под ним имя игрока, его она закрывала. -->
+          <!-- Ниже 40% цифра читается как провал («12%»), хотя общее есть. Вместо неё — что именно
+               совпало (lowLabel). Подсказка — над бейджем: под ним имя игрока, его она закрывала. -->
           @if (level() === 'low') {
-            {{ 'feed.card.matchLow' | t }}
+            {{ lowLabel().key | t: { count: lowLabel().count } }}
           } @else {
             {{ 'feed.card.match' | t: { percent: match().percent } }}
           }
@@ -121,6 +121,29 @@
           }
         }
       </div>
+    }
+
+    <!-- Превью своей анкеты: совпадений с собой нет, поэтому время игры и жанры показываем целиком —
+         человек видит, что то, что он отметил ради подбора, действительно попадает в карточку. -->
+    @if (preview()) {
+      @if (player().playTimes.length) {
+        <p class="together own">
+          <mat-icon aria-hidden="true">schedule</mat-icon>
+          <span
+            ><b>{{ 'feed.card.playTimes' | t }}:</b>
+            {{ joined('catalog.playTimes', player().playTimes) }}</span
+          >
+        </p>
+      }
+      @if (player().genres.length) {
+        <p class="together own">
+          <mat-icon aria-hidden="true">category</mat-icon>
+          <span
+            ><b>{{ 'feed.card.genres' | t }}:</b>
+            {{ joined('catalog.genres', player().genres) }}</span
+          >
+        </p>
+      }
     }
 
     <!-- Всё, что раскрывает кнопка «Подробнее», — в одном блоке: на него ссылается aria-controls. -->

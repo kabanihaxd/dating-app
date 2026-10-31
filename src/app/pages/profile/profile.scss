@@ -266,13 +266,12 @@ mat-form-field {
     justify-content: center;
     background: var(--di-bg);
     border: 2px solid rgba(168, 85, 247, 0.4);
-
-    mat-icon {
-      font-size: 56px;
-      width: 56px;
-      height: 56px;
-      color: var(--di-text-muted);
-    }
+    // Монограмма — как у игрока без фото в ленте: Orbitron, Haze Grey.
+    font-family: var(--di-brand-font);
+    font-size: 48px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--di-text-muted);
   }
 }
 
@@ -403,6 +402,16 @@ mat-chip-listbox {
   .bar-row {
     max-width: 720px;
     margin: 0 auto;
+  }
+
+  // Рядом с формой стоит превью (300px + зазор 24px): сообщения и «Сохранить» — под формой,
+  // правый край кнопки — по правому краю формы, а не под колонкой превью.
+  &.with-preview {
+    .messages,
+    .bar-row {
+      max-width: none;
+      margin: 0 calc(300px + 24px) 0 0;
+    }
   }
 
   .form-error {

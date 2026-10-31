@@ -103,7 +103,10 @@
     },
     "card": {
       "match": "zhoda {{percent}}%",
-      "matchLow": "Trochu spoločného",
+      "lowGames": "Spoločné hry: {{count}}",
+      "lowPlatform": "Rovnaká platforma",
+      "lowGenre": "Spoločný žáner",
+      "lowTime": "Hráte v rovnakom čase",
       "commonGames": "Spoločné hry",
       "games": "Hry",
       "otherGames": "Ďalšie hry",
@@ -123,7 +126,9 @@
       "less": "Zobraziť menej",
       "moreGames": "+{{count}} ďalšie",
       "photoAlt": "Fotka: {{name}}",
-      "matchHint": "Percento zohľadňuje spoločné hry, platformy, žánre a čas hrania. Najviac vážia hry."
+      "matchHint": "Percento zohľadňuje spoločné hry, platformy, žánre a čas hrania. Najviac vážia hry.",
+      "playTimes": "Hrá",
+      "genres": "Žánre"
     },
     "toMatches": "Na matche",
     "matchAction": "Napísať",
@@ -135,8 +140,9 @@
       "grid": "Mriežka"
     },
     "keysHint": "← preskočiť · → player 2 · Z / Backspace vrátiť späť",
+    "keysHintMutual": "← preskočiť · → match · Z / Backspace vrátiť späť",
     "likeHint": "Player 2? je pozvánka. Kontakty sa zobrazia, len ak ti dajú lajk späť.",
-    "likeHintMutual": "Už sa páčiš: Player 2? hneď vytvorí match a odomkne kontakty.",
+    "likeHintMutual": "Už sa páčiš: „Match“ hneď odomkne kontakty.",
     "last": {
       "liked": "Pozvánka odoslaná: {{name}}",
       "skipped": "Preskočené: {{name}}",
@@ -254,7 +260,6 @@
     "copied": "Skopírované",
     "copyFailed": "Nepodarilo sa skopírovať. Prezývka je označená v poli pod kontaktmi — skopíruj ju ručne.",
     "copyManually": "Prezývka {{platform}} — skopíruj ju ručne (Ctrl+C alebo dlhé podržanie):",
-    "profileWord": "profil",
     "openProfileHint": "Otvoriť profil {{platform}} ({{name}}) na novej karte",
     "loadFailed": "Nepodarilo sa načítať matche: {{count}}",
     "new": "Nový match",
@@ -315,7 +320,19 @@
       "game": "Zahráme si spolu {{game}}?",
       "any": "Zahráme si spolu niečo?",
       "platform": "Hrám na {{platform}}.",
-      "time": "Hodí sa mi: {{time}}."
+      "gameWhen": "Zahráme si {{game}} {{when}}?",
+      "anyWhen": "Zahráme si niečo {{when}}?",
+      "when": {
+        "morning": "ráno",
+        "day": "dnes cez deň",
+        "evening": "dnes večer",
+        "night": "dnes v noci",
+        "weekdays": "cez týždeň",
+        "weekends": "cez víkend"
+      },
+      "label": "Pozvánka na hru",
+      "accept": "Som za! 🎮",
+      "acceptButton": "Som za"
     }
   },
   "profile": {

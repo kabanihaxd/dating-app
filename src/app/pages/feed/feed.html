@@ -286,7 +286,10 @@
                   [ngTemplateOutletContext]="{ deck: true }"
                 />
               } @else {
-                <p class="keys-hint" aria-hidden="true">{{ 'feed.keysHint' | t }}</p>
+                <!-- На карточке «Ти подобаєшся» кнопка называется «Метч» — и подсказка клавиш тоже. -->
+                <p class="keys-hint" aria-hidden="true">
+                  {{ (current()?.likedMe ? 'feed.keysHintMutual' : 'feed.keysHint') | t }}
+                </p>
               }
             </div>
           </div>

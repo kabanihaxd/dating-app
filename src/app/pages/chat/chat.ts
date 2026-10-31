@@ -277,6 +277,8 @@ export class Chat {
         dayIso: newDay ? isoDay(time) : null,
         groupStart: !prev || !joined(prev, message),
         groupEnd: !next || !joined(message, next),
+        // Приглашение поиграть рисуем карточкой-пузырём, а не обычным сообщением.
+        invite: message.invite,
       };
     });
   });
@@ -587,20 +589,22 @@ export class Chat {
     this.partnerToggle()?.nativeElement.focus();
   }
 
-  // Текст приглашения «Сыграем вместе в Valorant? Я на PC. Мне удобно: вечером.» — из первой общей
+  // Текст приглашения «Сыграем в Valorant сегодня вечером? Я на PC.» — из первой общей
   // игры, платформы и времени В ТОМ ЖЕ ПОРЯДКЕ, что в карточке игрока (порядок и написание
   // собеседника): иначе карточка показывала бы первой PlayStation, а приглашение говорило «Я на PC».
   // Общего нет — нейтральное «Сыграем во что-нибудь вместе?».
   private readonly invite = computed(() => {
-    const lang = this.i18n.lang();
     const card = this.partnerCard();
     const game = card?.games.find((g) => g.shared)?.item;
     const platform = card?.platforms.find((p) => p.shared)?.item;
     const time = card?.times.find((t) => t.shared)?.item;
+    // Время вплетаем в первую фразу («…сегодня вечером?»), а не отдельной строкой «Мне удобно: вечером.» —
+    // так приглашение звучит как живая реплика, а не анкета.
     // Первая фраза отдельно: по ней узнаём уже отправленное приглашение (см. inviteSent).
+    const when = time ? this.i18n.translate(`chat.invite.when.${time}`) : '';
     const opener = game
-      ? this.i18n.translate('chat.invite.game', { game })
-      : this.i18n.translate('chat.invite.any');
+      ? this.i18n.translate(when ? 'chat.invite.gameWhen' : 'chat.invite.game', { game, when })
+      : this.i18n.translate(when ? 'chat.invite.anyWhen' : 'chat.invite.any', { when });
     const parts = [opener];
     if (platform) {
       parts.push(
@@ -608,11 +612,6 @@ export class Chat {
           platform: this.i18n.translate(`catalog.platforms.${platform}`),
         }),
       );
-    }
-    if (time) {
-      // «Вечером» в середине фразы — со строчной: «Мне удобно: вечером.»
-      const label = this.i18n.translate(`catalog.playTimes.${time}`).toLocaleLowerCase(lang);
-      parts.push(this.i18n.translate('chat.invite.time', { time: label }));
     }
     return { opener, text: parts.join(' ') };
   });
@@ -647,6 +646,33 @@ export class Chat {
       field.focus();
       field.setSelectionRange(field.value.length, field.value.length);
     }
+  }
+
+  // Приглашение от собеседника, на которое я ещё ничего не ответил: под ним — кнопка «Я в деле!».
+  // Как только я написал что угодно после него, кнопка пропадает: ответ уже есть.
+  protected readonly openInviteId = computed(() => {
+    // Идём с конца: моё сообщение раньше чужого приглашения — значит, я уже ответил.
+    const list = this.messages();
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (list[i].from === this.me) {
+        return null;
+      }
+      if (list[i].invite) {
+        return list[i].id;
+      }
+    }
+    return null;
+  });
+
+  // «Я в деле!» — согласие одним нажатием: отправляем сразу, как обычное сообщение.
+  // Набранный черновик не трогаем — он остаётся в поле.
+  protected acceptInvite(): void {
+    if (this.sending() || this.state() !== 'ready') {
+      return;
+    }
+    this.sending.set(true);
+    this.input()?.nativeElement.focus();
+    void this.deliver(this.matchId(), this.i18n.translate('chat.invite.accept'));
   }
 
   // Отправка формы кнопкой: отменяем «родное» поведение браузера (перезагрузку страницы)

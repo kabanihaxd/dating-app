@@ -219,6 +219,7 @@
             <div
               class="message"
               [class.mine]="message.mine"
+              [class.invite-msg]="message.invite"
               [class.group-start]="message.groupStart"
               [class.tail]="message.groupEnd"
               animate.enter="pop-in"
@@ -229,7 +230,27 @@
                   ? ('chat.speaker.me' | t)
                   : ('chat.speaker.partner' | t: { name: partnerName() })
               }}</span>
+              <!-- Приглашение поиграть — главный момент чата: у пузыря есть «шапка» с геймпадом. -->
+              @if (message.invite) {
+                <p class="invite-label">
+                  <mat-icon aria-hidden="true">sports_esports</mat-icon>
+                  {{ 'chat.invite.label' | t }}
+                </p>
+              }
               <p>{{ message.text }}</p>
+              <!-- Согласие одним нажатием — только под последним приглашением собеседника, пока я не ответил. -->
+              @if (message.id === openInviteId()) {
+                <button
+                  mat-flat-button
+                  type="button"
+                  class="accept"
+                  [disabled]="sending()"
+                  (click)="acceptInvite()"
+                >
+                  <mat-icon aria-hidden="true">check</mat-icon>
+                  {{ 'chat.invite.acceptButton' | t }}
+                </button>
+              }
               <div class="meta">
                 <time [attr.datetime]="message.datetime">{{ message.time }}</time>
                 <!-- Доставка — только у своих: «часики», пока сервер не подтвердил запись

@@ -103,7 +103,10 @@
     },
     "card": {
       "match": "{{percent}}% match",
-      "matchLow": "A bit in common",
+      "lowGames": "Shared games: {{count}}",
+      "lowPlatform": "Same platform",
+      "lowGenre": "Shared genre",
+      "lowTime": "Same play time",
       "commonGames": "Games in common",
       "games": "Games",
       "otherGames": "Other games",
@@ -123,7 +126,9 @@
       "less": "Show less",
       "moreGames": "+{{count}} more",
       "photoAlt": "Photo of {{name}}",
-      "matchHint": "The % reflects shared games, platforms, genres and play times. Games count most."
+      "matchHint": "The % reflects shared games, platforms, genres and play times. Games count most.",
+      "playTimes": "Plays",
+      "genres": "Genres"
     },
     "toMatches": "Go to matches",
     "matchAction": "Message",
@@ -135,8 +140,9 @@
       "grid": "Grid"
     },
     "keysHint": "← skip · → player 2 · Z / Backspace undo",
+    "keysHintMutual": "← skip · → match · Z / Backspace undo",
     "likeHint": "Player 2? sends an invite. Your contacts unlock only if they like you back.",
-    "likeHintMutual": "They already like you: Player 2? makes it a match and unlocks contacts right away.",
+    "likeHintMutual": "They already like you: Match unlocks contacts right away.",
     "last": {
       "liked": "Invite sent: {{name}}",
       "skipped": "Skipped: {{name}}",
@@ -254,7 +260,6 @@
     "copied": "Copied",
     "copyFailed": "Couldn't copy. The nickname is selected in the field under the contacts — copy it manually.",
     "copyManually": "{{platform}} nickname — copy it manually (Ctrl+C or long press):",
-    "profileWord": "profile",
     "openProfileHint": "Open {{name}}'s {{platform}} profile in a new tab",
     "loadFailed": "Couldn't load matches: {{count}}",
     "new": "New match",
@@ -315,7 +320,19 @@
       "game": "Up for {{game}} together?",
       "any": "Want to play something together?",
       "platform": "I'm on {{platform}}.",
-      "time": "Usually free: {{time}}."
+      "gameWhen": "Up for {{game}} {{when}}?",
+      "anyWhen": "Want to play something {{when}}?",
+      "when": {
+        "morning": "this morning",
+        "day": "today",
+        "evening": "tonight",
+        "night": "late tonight",
+        "weekdays": "on a weekday",
+        "weekends": "this weekend"
+      },
+      "label": "Game invite",
+      "accept": "I'm in! 🎮",
+      "acceptButton": "I'm in"
     }
   },
   "profile": {

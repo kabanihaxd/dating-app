@@ -86,6 +86,22 @@ export class PlayerCard {
     return percent >= 70 ? 'high' : percent >= 40 ? 'medium' : 'low';
   });
 
+  // Ниже 40% процент читается как провал, поэтому бейдж говорит, ЧТО совпало, — самое весомое
+  // по правилам подбора: игры, потом платформа, жанр, время. «Подпись: N» — без правил множественного числа.
+  protected readonly lowLabel = computed(() => {
+    const m = this.match();
+    if (m.commonGames.length) {
+      return { key: 'feed.card.lowGames', count: m.commonGames.length };
+    }
+    if (m.commonPlatforms.length) {
+      return { key: 'feed.card.lowPlatform', count: 0 };
+    }
+    if (m.commonGenres.length) {
+      return { key: 'feed.card.lowGenre', count: 0 };
+    }
+    return { key: 'feed.card.lowTime', count: 0 };
+  });
+
   // ['evening', 'weekends'] → «Ввечері · На вихідних». group — раздел справочника в переводах.
   protected joined(group: string, keys: readonly string[]): string {
     return keys.map((key) => this.i18n.translate(`${group}.${key}`)).join(' · ');

@@ -183,7 +183,9 @@
         @if (photo(); as src) {
           <img [src]="src" [alt]="'profile.photo.alt' | t" />
         } @else {
-          <div class="photo-placeholder"><mat-icon>person</mat-icon></div>
+          <!-- Без фото — монограмма, как у игроков в ленте и в превью рядом. Силуэт «человечка»
+               говорил бы «здесь никого», а здесь ты. -->
+          <div class="photo-placeholder" aria-hidden="true">{{ initial() }}</div>
         }
         <div class="photo-actions">
           <!-- Настоящий input type="file" некрасивый, поэтому прячем его и «нажимаем» кнопкой. -->
@@ -371,7 +373,7 @@
 @if (!loading() && !loadErrorKey()) {
   <!-- Липкая панель внизу экрана, как кнопки в ленте: «Сохранить» всегда под рукой, даже посреди длинной формы.
        Ошибки показываем здесь же — там, куда человек только что нажал. -->
-  <div class="action-bar" [class.idle]="barIdle()">
+  <div class="action-bar" [class.idle]="barIdle()" [class.with-preview]="widePreview()">
     <div class="messages">
       @if (showInvalid() && invalidFields().length) {
         <!-- Список БЕЗ живой области: он меняется на каждое исправленное поле, и диктор

@@ -15,8 +15,14 @@
             [matTooltip]="contact.value"
             [attr.aria-label]="'matches.openProfileHint' | t: { platform, name: name() }"
           >
-            <span class="platform">{{ contact.short }}</span>
-            <span class="value">{{ contact.shown ?? ('matches.profileWord' | t) }}</span>
+            <!-- Хвост ссылки из одних цифр человеку ничего не скажет, а слово «профиль» на месте ника
+                 выглядело как ник. Тогда на чипе только платформа и стрелка: «Discord ↗». -->
+            @if (contact.shown; as shown) {
+              <span class="platform">{{ contact.short }}</span>
+              <span class="value">{{ shown }}</span>
+            } @else {
+              <span class="platform solo">{{ contact.short }}</span>
+            }
             <mat-icon aria-hidden="true">open_in_new</mat-icon>
           </a>
         } @else {
