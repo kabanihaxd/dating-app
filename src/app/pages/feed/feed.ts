@@ -151,6 +151,9 @@ const TEXT_ENTRY =
   // Стрелки ← / → в режиме «по одному» — пропустить / лайкнуть, Z или Backspace — вернуть.
   // Свёрнутую или закрытую вкладку (отправить отложенные лайки сразу) ловит сам PendingLikes.
   host: {
+    // Класс для CSS: на телефоне при открытых фильтрах кнопки колоды не прилипают к низу экрана
+    // (см. feed.scss, «Кнопки колоды при открытых фильтрах»).
+    '[class.filters-open]': 'filtersOpen()',
     '(document:keydown)': 'onKeydown($event)',
     // Где сейчас фокус — для «сторожа» пропавшей карточки (см. onFocusIn).
     '(document:focusin)': 'onFocusIn($event)',
@@ -234,7 +237,13 @@ export class Feed {
   protected readonly likeUndoMs = LIKE_UNDO_MS;
 
   protected readonly view = signal<View>(readStorage(STORAGE.view) === 'grid' ? 'grid' : 'deck');
-  protected readonly filtersOpen = signal(readStorage(STORAGE.filtersOpen) === '1');
+  // Открытую панель помним между заходами только на широком экране. На телефоне она занимает
+  // весь первый экран и сдвигает карточку под кнопки — поэтому там лента всегда открывается
+  // со свёрнутыми фильтрами, а человек раскрывает их сам, когда нужно.
+  protected readonly filtersOpen = signal(
+    readStorage(STORAGE.filtersOpen) === '1' &&
+      !(typeof matchMedia === 'function' && matchMedia(PHONE_QUERY).matches),
+  );
   protected readonly settling = signal(false);
   protected readonly lastAction = signal<LastAction | null>(null);
   // uid игрока, которого сейчас «возвращаем», — кнопка «Вернуть» на это время выключена.

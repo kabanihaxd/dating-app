@@ -110,6 +110,8 @@
       "like": "Player 2?",
       "skip": "Пропустить",
       "likeName": "Позвать {{name}} в player 2",
+      "matchNow": "Мэтч",
+      "matchName": "{{name}}: мэтч — контакты откроются сразу",
       "skipName": "Пропустить: {{name}}",
       "why": "Почему вы совпали",
       "bothPlay": "Общее время игры",
@@ -255,6 +257,7 @@
     "loadFailed": "Не удалось загрузить мэтчи: {{count}}",
     "new": "Новый мэтч",
     "yourTurn": "Твой ход",
+    "waiting": "Ждём ответа",
     "sharedPlatforms": "Общие платформы",
     "contactsOf": "Контакты: {{name}}",
     "copyNicknameValue": "Скопировать ник {{platform}}: {{nickname}} ({{name}})"

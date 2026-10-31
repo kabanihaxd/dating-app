@@ -82,6 +82,16 @@ h1,
     box-shadow: 0 0 12px rgba(255, 46, 136, 0.45);
     white-space: nowrap;
 
+    // «Ждём ответа»: мой ход сделан. Haze Grey контуром — это справка, а не повод действовать.
+    &.waiting {
+      padding: 3px 9px;
+      font-weight: 500;
+      color: var(--di-text-muted);
+      background: none;
+      border: 1px solid rgba(154, 154, 176, 0.35);
+      box-shadow: none;
+    }
+
     // «Твой ход», но ответ уже прочитан: напоминание, а не сигнал — контур без заливки и свечения.
     &.quiet {
       padding: 3px 9px;

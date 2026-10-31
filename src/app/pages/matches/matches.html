@@ -89,11 +89,15 @@
                 <h2 [id]="match.headingId" tabindex="-1">{{ name }}, {{ match.age }}</h2>
                 <!-- Одна метка, самая важная. «Твой ход» розовый, пока ответ не прочитан,
                    и тихий контурный — когда прочитан, но ещё не отвечен.
-                   «Новый мэтч» — мэтч случился после прошлого захода и переписки ещё нет. -->
+                   «Новый мэтч» — мэтч случился после прошлого захода и переписки ещё НЕТ
+                   (написал первым — мэтч уже не «новый», а «ждём ответа»).
+                   «Ждём ответа» — последнее слово за мной: серая метка, торопиться некуда. -->
                 @if (myTurn) {
                   <span class="pill" [class.quiet]="!unread">{{ 'matches.yourTurn' | t }}</span>
-                } @else if (newMatchIds().has(match.id)) {
+                } @else if (!last && newMatchIds().has(match.id)) {
                   <span class="pill">{{ 'matches.new' | t }}</span>
+                } @else if (last) {
+                  <span class="pill waiting">{{ 'matches.waiting' | t }}</span>
                 }
               </div>
               <p class="muted">

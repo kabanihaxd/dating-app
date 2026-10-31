@@ -247,12 +247,16 @@
               type="button"
               class="like"
               aria-keyshortcuts="ArrowRight"
-              [attr.aria-label]="'feed.card.likeName' | t: { name: item.player.name }"
+              [attr.aria-label]="
+                (item.likedMe ? 'feed.card.matchName' : 'feed.card.likeName')
+                  | t: { name: item.player.name }
+              "
               [attr.aria-describedby]="item.likedMe || likeHint() ? 'feed-like-hint' : null"
               (click)="like(item.player)"
             >
               <mat-icon aria-hidden="true">favorite</mat-icon>
-              {{ 'feed.card.like' | t }}
+              <!-- Уже лайкнул(а) меня — кнопка называет то, что случится: «Мэтч», а не «Player 2?». -->
+              {{ (item.likedMe ? 'feed.card.matchNow' : 'feed.card.like') | t }}
             </button>
             <!-- «Player 2?» — игра слов, а не инструкция. Пока человек ни разу не лайкал, тут же
                  объясняем, что именно отправится и что останется скрытым. aria-describedby

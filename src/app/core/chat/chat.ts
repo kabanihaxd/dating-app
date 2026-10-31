@@ -28,6 +28,9 @@ export interface ChatMessage {
   from: string;
   text: string;
   createdAt: Date | null;
+  // Приглашение поиграть, собранное кнопкой «Позвать играть» (поле kind: 'invite' в базе).
+  // Метка не зависит от языка: приглашение на русском узнаётся и в украинском интерфейсе.
+  invite: boolean;
   // true — сообщение пока есть только в локальном кэше: Firestore показал его сразу,
   // но сервер ещё не подтвердил запись (медленная сеть или её нет вовсе).
   // По этому флагу чат рисует «часики» вместо галочки.
@@ -113,6 +116,7 @@ export class ChatService {
             id: message.id,
             from: message.get('from') as string,
             text: message.get('text') as string,
+            invite: message.get('kind') === 'invite',
             // Своё сообщение появляется на экране ДО ответа сервера, и времени у него ещё нет.
             // 'estimate' подставляет примерное время, чтобы его можно было сразу показать.
             createdAt:
@@ -129,10 +133,14 @@ export class ChatService {
 
   // Сообщение и превью в мэтче (lastMessage) сохраняем одним batch — либо оба, либо ничего.
   // Превью нужно списку мэтчей и уведомлениям: им не придётся читать всю переписку.
-  send(matchId: string, from: string, text: string): Promise<void> {
+  // invite — пометить сообщение как приглашение поиграть (kind: 'invite'); превью метка не нужна.
+  send(matchId: string, from: string, text: string, invite = false): Promise<void> {
     const message = { from, text, createdAt: serverTimestamp() };
     const batch = writeBatch(this.db);
-    batch.set(doc(collection(this.db, 'matches', matchId, 'messages')), message);
+    batch.set(
+      doc(collection(this.db, 'matches', matchId, 'messages')),
+      invite ? { ...message, kind: 'invite' } : message,
+    );
     batch.update(doc(this.db, 'matches', matchId), { lastMessage: message });
     return batch.commit();
   }

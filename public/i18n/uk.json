@@ -110,6 +110,8 @@
       "like": "Player 2?",
       "skip": "Пропустити",
       "likeName": "Покликати {{name}} у player 2",
+      "matchNow": "Метч",
+      "matchName": "{{name}}: метч — контакти відкриються одразу",
       "skipName": "Пропустити: {{name}}",
       "why": "Чому ви збіглися",
       "bothPlay": "Спільний час гри",
@@ -255,6 +257,7 @@
     "loadFailed": "Не вдалося завантажити метчі: {{count}}",
     "new": "Новий метч",
     "yourTurn": "Твій хід",
+    "waiting": "Чекаємо на відповідь",
     "sharedPlatforms": "Спільні платформи",
     "contactsOf": "Контакти: {{name}}",
     "copyNicknameValue": "Скопіювати нік {{platform}}: {{nickname}} ({{name}})"

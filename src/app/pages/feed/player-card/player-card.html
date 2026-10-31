@@ -165,11 +165,15 @@
         mat-flat-button
         type="button"
         class="like"
-        [attr.aria-label]="'feed.card.likeName' | t: { name: player().name }"
+        [attr.aria-label]="
+          (likedMe() ? 'feed.card.matchName' : 'feed.card.likeName') | t: { name: player().name }
+        "
         (click)="liked.emit()"
       >
         <mat-icon aria-hidden="true">favorite</mat-icon>
-        {{ 'feed.card.like' | t }}
+        <!-- Этот игрок уже лайкнул меня — нажатие не «приглашение», а сразу мэтч с открытыми
+             контактами. В плотной сетке нет места для подсказки, поэтому кнопка говорит это сама. -->
+        {{ (likedMe() ? 'feed.card.matchNow' : 'feed.card.like') | t }}
       </button>
     </div>
   }

@@ -137,16 +137,28 @@ export class Matches {
     return this.failedUids().some((uid) => inFlight.has(uid));
   });
 
-  // «Честный» порядок, посчитанный с нуля: сначала чаты с непрочитанным, потом по свежести —
-  // последнее сообщение или сам мэтч. Здесь только uid, без карточек.
+  // «Честный» порядок, посчитанный с нуля, — как во входящих: сверху те, кто ждёт меня.
+  // 0 — непрочитанное; 1 — мой ход (последнее слово за собеседником, уже прочитано);
+  // 2 — переписки ещё нет (свежий мэтч — повод написать первым); 3 — жду ответа (последнее
+  // слово моё). Внутри группы — по свежести: последнее сообщение или сам мэтч.
+  // Раньше прочитанный «мой ход» тонул внизу под мэтчами, где ждут уже меня.
+  // Здесь только uid, без карточек.
   private readonly liveOrder = computed(() => {
     const unread = this.notifications.unreadChats();
     const last = this.notifications.lastMessages();
+    const rank = (match: LiveMatch) => {
+      const message = last.get(match.id);
+      if (unread.has(match.id)) {
+        return 0;
+      }
+      if (!message) {
+        return 2;
+      }
+      return message.from === this.me ? 3 : 1;
+    };
     const activity = (match: LiveMatch) => Math.max(match.createdAt, last.get(match.id)?.at ?? 0);
     return [...this.shownList()]
-      .sort(
-        (a, b) => Number(unread.has(b.id)) - Number(unread.has(a.id)) || activity(b) - activity(a),
-      )
+      .sort((a, b) => rank(a) - rank(b) || activity(b) - activity(a))
       .map((match) => match.otherUid);
   });
 

@@ -164,10 +164,13 @@ service cloud.firestore {
       return signedIn() && request.auth.uid in matchData.users;
     }
 
-    // Сообщение: только эти три поля, автор — я, текст 1–1000 символов, время ставит сервер.
+    // Сообщение: только эти поля, автор — я, текст 1–1000 символов, время ставит сервер.
     // request.time — время запроса; serverTimestamp() из браузера ему как раз равен.
+    // kind — необязательная метка: 'invite' у сообщения, собранного кнопкой «Позвать играть».
+    // По ней чат узнаёт приглашение на любом языке интерфейса, а не по тексту.
     function isValidMessage(message) {
-      return message.keys().hasOnly(['from', 'text', 'createdAt'])
+      return message.keys().hasOnly(['from', 'text', 'createdAt', 'kind'])
+        && (!('kind' in message) || message.kind == 'invite')
         && message.from == request.auth.uid
         && message.text is string
         && message.text.size() > 0
