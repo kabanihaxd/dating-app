@@ -44,12 +44,7 @@
       <mat-icon aria-hidden="true">error_outline</mat-icon>
       <span>{{ 'matches.loadFailed' | t: { count: failedCount() } }}</span>
       <!-- aria-disabled вместо disabled: настоящий disabled сбросил бы фокус с кнопки. -->
-      <button
-        mat-button
-        type="button"
-        [attr.aria-disabled]="retrying()"
-        (click)="retry()"
-      >
+      <button mat-button type="button" [attr.aria-disabled]="retrying()" (click)="retry()">
         <mat-icon>refresh</mat-icon>
         {{ (retrying() ? 'common.loading' : 'errors.retry') | t }}
       </button>
@@ -76,56 +71,71 @@
         (focusin)="onFocusIn($event, match.uid)"
         (focusout)="onFocusOut($event, match.uid)"
       >
-        <header>
-          <!-- alt="": имя и так написано рядом, повторять его скринридеру незачем. -->
-          @if (match.profile.photo; as src) {
-            <img [src]="src" alt="" />
-          } @else {
-            <div class="avatar" aria-hidden="true"><mat-icon>person</mat-icon></div>
-          }
-          <div class="who">
-            <div class="name-row">
-              <h2 [id]="match.headingId" tabindex="-1">{{ name }}, {{ match.age }}</h2>
-              <!-- Одна метка, самая важная. «Твой ход» розовый, пока ответ не прочитан,
+        <!-- Карточка — три ряда общей сетки (subgrid): «кто и что общего» · чат · контакты.
+             Ряды одни на всю строку сетки, поэтому строки чата у соседних карточек стоят на одной
+             линии, даже если у одного игрока три контакта, а у другого ни одного. -->
+        <div class="about">
+          <header>
+            <!-- alt="": имя и так написано рядом, повторять его скринридеру незачем. -->
+            <!-- Без фото — первая буква имени (монограмма), а не силуэт: силуэт говорит «пусто»,
+               а буква — «вот этот игрок». -->
+            @if (match.profile.photo; as src) {
+              <img [src]="src" alt="" />
+            } @else {
+              <div class="avatar" aria-hidden="true">{{ match.initial }}</div>
+            }
+            <div class="who">
+              <div class="name-row">
+                <h2 [id]="match.headingId" tabindex="-1">{{ name }}, {{ match.age }}</h2>
+                <!-- Одна метка, самая важная. «Твой ход» розовый, пока ответ не прочитан,
                    и тихий контурный — когда прочитан, но ещё не отвечен.
                    «Новый мэтч» — мэтч случился после прошлого захода и переписки ещё нет. -->
-              @if (myTurn) {
-                <span class="pill" [class.quiet]="!unread">{{ 'matches.yourTurn' | t }}</span>
-              } @else if (newMatchIds().has(match.id)) {
-                <span class="pill">{{ 'matches.new' | t }}</span>
+                @if (myTurn) {
+                  <span class="pill" [class.quiet]="!unread">{{ 'matches.yourTurn' | t }}</span>
+                } @else if (newMatchIds().has(match.id)) {
+                  <span class="pill">{{ 'matches.new' | t }}</span>
+                }
+              </div>
+              <p class="muted">
+                <mat-icon inline aria-hidden="true">place</mat-icon> {{ match.profile.city }}
+              </p>
+            </div>
+            <app-moderation-menu
+              [otherUid]="match.uid"
+              [name]="name"
+              [matched]="true"
+              (removed)="remove(match.uid)"
+            />
+          </header>
+
+          <!-- Что вас связывает: общие игры, платформы и время. Ради этого и случился мэтч. -->
+          @if (match.commonGames.length) {
+            <p class="label">{{ 'feed.card.commonGames' | t }}</p>
+            <div class="tags">
+              @for (game of match.commonGames; track game) {
+                <span class="tag">{{ game }}</span>
               }
             </div>
-            <p class="muted"><mat-icon inline aria-hidden="true">place</mat-icon> {{ match.profile.city }}</p>
-          </div>
-          <app-moderation-menu
-            [otherUid]="match.uid"
-            [name]="name"
-            [matched]="true"
-            (removed)="remove(match.uid)"
-          />
-        </header>
-
-        <!-- Что вас связывает: общие игры, платформы и время. Ради этого и случился мэтч. -->
-        @if (match.commonGames.length) {
-          <p class="label">{{ 'feed.card.commonGames' | t }}</p>
-          <div class="tags">
-            @for (game of match.commonGames; track game) {
-              <span class="tag">{{ game }}</span>
-            }
-          </div>
-        }
-        @if (match.commonPlatforms.length) {
-          <p class="together">
-            <mat-icon aria-hidden="true">sports_esports</mat-icon>
-            <span><b>{{ 'matches.sharedPlatforms' | t }}:</b> {{ joined('catalog.platforms', match.commonPlatforms) }}</span>
-          </p>
-        }
-        @if (match.commonPlayTimes.length) {
-          <p class="together">
-            <mat-icon aria-hidden="true">schedule</mat-icon>
-            <span><b>{{ 'feed.card.bothPlay' | t }}:</b> {{ joined('catalog.playTimes', match.commonPlayTimes) }}</span>
-          </p>
-        }
+          }
+          @if (match.commonPlatforms.length) {
+            <p class="together">
+              <mat-icon aria-hidden="true">sports_esports</mat-icon>
+              <span
+                ><b>{{ 'matches.sharedPlatforms' | t }}:</b>
+                {{ joined('catalog.platforms', match.commonPlatforms) }}</span
+              >
+            </p>
+          }
+          @if (match.commonPlayTimes.length) {
+            <p class="together">
+              <mat-icon aria-hidden="true">schedule</mat-icon>
+              <span
+                ><b>{{ 'feed.card.bothPlay' | t }}:</b>
+                {{ joined('catalog.playTimes', match.commonPlayTimes) }}</span
+              >
+            </p>
+          }
+        </div>
 
         <div class="actions">
           <!-- Строка чата — главное действие карточки: превью последнего сообщения и его время.

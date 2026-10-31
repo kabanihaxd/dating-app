@@ -8,6 +8,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -42,6 +43,7 @@ import {
   ageFrom,
 } from '../../core/profile/profile.model';
 import { ContactChips } from '../../shared/contact-chips/contact-chips';
+import { initialOf } from '../../shared/initial';
 import { ErrorState } from '../../shared/error-state/error-state';
 import { ModerationMenu } from '../../shared/moderation-menu/moderation-menu';
 import { StateMessage } from '../../shared/state-message/state-message';
@@ -226,6 +228,10 @@ export class Chat {
   protected readonly partnerName = computed(
     () => this.partner()?.name || this.i18n.translate('chat.unknown'),
   );
+  // Монограмма в шапке, если у собеседника нет фото (см. shared/initial.ts).
+  protected readonly partnerInitial = computed(() =>
+    initialOf(this.partnerName(), this.i18n.lang()),
+  );
 
   // Сообщения в том виде, в каком их рисует шаблон. Время — в формате выбранного языка сайта.
   // Кроме текста и времени, каждому сообщению заранее считаем две вещи для вёрстки:
@@ -275,12 +281,16 @@ export class Chat {
   });
 
   // Строка «Тема для разговора» над полем ввода (см. STARTER_MAX). В пустом чате она не нужна:
-  // там те же общие игры уже показывает приветствие посреди списка.
+  // там те же общие игры уже показывает приветствие посреди списка. После моего приглашения — тоже.
   protected readonly starter = computed(() => {
     const list = this.messages();
     const games = this.commonGames().slice(0, STARTER_GAMES);
     const times = this.commonPlayTimes();
     if (this.state() !== 'ready' || !list.length || (!games.length && !times.length)) {
+      return null;
+    }
+    // Я уже позвал(а) играть — тема найдена, подсказка своё отработала.
+    if (this.inviteSent()) {
       return null;
     }
     const myTurn = list.at(-1)!.from !== this.me;
@@ -374,61 +384,67 @@ export class Chat {
     effect((onCleanup) => {
       const matchId = this.matchId();
       this.attempt();
-      // Перешли в ДРУГОЙ чат (компонент тот же): всё, что относилось к прошлому собеседнику,
-      // стираем — иначе недописанный текст «утёк» бы в чужую переписку, а в шапке мелькнуло бы
-      // старое имя. При повторе того же чата черновик, наоборот, сохраняем.
-      if (matchId !== this.loadedMatchId) {
-        this.loadedMatchId = matchId;
-        // Черновик — свой у каждого чата (см. ChatDrafts): достаём текст, недописанный именно
-        // этому собеседнику, или пустую строку. emitEvent: false — это не ввод человека, и
-        // подписка valueChanges ниже не должна записывать его обратно.
-        this.draft.reset(this.drafts.get(matchId), { emitEvent: false });
-        this.partner.set(null);
-        this.commonGames.set([]);
-        this.commonPlayTimes.set([]);
-        this.commonPlatforms.set([]);
-        this.partnerContacts.set(null);
-        this.partnerOpen.set(false);
-        this.focusedFor = null;
-        // Неотправленные сообщения относятся к тому чату, где их писали.
-        this.failed.set([]);
-        this.stopLeaving();
-      }
-      this.state.set('loading');
-      this.messages.set([]);
-      this.partnerUid.set(null);
-      this.markReadFailed = false;
-      this.seenIds = null;
-      this.seenUntil = 0;
-      this.announcement.set([]);
-      this.sending.set(false);
-      this.verifying = false;
-      this.pendingMessages = null;
-      this.endSuppressed = false;
-      this.newBelow.set(false);
-      // Прокрутку отдельно сбрасывать не нужно: в состоянии loading список удаляется из DOM,
-      // а новый после загрузки сам прокручивается в самый низ (afterRenderEffect ниже узнаёт
-      // его как «новый элемент»).
-      this.notifications.activeChat.set(matchId);
+      // Эффект должен перезапускаться ТОЛЬКО от matchId и attempt (две строки выше). Всё остальное —
+      // в untracked: иначе любое прочитанное здесь значение сигнала тоже стало бы «зависимостью».
+      // Так и было: drafts.get() читает сигнал черновиков, первый же набранный символ сохранял
+      // черновик — и эффект перезапускал весь чат (скелетон, потеря фокуса и набранного текста).
+      untracked(() => {
+        // Перешли в ДРУГОЙ чат (компонент тот же): всё, что относилось к прошлому собеседнику,
+        // стираем — иначе недописанный текст «утёк» бы в чужую переписку, а в шапке мелькнуло бы
+        // старое имя. При повторе того же чата черновик, наоборот, сохраняем.
+        if (matchId !== this.loadedMatchId) {
+          this.loadedMatchId = matchId;
+          // Черновик — свой у каждого чата (см. ChatDrafts): достаём текст, недописанный именно
+          // этому собеседнику, или пустую строку. emitEvent: false — это не ввод человека, и
+          // подписка valueChanges ниже не должна записывать его обратно.
+          this.draft.reset(this.drafts.get(matchId), { emitEvent: false });
+          this.partner.set(null);
+          this.commonGames.set([]);
+          this.commonPlayTimes.set([]);
+          this.commonPlatforms.set([]);
+          this.partnerContacts.set(null);
+          this.partnerOpen.set(false);
+          this.focusedFor = null;
+          // Неотправленные сообщения относятся к тому чату, где их писали.
+          this.failed.set([]);
+          this.stopLeaving();
+        }
+        this.state.set('loading');
+        this.messages.set([]);
+        this.partnerUid.set(null);
+        this.markReadFailed = false;
+        this.seenIds = null;
+        this.seenUntil = 0;
+        this.announcement.set([]);
+        this.sending.set(false);
+        this.verifying = false;
+        this.pendingMessages = null;
+        this.endSuppressed = false;
+        this.newBelow.set(false);
+        // Прокрутку отдельно сбрасывать не нужно: в состоянии loading список удаляется из DOM,
+        // а новый после загрузки сам прокручивается в самый низ (afterRenderEffect ниже узнаёт
+        // его как «новый элемент»).
+        this.notifications.activeChat.set(matchId);
 
-      void this.loadPartner(matchId);
-      // Подписка на сообщения: новые приходят сами, пока страница открыта.
-      const unsubscribe = this.chat.watchMessages(
-        matchId,
-        (messages, fromCache) => this.onMessages(matchId, messages, fromCache),
-        (error) => this.fail(matchId, error),
-      );
-      // Подписка на сам мэтч: если собеседник разорвёт его посреди разговора, узнаем сразу.
-      const unsubscribeMatch = this.chat.watchMatch(
-        matchId,
-        () => this.end(),
-        // Ошибка доступа обычно значит «мэтч удалён», но проверяем это отдельным запросом.
-        (error) => (isPermissionDenied(error) ? this.verifyEnded(matchId) : console.error(error)),
-      );
-      onCleanup(() => {
-        unsubscribe();
-        unsubscribeMatch();
-        this.notifications.activeChat.set(null);
+        void this.loadPartner(matchId);
+        // Подписка на сообщения: новые приходят сами, пока страница открыта.
+        const unsubscribe = this.chat.watchMessages(
+          matchId,
+          (messages, fromCache) => this.onMessages(matchId, messages, fromCache),
+          (error) => this.fail(matchId, error),
+        );
+        // Подписка на сам мэтч: если собеседник разорвёт его посреди разговора, узнаем сразу.
+        const unsubscribeMatch = this.chat.watchMatch(
+          matchId,
+          () => this.end(),
+          // Ошибка доступа обычно значит «мэтч удалён», но проверяем это отдельным запросом.
+          (error) => (isPermissionDenied(error) ? this.verifyEnded(matchId) : console.error(error)),
+        );
+        onCleanup(() => {
+          unsubscribe();
+          unsubscribeMatch();
+          this.notifications.activeChat.set(null);
+        });
       });
     });
 
@@ -568,20 +584,21 @@ export class Chat {
     this.partnerToggle()?.nativeElement.focus();
   }
 
-  // «Позвать играть»: собираем черновик приглашения из того, что у вас общего, — первая общая
-  // игра, платформа и время («Сыграем вместе в Valorant? Я на PC. Мне удобно: вечером.»).
-  // Не отправляем сами: человек допишет или поправит и отправит, когда захочет. Уже набранный
-  // текст не стираем — приглашение встаёт после него.
-  protected inviteToPlay(): void {
+  // Текст приглашения «Сыграем вместе в Valorant? Я на PC. Мне удобно: вечером.» — из первой общей
+  // игры, платформы и времени В ТОМ ЖЕ ПОРЯДКЕ, что в карточке игрока (порядок и написание
+  // собеседника): иначе карточка показывала бы первой PlayStation, а приглашение говорило «Я на PC».
+  // Общего нет — нейтральное «Сыграем во что-нибудь вместе?».
+  private readonly invite = computed(() => {
     const lang = this.i18n.lang();
-    const game = this.commonGames()[0];
-    const platform = this.commonPlatforms()[0];
-    const time = this.commonPlayTimes()[0];
-    const parts = [
-      game
-        ? this.i18n.translate('chat.invite.game', { game })
-        : this.i18n.translate('chat.invite.any'),
-    ];
+    const card = this.partnerCard();
+    const game = card?.games.find((g) => g.shared)?.item;
+    const platform = card?.platforms.find((p) => p.shared)?.item;
+    const time = card?.times.find((t) => t.shared)?.item;
+    // Первая фраза отдельно: по ней узнаём уже отправленное приглашение (см. inviteSent).
+    const opener = game
+      ? this.i18n.translate('chat.invite.game', { game })
+      : this.i18n.translate('chat.invite.any');
+    const parts = [opener];
     if (platform) {
       parts.push(
         this.i18n.translate('chat.invite.platform', {
@@ -594,10 +611,27 @@ export class Chat {
       const label = this.i18n.translate(`catalog.playTimes.${time}`).toLocaleLowerCase(lang);
       parts.push(this.i18n.translate('chat.invite.time', { time: label }));
     }
-    const invite = parts.join(' ');
+    return { opener, text: parts.join(' ') };
+  });
+
+  // Я уже позвал(а) играть: среди моих сообщений есть первая фраза приглашения. Тогда тихие кнопки
+  // «Позвать играть» в строке темы и в пустом чате прячутся — интерфейс не предлагает то, что
+  // человек только что сделал. Кнопка в карточке игрока остаётся: туда заходят осознанно.
+  protected readonly inviteSent = computed(() => {
+    const opener = this.invite().opener;
+    return this.messages().some((m) => m.from === this.me && m.text.includes(opener));
+  });
+
+  // «Позвать играть»: кладём приглашение в поле ввода. Не отправляем сами: человек допишет
+  // или поправит и отправит, когда захочет. Уже набранный текст не стираем — приглашение встаёт
+  // после него. Если оно уже есть в поле (второе нажатие) — не дублируем, только ставим фокус.
+  protected inviteToPlay(): void {
+    const invite = this.invite().text;
     const current = this.draft.value.trimEnd();
-    // setValue (а не reset) — это правка черновика, её подхватит подписка и сохранит в ChatDrafts.
-    this.draft.setValue(current ? `${current} ${invite}` : invite);
+    if (!current.includes(invite)) {
+      // setValue (а не reset) — это правка черновика, её подхватит подписка и сохранит в ChatDrafts.
+      this.draft.setValue(current ? `${current} ${invite}` : invite);
+    }
     this.partnerOpen.set(false);
     // Фокус — в поле с курсором в конце: остаётся нажать «Отправить» или дописать.
     const field = this.input()?.nativeElement;

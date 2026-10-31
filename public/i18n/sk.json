@@ -133,6 +133,7 @@
     },
     "keysHint": "← preskočiť · → player 2 · Z / Backspace vrátiť späť",
     "likeHint": "Player 2? je pozvánka. Kontakty sa zobrazia, len ak ti dajú lajk späť.",
+    "likeHintMutual": "Už sa páčiš: Player 2? hneď vytvorí match a odomkne kontakty.",
     "last": {
       "liked": "Pozvánka odoslaná: {{name}}",
       "skipped": "Preskočené: {{name}}",

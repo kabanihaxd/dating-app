@@ -150,12 +150,14 @@
     cursor: pointer;
   }
 
+  // Монограмма: первая буква имени фирменным Orbitron (вместо силуэта-человечка).
   .avatar {
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--di-bg);
     color: var(--di-text-muted);
+    font: 700 17px/1 Orbitron, sans-serif;
   }
 }
 

@@ -47,7 +47,7 @@
           <img [src]="src" alt="" (click)="togglePartner()" />
         } @else {
           <div class="avatar" aria-hidden="true" (click)="togglePartner()">
-            <mat-icon>person</mat-icon>
+            {{ partnerInitial() }}
           </div>
         }
         <!-- Имя собеседника — главный заголовок страницы (h1): по нему программа чтения с экрана
@@ -255,10 +255,12 @@
                     }
                   </div>
                 }
-                <button type="button" class="invite-link" (click)="inviteToPlay()">
-                  <mat-icon aria-hidden="true">sports_esports</mat-icon>
-                  {{ 'chat.invite.button' | t }}
-                </button>
+                @if (!partnerOpen()) {
+                  <button type="button" class="invite-link" (click)="inviteToPlay()">
+                    <mat-icon aria-hidden="true">sports_esports</mat-icon>
+                    {{ 'chat.invite.button' | t }}
+                  </button>
+                }
               </div>
             }
           }
@@ -320,11 +322,15 @@
             @for (time of topic.times; track time) {
               <span class="tag time">{{ 'catalog.playTimes.' + time | t }}</span>
             }
-            <!-- Мостик от разговора к игре: одним нажатием — готовый черновик приглашения. -->
-            <button type="button" class="invite-link" (click)="inviteToPlay()">
-              <mat-icon aria-hidden="true">sports_esports</mat-icon>
-              {{ 'chat.invite.button' | t }}
-            </button>
+            <!-- Мостик от разговора к игре: одним нажатием — готовый черновик приглашения.
+                 Прячется, когда приглашение уже ушло или открыта карточка игрока (там своя,
+                 главная кнопка — две одинаковые на экране спорили бы). -->
+            @if (!inviteSent() && !partnerOpen()) {
+              <button type="button" class="invite-link" (click)="inviteToPlay()">
+                <mat-icon aria-hidden="true">sports_esports</mat-icon>
+                {{ 'chat.invite.button' | t }}
+              </button>
+            }
           </div>
         }
         <!-- Мои сообщения ждут сети («часики»), а браузер офлайн: спокойно обещаем, что они уйдут сами.

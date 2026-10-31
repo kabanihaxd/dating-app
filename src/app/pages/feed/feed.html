@@ -248,7 +248,7 @@
               class="like"
               aria-keyshortcuts="ArrowRight"
               [attr.aria-label]="'feed.card.likeName' | t: { name: item.player.name }"
-              [attr.aria-describedby]="likeHint() ? 'feed-like-hint' : null"
+              [attr.aria-describedby]="item.likedMe || likeHint() ? 'feed-like-hint' : null"
               (click)="like(item.player)"
             >
               <mat-icon aria-hidden="true">favorite</mat-icon>
@@ -257,7 +257,15 @@
             <!-- «Player 2?» — игра слов, а не инструкция. Пока человек ни разу не лайкал, тут же
                  объясняем, что именно отправится и что останется скрытым. aria-describedby
                  на кнопке — скринридер прочитает это пояснение вместе с её названием. -->
-            @if (likeHint()) {
+            <!-- Игрок уже лайкнул меня — «приглашения» не будет: лайк сразу делает мэтч и открывает
+                 контакты. Обычная подсказка обещала бы не то, поэтому для таких карточек — своя,
+                 и показываем её всегда (не только до первого лайка): это поворотный момент. -->
+            @if (item.likedMe) {
+              <p id="feed-like-hint" class="like-hint mutual">
+                <mat-icon aria-hidden="true">favorite</mat-icon>
+                {{ 'feed.likeHintMutual' | t }}
+              </p>
+            } @else if (likeHint()) {
               <p id="feed-like-hint" class="like-hint">
                 <mat-icon aria-hidden="true">lock</mat-icon>
                 {{ 'feed.likeHint' | t }}

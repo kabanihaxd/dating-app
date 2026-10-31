@@ -133,6 +133,7 @@
     },
     "keysHint": "← skip · → player 2 · Z / Backspace undo",
     "likeHint": "Player 2? sends an invite. Your contacts unlock only if they like you back.",
+    "likeHintMutual": "They already like you: Player 2? makes it a match and unlocks contacts right away.",
     "last": {
       "liked": "Invite sent: {{name}}",
       "skipped": "Skipped: {{name}}",

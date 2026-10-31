@@ -6,6 +6,7 @@ import { I18n } from '../../../core/i18n/i18n';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { MatchInfo } from '../../../core/matching/match-score';
 import { Player } from '../../../core/profile/profile.model';
+import { initialOf } from '../../../shared/initial';
 import { ModerationMenu } from '../../../shared/moderation-menu/moderation-menu';
 
 // Сколько «других игр» видно сразу. Остальные — под кнопкой «Больше об игроке».
@@ -46,17 +47,8 @@ export class PlayerCard {
   readonly headingId = computed(() => `player-${this.player().uid}-name`);
   protected readonly detailsId = computed(() => `player-${this.player().uid}-details`);
 
-  // Первая буква имени для монограммы вместо фото. Intl.Segmenter режет по «видимым символам»
-  // (графемам), а не по кодовым единицам: у имени с эмодзи или «й» из двух символов Юникода
-  // name[0] дал бы половинку знака. Пустое имя — нейтральный «?».
-  protected readonly initial = computed(() => {
-    const name = this.player().name.trim();
-    const first = new Intl.Segmenter(this.i18n.lang(), { granularity: 'grapheme' })
-      .segment(name)
-      [Symbol.iterator]()
-      .next().value?.segment;
-    return first ? first.toLocaleUpperCase(this.i18n.lang()) : '?';
-  });
+  // Первая буква имени для монограммы вместо фото (см. shared/initial.ts).
+  protected readonly initial = computed(() => initialOf(this.player().name, this.i18n.lang()));
 
   protected readonly hasOverlap = computed(() => {
     const m = this.match();

@@ -28,6 +28,7 @@ import {
   ageFrom,
 } from '../../core/profile/profile.model';
 import { ContactChips } from '../../shared/contact-chips/contact-chips';
+import { initialOf } from '../../shared/initial';
 import { ErrorState } from '../../shared/error-state/error-state';
 import { ModerationMenu } from '../../shared/moderation-menu/moderation-menu';
 import { StateMessage } from '../../shared/state-message/state-message';
@@ -38,6 +39,8 @@ interface MatchView {
   uid: string;
   headingId: string; // id заголовка с именем: на него ссылается aria-labelledby карточки, туда же уходит фокус
   profile: UserProfile;
+  // Первая буква имени — монограмма вместо фото.
+  initial: string;
   age: number;
   commonGames: string[];
   commonPlatforms: Platform[];
@@ -523,6 +526,7 @@ export class Matches {
       uid: match.otherUid,
       headingId: `match-name-${match.id}`,
       profile,
+      initial: initialOf(profile.name, this.i18n.lang()),
       age: ageFrom(profile.birthDate),
       commonGames: score?.commonGames ?? [],
       commonPlatforms: score?.commonPlatforms ?? [],
