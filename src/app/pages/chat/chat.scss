@@ -71,6 +71,15 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: background 0.2s;
+    // Кнопка всего ~27px в высоту — пальцем мимо. Невидимый ::before расширяет зону нажатия
+    // до 45px (по 9px сверху и снизу), не меняя вида и не сдвигая строку с играми.
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -9px -4px;
+    }
 
     &:hover {
       background: rgba(255, 255, 255, 0.06);
@@ -236,6 +245,21 @@
   > div {
     min-width: 0;
   }
+
+  // Без фото — монограмма того же размера в фиолетовом кольце: «структура», а не розовое фото-кольцо
+  // (как у карточки в ленте). Буква — Orbitron, как у аватара в шапке.
+  .monogram {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 96px;
+    height: 96px;
+    border: 2px solid rgba(168, 85, 247, 0.4);
+    border-radius: 50%;
+    background: var(--di-bg);
+    color: rgba(168, 85, 247, 0.8);
+    font: 800 40px/1 Orbitron, sans-serif;
+  }
 }
 
 .bio {
@@ -294,6 +318,14 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.2s;
+  // Видимая таблетка 32px — тихая, как и задумано; зона нажатия ::before — 44px.
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -6px 0;
+  }
 
   mat-icon {
     font-size: 18px;

@@ -77,13 +77,13 @@ describe('catalogGame', () => {
   });
 
   it('returns null for games outside the catalog', () => {
-    expect(catalogGame('Hollow Knight')).toBeNull();
+    expect(catalogGame('Hades II')).toBeNull();
   });
 });
 
 describe('gameKey', () => {
   it('matches an old free-typed title with its catalog title', () => {
     expect(gameKey('CS2')).toBe(gameKey('Counter-Strike 2'));
-    expect(gameKey('hollow  knight')).toBe(gameKey('Hollow Knight'));
+    expect(gameKey('hades  ii')).toBe(gameKey('Hades II'));
   });
 });

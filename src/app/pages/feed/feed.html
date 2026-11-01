@@ -254,7 +254,8 @@
               [attr.aria-describedby]="item.likedMe || likeHint() ? 'feed-like-hint' : null"
               (click)="like(item.player)"
             >
-              <mat-icon aria-hidden="true">favorite</mat-icon>
+              <!-- Контур — приглашение, залитое сердце — мэтч (как в карточке сетки). -->
+              <mat-icon aria-hidden="true" [class.di-filled]="item.likedMe">favorite</mat-icon>
               <!-- Уже лайкнул(а) меня — кнопка называет то, что случится: «Мэтч», а не «Player 2?». -->
               {{ (item.likedMe ? 'feed.card.matchNow' : 'feed.card.like') | t }}
             </button>
@@ -397,7 +398,9 @@
     } @else {
       <app-state-message icon="search_off" tone="cyan">
         <!-- Сам только что разобрал последних под этими фильтрами — «никого не нашли» звучало бы как ошибка. -->
-        <h2>{{ (filteredDone() ? 'feed.emptyFilteredDoneTitle' : 'feed.emptyFilteredTitle') | t }}</h2>
+        <h2>
+          {{ (filteredDone() ? 'feed.emptyFilteredDoneTitle' : 'feed.emptyFilteredTitle') | t }}
+        </h2>
         <!-- Включённые фильтры со значениями, каждый — кнопка «снять только его»
              (см. activeFilterChips). Список (ul) — скринридер скажет, сколько их. -->
         <p>{{ 'feed.emptyFilteredBy' | t }}</p>

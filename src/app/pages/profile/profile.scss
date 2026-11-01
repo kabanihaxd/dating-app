@@ -163,6 +163,18 @@ input.date-blank:not(:focus) {
   .field-sk {
     height: 56px;
   }
+
+  // Заголовок раздела («Игровое», «О себе») и ряды чипов платформ, жанров и времени.
+  .heading-sk {
+    width: 30%;
+    height: 22px;
+    margin-top: 8px;
+  }
+
+  .chips-sk {
+    height: 32px;
+    border-radius: 999px;
+  }
 }
 
 form {

@@ -15,7 +15,7 @@
     <div class="badges">
       @if (likedMe()) {
         <span class="liked-me">
-          <mat-icon aria-hidden="true">favorite</mat-icon>
+          <mat-icon class="di-filled" aria-hidden="true">favorite</mat-icon>
           {{ 'feed.card.likedMe' | t }}
         </span>
       }
@@ -32,11 +32,12 @@
           [class]="level()"
           #tip="matTooltip"
           [matTooltip]="'feed.card.matchHint' | t"
-          matTooltipPosition="above"
+          matTooltipPosition="before"
           (click)="tip.toggle()"
         >
           <!-- Ниже 40% цифра читается как провал («12%»), хотя общее есть. Вместо неё — что именно
-               совпало (lowLabel). Подсказка — над бейджем: под ним имя игрока, его она закрывала. -->
+               совпало (lowLabel). Подсказка — слева от бейджа: под ним имя игрока, над ним (в колоде) —
+               счётчик «Найдено игроков»; обе закрывались. Слева только фото или метка «нравишься». -->
           @if (level() === 'low') {
             {{ lowLabel().key | t: { count: lowLabel().count } }}
           } @else {
@@ -56,10 +57,14 @@
         <!-- tabindex="-1": на заголовок можно перевести фокус из кода (после лайка), но Tab на нём не
              останавливается. -->
         <h2 [id]="headingId()" tabindex="-1">
-          {{ player().name }}@if (age() !== null) {<span>, {{ age() }}</span>}
+          <!-- Одна интерполяция, а не @if со <span>: форматтер переносит блок на новую строку,
+               и между именем и запятой появлялся пробел («Оля , 26»). -->
+          {{ player().name }}{{ age() !== null ? ', ' + age() : '' }}
         </h2>
         @if (player().city) {
-          <p class="city"><mat-icon inline aria-hidden="true">place</mat-icon> {{ player().city }}</p>
+          <p class="city">
+            <mat-icon inline aria-hidden="true">place</mat-icon> {{ player().city }}
+          </p>
         }
       </div>
       <!-- Заблокировать или пожаловаться можно прямо из ленты.
@@ -206,7 +211,9 @@
         "
         (click)="liked.emit()"
       >
-        <mat-icon aria-hidden="true">favorite</mat-icon>
+        <!-- Сердце-контур — приглашение («Player 2?»), залитое — мэтч: так «Мэтч» и «Player 2?»
+             в одном ряду сетки читаются как одна кнопка в двух состояниях, а не две разные. -->
+        <mat-icon aria-hidden="true" [class.di-filled]="likedMe()">favorite</mat-icon>
         <!-- Этот игрок уже лайкнул меня — нажатие не «приглашение», а сразу мэтч с открытыми
              контактами. В плотной сетке нет места для подсказки, поэтому кнопка говорит это сама. -->
         {{ (likedMe() ? 'feed.card.matchNow' : 'feed.card.like') | t }}

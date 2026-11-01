@@ -56,7 +56,9 @@
           <!-- tabindex="-1" — заголовок можно сфокусировать из кода (так делаем при открытии чата
                на телефоне), но клавиша Tab на нём не останавливается. -->
           <!-- Имя — кнопка-раскрывашка карточки игрока (aria-expanded говорит, открыта ли она).
-               Кнопка внутри заголовка, а не наоборот: h1 нельзя класть в <button>. -->
+               Кнопка внутри заголовка, а не наоборот: h1 нельзя класть в <button>.
+               Подсказка — только пока карточка закрыта: открытую закрывает та же кнопка со стрелкой ▴,
+               а всплывающая «Скрыть карточку» ложилась прямо на возраст и город в карточке. -->
           <h1 id="chat-title" #heading tabindex="-1">
             <button
               #partnerToggle
@@ -64,13 +66,15 @@
               class="who-toggle"
               aria-controls="partner-card"
               [attr.aria-expanded]="partnerOpen()"
-              [matTooltip]="(partnerOpen() ? 'chat.partner.hide' : 'chat.partner.show') | t"
-              [matTooltipDisabled]="touch"
+              [matTooltip]="'chat.partner.show' | t"
+              [matTooltipDisabled]="touch || partnerOpen()"
               (click)="togglePartner()"
               (keydown.escape)="partnerOpen() && closePartner()"
             >
               <span class="who-name">{{ partnerName() }}</span>
-              <mat-icon aria-hidden="true">{{ partnerOpen() ? 'expand_less' : 'expand_more' }}</mat-icon>
+              <mat-icon aria-hidden="true">{{
+                partnerOpen() ? 'expand_less' : 'expand_more'
+              }}</mat-icon>
             </button>
           </h1>
           <!-- Общие игры — повод для разговора. Раньше они были только в пустом чате и пропадали
@@ -111,8 +115,12 @@
         >
           <!-- Сначала человек: фото крупнее, чем в шапке, возраст, город и пара слов о себе. -->
           <div class="person">
+            <!-- Фото нет — та же монограмма, что в шапке, только крупнее: карточка начинается
+                 с человека, а не с пустого места. -->
             @if (card.photo; as src) {
               <img [src]="src" [alt]="'feed.card.photoAlt' | t: { name: partnerName() }" />
+            } @else {
+              <span class="monogram" aria-hidden="true">{{ partnerInitial() }}</span>
             }
             <div>
               @if (card.age || card.city) {
@@ -121,7 +129,9 @@
                     <span>{{ card.age }}</span>
                   }
                   @if (card.city) {
-                    <span><mat-icon inline aria-hidden="true">place</mat-icon> {{ card.city }}</span>
+                    <span
+                      ><mat-icon inline aria-hidden="true">place</mat-icon> {{ card.city }}</span
+                    >
                   }
                 </p>
               }

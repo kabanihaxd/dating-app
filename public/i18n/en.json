@@ -306,7 +306,6 @@
     "starter": "Something to talk about:",
     "partner": {
       "show": "Show player card",
-      "hide": "Hide player card",
       "games": "Games",
       "platforms": "Platforms",
       "times": "Play times",
@@ -364,6 +363,7 @@
       "duplicate": "{{game}} is already on the list",
       "limit": "That's the max: {{max}} games. Remove one to add another",
       "addCustom": "Add “{{game}}”",
+      "alreadyAdded": "{{game}} · already in your list",
       "tooShort": "Type at least 3 letters or pick a game from the list"
     },
     "platforms": "Platforms",

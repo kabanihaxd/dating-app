@@ -306,7 +306,6 @@
     "starter": "Téma na rozhovor:",
     "partner": {
       "show": "Zobraziť kartu hráča",
-      "hide": "Skryť kartu hráča",
       "games": "Hry",
       "platforms": "Platformy",
       "times": "Čas hrania",
@@ -364,6 +363,7 @@
       "duplicate": "{{game}} už v zozname je",
       "limit": "Viac sa nedá: najviac {{max}} hier. Odstráň jednu a pridaj inú",
       "addCustom": "Pridať „{{game}}“",
+      "alreadyAdded": "{{game}} · už v zozname",
       "tooShort": "Napíš aspoň 3 písmená alebo vyber hru zo zoznamu"
     },
     "platforms": "Platformy",

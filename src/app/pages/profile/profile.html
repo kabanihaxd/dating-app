@@ -14,8 +14,15 @@
   }
 
   @if (loading()) {
-    <!-- Скелетон: круг фото и полосы полей формы. -->
+    <!-- Скелетон в порядке самой формы: «Игровое» (поле игр и ряды чипов), потом «О себе»
+         (круг фото и поля). Раньше он начинался с фото — и форма, придя, «перескакивала». -->
     <div class="skeleton-form" aria-busy="true" [attr.aria-label]="'common.loading' | t">
+      <span class="skeleton heading-sk" aria-hidden="true"></span>
+      <span class="skeleton field-sk" aria-hidden="true"></span>
+      @for (width of skeletonChipRows; track $index) {
+        <span class="skeleton chips-sk" [style.width.%]="width" aria-hidden="true"></span>
+      }
+      <span class="skeleton heading-sk" aria-hidden="true"></span>
       <span class="skeleton photo-sk" aria-hidden="true"></span>
       @for (width of skeletonFields; track $index) {
         <span class="skeleton field-sk" [style.width.%]="width" aria-hidden="true"></span>
@@ -103,6 +110,12 @@
             <!-- preventDefault на mousedown: клик по подсказке не уводит фокус с поля.
                  Иначе сработал бы addOnBlur и добавил недописанный текст («Hal») рядом с выбранной игрой. -->
             <mat-option [value]="game" (mousedown)="$event.preventDefault()">{{ game }}</mat-option>
+          }
+          <!-- Уже выбранные игры под набранное — неактивной строкой «… · уже в списке». -->
+          @for (game of alreadyAdded(); track game) {
+            <mat-option class="added" [value]="game" disabled>
+              <mat-icon>check</mat-icon>{{ 'profile.games.alreadyAdded' | t: { game: game } }}
+            </mat-option>
           }
           <!-- Своё название, которого нет в каталоге, — отдельной строкой «Добавить „…“» в конце списка. -->
           @if (customGame(); as custom) {

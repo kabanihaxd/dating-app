@@ -168,7 +168,8 @@ export class Profile implements HasUnsavedChanges {
   // иначе пустая форма и «Зберегти» затёрли бы настоящий профиль.
   protected readonly loadErrorKey = signal<string | null>(null);
   // Строки-заготовки скелетона: ширина полей формы (в %).
-  protected readonly skeletonFields = [100, 100, 70, 100, 85];
+  protected readonly skeletonChipRows = [80, 95, 60];
+  protected readonly skeletonFields = [100, 70, 100, 85];
   protected readonly photo = signal<string | null>(null);
   protected readonly photoErrorKey = signal<string | null>(null);
   protected readonly gameQuery = signal('');
@@ -332,12 +333,30 @@ export class Profile implements HasUnsavedChanges {
     return (alias ? [alias, ...matches] : matches).filter((game) => !chosen.has(gameKey(game)));
   });
 
+  // Уже выбранные игры, которые подходят под набранное, — неактивными строками «… · уже в списке».
+  // Без них «ow2» при добавленной Overwatch 2 давал пустой список, и было непонятно, почему.
+  protected readonly alreadyAdded = computed(() => {
+    const query = this.gameQuery().trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+    const alias = catalogGame(query);
+    return this.games().filter(
+      (game) => gameKey(game) === gameKey(alias ?? query) || game.toLowerCase().includes(query),
+    );
+  });
+
   // Последний пункт подсказок — «Добавить „…“»: набранное своё название, которого нет в каталоге.
   // Так видно заранее, что игра добавится как своя, а не исправится в каталожную.
+  // Пока набранное — кусок названия из каталога или из уже добавленных («Ove», «hollow»), это
+  // почти наверняка недописанное имя, а не своя игра: строку «Добавить „Ove“» не предлагаем.
   protected readonly customGame = computed(() => {
     const name = this.gameQuery().trim().replace(/\s+/g, ' ');
-    const taken = new Set(this.games().map(gameKey));
-    return name.length >= MIN_CUSTOM_GAME_LENGTH && !catalogGame(name) && !taken.has(gameKey(name))
+    const lower = name.toLowerCase();
+    const known = [...POPULAR_GAMES, ...this.games()];
+    return name.length >= MIN_CUSTOM_GAME_LENGTH &&
+      !catalogGame(name) &&
+      !known.some((game) => game.toLowerCase().includes(lower))
       ? name
       : null;
   });

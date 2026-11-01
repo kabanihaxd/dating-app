@@ -348,7 +348,10 @@
     --mat-button-filled-horizontal-padding: 8px;
     --mat-button-outlined-horizontal-padding: 8px;
 
-    mat-icon {
+    // Залитое сердце «Мэтча» оставляем: «Мэтч» короткое слово и влезает, а сердце связывает
+    // кнопку с меткой «Ты нравишься» — без него «Мэтч» и «Player 2?» в одном ряду выглядели
+    // как две разные кнопки.
+    mat-icon:not(.di-filled) {
       display: none;
     }
   }
@@ -418,13 +421,13 @@
       .monogram {
         display: grid;
         place-items: center;
-        width: 144px;
-        height: 144px;
+        width: 128px;
+        height: 128px;
         border: 2px solid rgba(168, 85, 247, 0.4);
         border-radius: 50%;
         // Буква — фиолетовым на 80%: структура, как кольцо, и не спорит с розовым и бирюзовым.
         color: rgba(168, 85, 247, 0.8);
-        font: 800 60px/1 Orbitron, sans-serif;
+        font: 800 54px/1 Orbitron, sans-serif;
       }
 
       .badges {
@@ -435,6 +438,12 @@
       .badges:empty {
         display: flex;
       }
+    }
+
+    // Колонка без фото уже: 144px буквы в ячейке ~316px оставляли пустое поле. Примерно 210px —
+    // ровно под монограмму и метки, остальное отдаём анкете.
+    .card:has(.photo.empty) {
+      grid-template-columns: minmax(0, 3.5fr) minmax(0, 8.5fr);
     }
 
     .avatar {

@@ -57,9 +57,7 @@ interface MatchView {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type CardEntry =
-  | { state: 'view'; view: MatchView }
-  | { state: 'deleted' }
-  | { state: 'error'; error: unknown };
+  { state: 'view'; view: MatchView } | { state: 'deleted' } | { state: 'error'; error: unknown };
 
 @Component({
   selector: 'app-matches',
@@ -109,7 +107,6 @@ export class Matches {
   // Когда я в прошлый раз заходил на «Мэтчи» — запоминаем ДО того, как отметить всё просмотренным.
   // Мэтчи новее этого момента получают метку «Новый».
   private readonly seenBefore: number;
-
 
   // Три серые заготовки карточек на время загрузки.
   protected readonly skeletons = [0, 1, 2];
@@ -214,6 +211,15 @@ export class Matches {
           .map((match) => match.id),
       ),
   );
+
+  // Самый свежий из новых мэтчей без переписки (список и так идёт от новых к старым) — только его
+  // метка «Новый мэтч» залита розовым. Остальные — контуром: розовая заливка на каждой карточке
+  // переставала значить «сюда в первую очередь».
+  protected readonly newestNewId = computed(() => {
+    const fresh = this.newMatchIds();
+    const last = this.notifications.lastMessages();
+    return this.visibleMatches().find((match) => fresh.has(match.id) && !last.has(match.id))?.id;
+  });
 
   // Ни одной карточки показать нельзя, а упавшие есть — это ошибка страницы, а не «мэтчей пока нет».
   private readonly allFailed = computed(
