@@ -337,6 +337,7 @@
       "labelOld": "Staršia pozvánka",
       "preview": "Vloží do poľa: „{{text}}“",
       "drafted": "Pozvánka je už v poli dole: uprav ju alebo pošli.",
+      "inField": "Pozvánka je v poli",
       "accept": "Som za! 🎮",
       "acceptButton": "Som za"
     }
@@ -435,6 +436,7 @@
       "hide": "Skryť kartu",
       "noName": "Tvoje meno",
       "sharedNote": "Takto ťa vidí hráč, ktorý tiež hrá {{game}}: spoločné svieti tyrkysovo a je na prvom mieste.",
+      "sharedNotePlatform": "Takto ťa vidí hráč, ktorý tiež hrá {{game}} na {{platform}}: spoločné svieti tyrkysovo a je na prvom mieste.",
       "hint": "Mení sa, kým vypĺňaš profil. Kontakty sú skryté až do vzájomného lajku."
     }
   },

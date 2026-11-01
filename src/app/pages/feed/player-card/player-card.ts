@@ -14,7 +14,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { I18n } from '../../../core/i18n/i18n';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { MatchInfo } from '../../../core/matching/match-score';
-import { Player, gameKey } from '../../../core/profile/profile.model';
+import { PLATFORMS, Player, gameKey, inCatalogOrder } from '../../../core/profile/profile.model';
 import { initialOf } from '../../../shared/initial';
 import { ModerationMenu } from '../../../shared/moderation-menu/moderation-menu';
 
@@ -90,6 +90,8 @@ export class PlayerCard {
   });
 
   // Остальные игры игрока — те, что не совпали с моими.
+  // Платформы в порядке каталога — как в чате и на странице мэтчей (см. inCatalogOrder).
+  protected readonly platforms = computed(() => inCatalogOrder(this.player().platforms, PLATFORMS));
   protected readonly otherGames = computed(() => {
     const common = new Set(this.match().commonGames.map(gameKey));
     return this.player().games.filter((game) => !common.has(gameKey(game)));

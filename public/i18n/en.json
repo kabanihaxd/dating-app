@@ -337,6 +337,7 @@
       "labelOld": "Earlier game invite",
       "preview": "Puts this in the message box: “{{text}}”",
       "drafted": "The invite is in the message box below: edit it or send it.",
+      "inField": "Invite is in the box",
       "accept": "I'm in! 🎮",
       "acceptButton": "I'm in"
     }
@@ -435,6 +436,7 @@
       "hide": "Hide preview",
       "noName": "Your name",
       "sharedNote": "This is how a player who also plays {{game}} sees you: what you share glows cyan and comes first.",
+      "sharedNotePlatform": "This is how a player who also plays {{game}} on {{platform}} sees you: what you share glows cyan and comes first.",
       "hint": "Updates as you type. Contacts stay hidden until a mutual match."
     }
   },

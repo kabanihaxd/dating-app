@@ -36,12 +36,15 @@ import { matchScore } from '../../core/matching/match-score';
 import { NotificationService } from '../../core/notifications/notifications';
 import { ProfileService } from '../../core/profile/profile';
 import {
+  ageFrom,
+  gameKey,
+  inCatalogOrder,
   Platform,
+  PLATFORMS,
+  PLAY_TIMES,
   PlayTime,
   UserContacts,
   UserProfile,
-  ageFrom,
-  gameKey,
 } from '../../core/profile/profile.model';
 import { ContactChips } from '../../shared/contact-chips/contact-chips';
 import { initialOf } from '../../shared/initial';
@@ -334,7 +337,9 @@ export class Chat {
     if (!partner) {
       return null;
     }
-    const sharedFirst = <T>(all: T[], shared: T[]) => {
+    // Внутри «общего» и «остального» — порядок каталога (catalog), как на странице мэтчей.
+    const sharedFirst = <T>(items: T[], shared: T[], catalog: readonly T[]) => {
+      const all = inCatalogOrder(items, catalog);
       const common = new Set(shared);
       return [
         ...all.filter((item) => common.has(item)).map((item) => ({ item, shared: true })),
@@ -354,8 +359,8 @@ export class Chat {
       photo: partner.photo,
       bio: partner.bio.trim(),
       games: [...games.filter((g) => g.shared), ...games.filter((g) => !g.shared)],
-      platforms: sharedFirst(partner.platforms, this.commonPlatforms()),
-      times: sharedFirst(partner.playTimes, this.commonPlayTimes()),
+      platforms: sharedFirst(partner.platforms, this.commonPlatforms(), PLATFORMS),
+      times: sharedFirst(partner.playTimes, this.commonPlayTimes(), PLAY_TIMES),
     };
   });
 

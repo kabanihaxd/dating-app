@@ -35,23 +35,24 @@ import { NetworkTimeoutError, withNetworkTimeout } from '../../core/profile/netw
 import { PlatformConnect } from '../../core/profile/platform-connect';
 import { ProfileService } from '../../core/profile/profile';
 import {
-  CONTACT_FIELDS,
-  ContactField,
-  CONTACT_SITES,
-  GENRES,
-  Genre,
-  PLATFORMS,
-  PLAY_TIMES,
-  Platform,
-  PlayTime,
-  MIN_CUSTOM_GAME_LENGTH,
-  POPULAR_GAMES,
-  UserContacts,
   ageFrom,
   catalogGame,
+  CONTACT_FIELDS,
+  CONTACT_SITES,
+  ContactField,
   gameKey,
+  Genre,
+  GENRES,
+  inCatalogOrder,
   isProfileLink,
   isValidContact,
+  MIN_CUSTOM_GAME_LENGTH,
+  Platform,
+  PLATFORMS,
+  PLAY_TIMES,
+  PlayTime,
+  POPULAR_GAMES,
+  UserContacts,
 } from '../../core/profile/profile.model';
 import { resizeImage } from '../../core/profile/resize-image';
 import { MatchInfo } from '../../core/matching/match-score';
@@ -397,6 +398,15 @@ export class Profile implements HasUnsavedChanges {
     const birthDate = this.previewPlayer().birthDate;
     return birthDate ? ageFrom(birthDate) : null;
   });
+  // Подпись над превью называет всё, что в нём бирюзовое: игру и (если отмечена) платформу.
+  protected readonly sharedPlatform = computed(() => {
+    const platform = this.previewMatch().commonPlatforms[0];
+    return platform ? this.i18n.translate(`catalog.platforms.${platform}`) : '';
+  });
+  protected readonly sharedNoteKey = computed(() =>
+    this.sharedPlatform() ? 'profile.preview.sharedNotePlatform' : 'profile.preview.sharedNote',
+  );
+
   // Превью показывает карточку глазами игрока, у которого с тобой общая первая игра и платформа.
   // Совпадение — главное, что делает карточку живой в ленте: общее светится бирюзовым и стоит
   // первым. С пустым совпадением превью было серым и не показывало, ради чего заполнять анкету.
@@ -406,7 +416,7 @@ export class Profile implements HasUnsavedChanges {
     return {
       percent: 0,
       commonGames: games.slice(0, 1),
-      commonPlatforms: platforms.slice(0, 1),
+      commonPlatforms: inCatalogOrder(platforms, PLATFORMS).slice(0, 1),
       commonGenres: [],
       commonPlayTimes: [],
     };

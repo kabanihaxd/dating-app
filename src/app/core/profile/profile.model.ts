@@ -58,6 +58,13 @@ export function isProfileLink(value: string, domains: readonly string[]): boolea
 }
 
 export type Platform = (typeof PLATFORMS)[number];
+
+// Платформы, жанры и время — всегда в порядке каталога (PC, PlayStation, Xbox…), а не в том,
+// в каком их отметил человек. Иначе одна и та же пара выходила «PlayStation, PC» в карточке чата
+// и «PC · PlayStation» на странице мэтчей.
+export function inCatalogOrder<T>(items: readonly T[], catalog: readonly T[]): T[] {
+  return [...items].sort((a, b) => catalog.indexOf(a) - catalog.indexOf(b));
+}
 export type Genre = (typeof GENRES)[number];
 export type PlayTime = (typeof PLAY_TIMES)[number];
 

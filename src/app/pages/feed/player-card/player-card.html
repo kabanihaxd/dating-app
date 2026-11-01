@@ -134,10 +134,10 @@
       </div>
     }
 
-    @if (player().platforms.length) {
+    @if (platforms().length) {
       <p class="label">{{ 'feed.card.platforms' | t }}</p>
       <div class="tags">
-        @for (platform of player().platforms; track platform) {
+        @for (platform of platforms(); track platform) {
           @if (match().commonPlatforms.includes(platform)) {
             <!-- Общее отмечаем не только цветом, но и галочкой + скрытым текстом для скринридера. -->
             <span class="tag common">

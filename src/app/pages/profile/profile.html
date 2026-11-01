@@ -47,7 +47,7 @@
       @if (previewOpen()) {
         <div id="profile-preview" class="preview inline">
           @if (previewMatch().commonGames[0]; as game) {
-            <p class="shared-note">{{ 'profile.preview.sharedNote' | t: { game } }}</p>
+            <p class="shared-note">{{ sharedNoteKey() | t: { game, platform: sharedPlatform() } }}</p>
           }
           <app-player-card
             [player]="previewPlayer()"
@@ -56,6 +56,8 @@
             [showActions]="false"
             [preview]="true"
           />
+          <!-- Та же строка, что под колонкой превью на широком экране: контакты в карточку не попадают. -->
+          <p class="hint inline-hint">{{ 'profile.preview.hint' | t }}</p>
         </div>
       }
     }
@@ -318,7 +320,10 @@
                у остальных полей нет пустой колонки (и зазора перед ней), и они тянутся на всю ширину. -->
           @let canConnect = connect.canConnect(field);
           <div class="contact" [class.has-connect]="canConnect">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" floatLabel="always">
+              <!-- floatLabel="always": название платформы — над рамкой, а внутри пустого поля видна
+                   серая подсказка «Нікнейм або посилання…». Раньше крупная белая «Steam» стояла
+                   на месте значения, и пустое поле выглядело заполненным. -->
               <mat-label>{{ 'profile.contacts.' + field | t }}</mat-label>
               <input
                 matInput
@@ -376,7 +381,7 @@
     <p class="preview-title">{{ 'profile.preview.title' | t }}</p>
     <!-- Для кого этот вид: бирюзовое в карточке — общее с таким игроком, а не выдумка. -->
     @if (previewMatch().commonGames[0]; as game) {
-      <p class="shared-note">{{ 'profile.preview.sharedNote' | t: { game } }}</p>
+      <p class="shared-note">{{ sharedNoteKey() | t: { game, platform: sharedPlatform() } }}</p>
     }
     <!-- in-grid: колонка шириной с карточку сетки ленты — и раскладка та же, что там. -->
     <app-player-card

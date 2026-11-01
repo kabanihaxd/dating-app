@@ -187,9 +187,11 @@
           />
           <div class="card-actions">
             @if (state() === 'ready') {
-              <button mat-flat-button type="button" class="invite" (click)="inviteToPlay()">
-                <mat-icon>sports_esports</mat-icon>
-                {{ 'chat.invite.button' | t }}
+              <!-- Приглашение уже в поле — кнопка говорит об этом, а не зовёт сделать то же ещё раз.
+                   Нажатие всё равно работает: закроет карточку и поставит курсор в поле. -->
+              <button mat-stroked-button type="button" class="invite" (click)="inviteToPlay()">
+                <mat-icon>{{ inviteDrafted() ? 'check' : 'sports_esports' }}</mat-icon>
+                {{ (inviteDrafted() ? 'chat.invite.inField' : 'chat.invite.button') | t }}
               </button>
             }
             <button mat-button type="button" (click)="closePartner()">

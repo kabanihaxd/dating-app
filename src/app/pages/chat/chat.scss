@@ -296,12 +296,13 @@
   padding: 8px 0 16px;
   background: var(--di-bg);
 
-  // «Позвать играть» — главное действие карточки: Pulse Pink, тёмный текст (правило Dark-on-Neon).
+  // «Позвать играть» — бирюзовая обводная, как строка «Позвать в …» на мэтчах и кнопка в пустом
+  // чате: одно действие — один вид везде. Бирюзовый — «общая игра», розовый остаётся у «Отправить».
   .invite {
-    --mat-button-filled-container-color: var(--di-neon-pink);
-    --mat-button-filled-label-text-color: var(--di-bg);
-    --mat-button-filled-state-layer-color: var(--di-bg);
-    font-weight: 600;
+    --mat-button-outlined-label-text-color: var(--di-neon-cyan);
+    --mat-button-outlined-outline-color: var(--di-neon-cyan);
+    --mat-button-outlined-state-layer-color: var(--di-neon-cyan);
+    font-weight: 500;
   }
 }
 
