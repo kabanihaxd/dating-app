@@ -296,7 +296,9 @@
       "sent": "Odoslané",
       "failed": "Neodoslané",
       "sendingHint": "Čaká na pripojenie. Odošle sa automaticky.",
-      "sentHint": "Odoslané: uložené na serveri"
+      "sentHint": "Odoslané: uložené na serveri",
+      "read": "Prečítané",
+      "readHint": "Prečítané: druhý hráč otvoril chat po tejto správe"
     },
     "retry": "Skúsiť znova",
     "discard": "Vymazať",

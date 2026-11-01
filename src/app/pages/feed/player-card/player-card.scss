@@ -41,7 +41,8 @@
 
   // Монограмма видна только в широкой колоде (см. ниже); в остальных раскладках заглушка
   // сжимается до ряда меток, а буква стоит в кольце у имени.
-  .monogram {
+  .monogram,
+  .hero-game {
     display: none;
   }
 }
@@ -427,20 +428,44 @@
     // серого силуэта в ней — крупная монограмма в фиолетовом кольце: «вот игрок», а не
     // «картинка не загрузилась». Метки снова лежат поверх колонки, а кольцо у имени
     // здесь лишнее — та же буква уже стоит слева.
+    // Под буквой — главная общая игра бирюзовым (общее = cyan): колонка несёт смысл, а не только
+    // букву. Поэтому монограмма меньше — 96px: главное в колонке теперь игра.
     .photo.empty {
       display: flex;
+      flex-direction: column;
+      gap: 14px;
       background: var(--di-bg);
 
       .monogram {
         display: grid;
         place-items: center;
-        width: 128px;
-        height: 128px;
+        width: 96px;
+        height: 96px;
         border: 2px solid rgba(168, 85, 247, 0.4);
         border-radius: 50%;
         // Буква — фиолетовым на 80%: структура, как кольцо, и не спорит с розовым и бирюзовым.
         color: rgba(168, 85, 247, 0.8);
-        font: 800 54px/1 Orbitron, sans-serif;
+        font: 800 40px/1 Orbitron, sans-serif;
+      }
+
+      .hero-game {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        max-width: calc(100% - 24px);
+        font-size: 15px;
+        font-weight: 600;
+        line-height: 1.3;
+        text-align: center;
+        overflow-wrap: anywhere;
+        color: var(--di-neon-cyan);
+
+        mat-icon {
+          flex-shrink: 0;
+          font-size: 20px;
+          width: 20px;
+          height: 20px;
+        }
       }
 
       .badges {

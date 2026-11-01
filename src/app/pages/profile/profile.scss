@@ -39,6 +39,16 @@ form :where(*) {
     }
   }
 
+  // Телефон: форма — сама страница, без своей рамки и фона. Карточка-в-карточке (превью анкеты
+  // внутри панели формы) сжимала превью до ~280px, а поля теряли 48px ширины на отступы панели.
+  @media (max-width: 600px) {
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
   // Разделы формы — h2 под h1; выглядят как section-title (Orbitron, циан).
   h2 {
     margin: 28px 0 12px;

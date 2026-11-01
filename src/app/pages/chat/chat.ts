@@ -210,6 +210,9 @@ export class Chat {
   ];
   protected readonly partner = signal<UserProfile | null>(null);
   protected readonly partnerUid = signal<string | null>(null);
+  // Когда собеседник последний раз открывал этот чат (мс, 0 — ни разу). Всё моё, что написано
+  // до этого момента, он видел — у таких сообщений двойная галочка «Прочитано».
+  private readonly partnerReadAt = signal(0);
   protected readonly commonGames = signal<string[]>([]);
   // Общее время игры (утром, вечером, на выходных…) — второй повод для разговора.
   protected readonly commonPlayTimes = signal<PlayTime[]>([]);
@@ -286,8 +289,13 @@ export class Chat {
         time: message.createdAt ? format.format(message.createdAt) : '',
         // Машиночитаемое время для <time datetime="...">: ISO-строка вида 2026-10-28T18:05:00.000Z.
         datetime: message.createdAt?.toISOString() ?? null,
-        // Состояние доставки показываем только у своих: «часики» — ждём сервер, галочка — записано.
+        // Состояние доставки показываем только у своих: «часики» — ждём сервер, галочка — записано,
+        // двойная галочка — собеседник открыл чат после этого сообщения.
         pending: message.pending,
+        read:
+          !message.pending &&
+          !!message.createdAt &&
+          message.createdAt.getTime() <= this.partnerReadAt(),
         day: newDay ? dayLabel(time) : null,
         // Дата дня для <time datetime> в разделителе: «2026-10-28» (по местному календарю).
         dayIso: newDay ? isoDay(time) : null,
@@ -435,6 +443,7 @@ export class Chat {
         this.state.set('loading');
         this.messages.set([]);
         this.partnerUid.set(null);
+        this.partnerReadAt.set(0);
         this.markReadFailed = false;
         this.seenIds = null;
         this.seenUntil = 0;
@@ -459,9 +468,11 @@ export class Chat {
         // Подписка на сам мэтч: если собеседник разорвёт его посреди разговора, узнаем сразу.
         const unsubscribeMatch = this.chat.watchMatch(
           matchId,
+          this.me,
           () => this.end(),
           // Ошибка доступа обычно значит «мэтч удалён», но проверяем это отдельным запросом.
           (error) => (isPermissionDenied(error) ? this.verifyEnded(matchId) : console.error(error)),
+          (at) => this.partnerReadAt.set(at),
         );
         onCleanup(() => {
           unsubscribe();

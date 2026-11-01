@@ -9,6 +9,14 @@
       <img [src]="src" [alt]="'feed.card.photoAlt' | t: { name: player().name }" />
     } @else {
       <span class="monogram" aria-hidden="true">{{ initial() }}</span>
+      <!-- Широкая колода без фото: под буквой — главная общая игра, чтобы левая колонка говорила
+           «вам есть во что играть», а не просто занимала место. aria-hidden: та же игра
+           прочитается в «Общих играх» справа. В остальных раскладках не видна (см. scss). -->
+      @if (match().commonGames[0]; as game) {
+        <span class="hero-game" aria-hidden="true">
+          <mat-icon>sports_esports</mat-icon>{{ game }}
+        </span>
+      }
     }
     <!-- Обе метки в одном ряду: в узкой карточке длинные подписи (RU/UK) переносятся,
          а не наезжают друг на друга. -->

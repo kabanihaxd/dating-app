@@ -279,19 +279,19 @@
                    «Отправлено» для программы чтения). mat-icon сам ставит себе aria-hidden="true",
                    поэтому явно пишем "false". Подсказка (matTooltip) по наведению или долгому нажатию
                    объясняет, что значок значит: «часики» сами отправятся, когда появится сеть. -->
+                <!-- Двойная бирюзовая галочка — «Прочитано»: собеседник открыл чат после этого
+                   сообщения. Бирюзовый — цвет связи между двумя игроками (правило One Meaning). -->
                 @if (message.mine) {
+                  @let status = message.pending ? 'sending' : message.read ? 'read' : 'sent';
                   <mat-icon
                     class="status"
                     [class.pending]="message.pending"
+                    [class.read]="message.read"
                     role="img"
                     aria-hidden="false"
-                    [attr.aria-label]="
-                      (message.pending ? 'chat.status.sending' : 'chat.status.sent') | t
-                    "
-                    [matTooltip]="
-                      (message.pending ? 'chat.status.sendingHint' : 'chat.status.sentHint') | t
-                    "
-                    >{{ message.pending ? 'schedule' : 'done' }}</mat-icon
+                    [attr.aria-label]="'chat.status.' + status | t"
+                    [matTooltip]="'chat.status.' + status + 'Hint' | t"
+                    >{{ message.pending ? 'schedule' : message.read ? 'done_all' : 'done' }}</mat-icon
                   >
                 }
               </div>

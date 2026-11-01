@@ -296,7 +296,9 @@
       "sent": "Sent",
       "failed": "Not sent",
       "sendingHint": "Waiting for the connection. It will send automatically.",
-      "sentHint": "Sent: saved on the server"
+      "sentHint": "Sent: saved on the server",
+      "read": "Read",
+      "readHint": "Read: they opened the chat after this message"
     },
     "retry": "Retry",
     "discard": "Delete",

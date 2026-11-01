@@ -75,7 +75,15 @@ export class ChatService {
   // Подписка на сам документ мэтча: onGone вызывается, когда сервер ответил «документа нет» —
   // собеседник разорвал мэтч или заблокировал. Ошибки (в том числе ошибку доступа) отдаём в onError:
   // ошибка доступа ЧАСТО значит удалённый мэтч, но не всегда — страница перепроверит через matchExists.
-  watchMatch(matchId: string, onGone: () => void, onError: (error: unknown) => void): () => void {
+  // onPartnerRead получает, когда собеседник последний раз открывал чат (readAt второго участника,
+  // 0 — ни разу): по нему у моих сообщений галочка «Прочитано».
+  watchMatch(
+    matchId: string,
+    me: string,
+    onGone: () => void,
+    onError: (error: unknown) => void,
+    onPartnerRead: (at: number) => void = () => {},
+  ): () => void {
     return onSnapshot(
       doc(this.db, 'matches', matchId),
       (snapshot) => {
@@ -83,7 +91,11 @@ export class ChatService {
         // в локальном кэше. Верим только ответу сервера.
         if (!snapshot.exists() && !snapshot.metadata.fromCache) {
           onGone();
+          return;
         }
+        const readAt = (snapshot.get('readAt') ?? {}) as Record<string, Timestamp | null>;
+        const partner = Object.entries(readAt).find(([uid]) => uid !== me)?.[1];
+        onPartnerRead(partner?.toMillis?.() ?? 0);
       },
       onError,
     );

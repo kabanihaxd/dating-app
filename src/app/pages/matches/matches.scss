@@ -61,12 +61,19 @@ h1,
   }
 
   // Имя и метка «Новый» в одну строку; узкой карточке метка переносится под имя.
+  // На телефоне метка всегда своей строкой под именем: «Чекаємо на відповідь» переносилась
+  // то так, то эдак (зависит от длины имени), и город у соседних карточек стоял на разной высоте.
   .name-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     column-gap: 8px;
     row-gap: 4px;
+
+    @media (max-width: 600px) {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 
   // Метка «Новый» — pill в розовом (Pulse Pink): по правилу Dark-on-Neon текст тёмный и жирный,
@@ -275,12 +282,19 @@ h1,
     font-variant-numeric: tabular-nums;
   }
 
+  // Шеврон — тихий, Haze Grey: подсказка «откроется чат», а не ещё один сигнал. Отрицательный
+  // отступ подтягивает его к краю, чтобы превью не теряло ширину.
+  > mat-icon.chevron {
+    margin-right: -6px;
+    color: var(--di-text-muted);
+  }
+
   // Непрочитанное: розовая рамка и иконка, жирное превью, розовое время с точкой-сигналом.
   &.unread {
     border-color: var(--di-neon-pink);
     box-shadow: 0 0 12px rgba(255, 46, 136, 0.25);
 
-    > mat-icon {
+    > mat-icon:not(.chevron) {
       color: var(--di-neon-pink);
     }
 

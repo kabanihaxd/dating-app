@@ -177,6 +177,8 @@
             @if (unread) {
               <span class="sr-only">. {{ 'matches.unread' | t }}</span>
             }
+            <!-- Шеврон — «это переход», а не просто цитата: строка ведёт в чат. -->
+            <mat-icon class="chevron" aria-hidden="true">chevron_right</mat-icon>
           </a>
 
           <!-- Контакты: чипы «PSN · ник» с копированием (общий компонент, тот же — в чате).
