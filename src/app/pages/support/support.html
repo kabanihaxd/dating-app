@@ -1,0 +1,56 @@
+@if (sent()) {
+  <app-state-message icon="mark_email_read">
+    <h2>{{ 'support.sentTitle' | t }}</h2>
+    <p>{{ 'support.sentText' | t: { email: form.controls.email.value } }}</p>
+    <a mat-flat-button routerLink="/">{{ 'notFound.home' | t }}</a>
+  </app-state-message>
+} @else {
+  <section class="support">
+    <h1>{{ 'support.title' | t }}</h1>
+    <p class="lead">{{ 'support.lead' | t }}</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'support.topic' | t }}</mat-label>
+        <mat-select formControlName="topic">
+          @for (topic of topics; track topic) {
+            <mat-option [value]="topic">{{ 'support.topics.' + topic | t }}</mat-option>
+          }
+        </mat-select>
+        @if (form.controls.topic.invalid) {
+          <mat-error>{{ 'errors.required' | t }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'support.email' | t }}</mat-label>
+        <input matInput type="email" formControlName="email" autocomplete="email" />
+        <mat-hint>{{ 'support.emailHint' | t }}</mat-hint>
+        @if (form.controls.email.hasError('required')) {
+          <mat-error>{{ 'errors.required' | t }}</mat-error>
+        } @else if (form.controls.email.hasError('email')) {
+          <mat-error>{{ 'errors.invalidEmail' | t }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'support.message' | t }}</mat-label>
+        <textarea matInput formControlName="message" rows="6" [maxlength]="maxMessage"></textarea>
+        <mat-hint align="end">{{ form.controls.message.value.length }} / {{ maxMessage }}</mat-hint>
+        @if (form.controls.message.hasError('required')) {
+          <mat-error>{{ 'errors.required' | t }}</mat-error>
+        } @else if (form.controls.message.hasError('minlength')) {
+          <mat-error>{{ 'errors.minLength' | t: { min: minMessage } }}</mat-error>
+        }
+      </mat-form-field>
+
+      @if (errorKey(); as key) {
+        <p class="form-error" role="alert">{{ key | t }}</p>
+      }
+
+      <button mat-flat-button type="submit" [disabled]="sending()">
+        {{ (sending() ? 'support.sending' : 'support.send') | t }}
+      </button>
+    </form>
+  </section>
+}

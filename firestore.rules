@@ -158,6 +158,23 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time;
     }
 
+    // Обращение в поддержку: только создать, читает владелец в Firebase Console.
+    // Писать можно и без входа (не получается войти — тоже вопрос в поддержку), тогда uid == null;
+    // вошедший подписывается своим uid. Темы и длины — как в core/support/support.ts.
+    match /support/{ticketId} {
+      allow create: if request.resource.data.keys().hasOnly(['uid', 'email', 'topic', 'message', 'createdAt'])
+        && ((signedIn() && request.resource.data.uid == request.auth.uid)
+          || (!signedIn() && request.resource.data.uid == null))
+        && request.resource.data.topic in ['account', 'delete', 'bug', 'safety', 'other']
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254
+        && request.resource.data.email.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$')
+        && request.resource.data.message is string
+        && request.resource.data.message.size() >= 10
+        && request.resource.data.message.size() <= 2000
+        && request.resource.data.createdAt == request.time;
+    }
+
     // Участник мэтча: его uid есть в массиве users документа мэтча.
     // Параметр не называем match — это зарезервированное слово правил (им начинаются блоки match /...).
     function isMember(matchData) {
@@ -178,24 +195,6 @@ service cloud.firestore {
         && message.createdAt == request.time;
     }
 
-    // Мэтч создаётся, только если ОБА лайка уже лежат в базе и никто никого не заблокировал.
-    match /matches/{matchId} {
-      allow read, delete: if isMember(resource.data);
-      allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['users', 'createdBy', 'createdAt'])
-        && request.resource.data.users.size() == 2
-        && request.auth.uid in request.resource.data.users
-        && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdAt == request.time
-        && matchId == request.resource.data.users[0] + '_' + request.resource.data.users[1]
-        && liked(request.resource.data.users[0], request.resource.data.users[1])
-        && liked(request.resource.data.users[1], request.resource.data.users[0])
-        && !isBlocked(request.resource.data.users[0], request.resource.data.users[1]);
-
-      // Менять готовый мэтч можно только участнику и только два поля:
-      //  lastMessage — последнее сообщение (превью в списке мэтчей), обязательно от моего имени,
-      //    или правка моего же превью, когда я поправил или отменил последнее сообщение;
-      //  readAt.{uid} — когда я последний раз читал чат; чужое время прочтения трогать нельзя.
     // Правка или отмена отправки своего сообщения. Менять можно только текст и служебные метки;
     // автор, время отправки и прочее остаются как были. Удалённое уже не правится.
     //  правка — новый текст 1–1000 символов и время правки editedAt (его ставит сервер);
@@ -225,6 +224,24 @@ service cloud.firestore {
           || (next.get('deleted', false) == false && next.text.size() > 0));
     }
 
+    // Мэтч создаётся, только если ОБА лайка уже лежат в базе и никто никого не заблокировал.
+    match /matches/{matchId} {
+      allow read, delete: if isMember(resource.data);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['users', 'createdBy', 'createdAt'])
+        && request.resource.data.users.size() == 2
+        && request.auth.uid in request.resource.data.users
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && matchId == request.resource.data.users[0] + '_' + request.resource.data.users[1]
+        && liked(request.resource.data.users[0], request.resource.data.users[1])
+        && liked(request.resource.data.users[1], request.resource.data.users[0])
+        && !isBlocked(request.resource.data.users[0], request.resource.data.users[1]);
+
+      // Менять готовый мэтч можно только участнику и только два поля:
+      //  lastMessage — последнее сообщение (превью в списке мэтчей), обязательно от моего имени,
+      //    или правка моего же превью, когда я поправил или отменил последнее сообщение;
+      //  readAt.{uid} — когда я последний раз читал чат; чужое время прочтения трогать нельзя.
       // users, createdBy и createdAt после создания не меняются.
       allow update: if isMember(resource.data)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'readAt'])
@@ -243,9 +260,9 @@ service cloud.firestore {
         allow read, delete: if isMember(get(/databases/$(database)/documents/matches/$(matchId)).data);
         allow create: if isMember(get(/databases/$(database)/documents/matches/$(matchId)).data)
           && isValidMessage(request.resource.data);
+        allow update: if isMember(get(/databases/$(database)/documents/matches/$(matchId)).data)
+          && isValidMessageChange();
       }
     }
   }
 }
-        allow update: if isMember(get(/databases/$(database)/documents/matches/$(matchId)).data)
-          && isValidMessageChange();

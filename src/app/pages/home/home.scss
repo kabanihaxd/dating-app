@@ -1,11 +1,31 @@
+// Первый экран во всю ширину окна, хотя страница ограничена 960px (.page в app.scss):
+// отрицательные поля «вытягивают» его к краям, а сверху — к шапке (у .page отступ 24px).
+// Горизонтальную прокрутку от 100vw (в нём есть ширина полосы прокрутки) гасит overflow-x: clip у html.
 .hero {
+  position: relative;
+  margin: -24px calc(50% - 50vw) 0;
+  height: min(calc(100svh - 64px), 760px);
+  min-height: 560px;
+  overflow: hidden;
   text-align: center;
-  padding: 48px 0;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+}
+
+.hero-text {
+  position: absolute;
+  inset: 0 0 auto;
+  padding: 28px 16px 40px;
+  background: linear-gradient(to bottom, rgba(11, 11, 18, 0.9) 55%, rgba(11, 11, 18, 0));
 
   h1 {
     font-family: var(--di-brand-font);
-    font-size: clamp(28px, 6vw, 48px);
-    margin: 0 0 16px;
+    font-size: clamp(26px, 4.4vw, 44px);
+    line-height: 1.25;
+    margin: 0 0 10px;
 
     span {
       color: var(--di-neon-pink);
@@ -15,8 +35,92 @@
 
   p {
     color: var(--di-text-muted);
-    font-size: 18px;
-    margin: 0 0 32px;
+    font-size: 17px;
+    margin: 0;
+  }
+}
+
+.hero-cta {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 48px 16px 28px;
+  background: linear-gradient(to top, var(--di-bg) 45%, rgba(11, 11, 18, 0));
+}
+
+// Главная кнопка: розовый = действие, текст на неоне тёмный (Dark-on-Neon Rule в DESIGN.md).
+// Цвета — через токены Material, чтобы его hover/focus/disabled продолжали работать.
+// Свечение «дышит», раз в 4 с по кнопке пробегает блик.
+.cta {
+  --mat-button-filled-container-color: var(--di-neon-pink);
+  --mat-button-filled-label-text-color: var(--di-bg);
+  --mat-button-filled-container-height: 56px;
+  --mat-button-filled-horizontal-padding: 40px;
+  --mat-button-filled-label-text-size: 20px;
+  --mat-button-filled-label-text-weight: 800;
+  --mat-button-filled-label-text-font: 'Exo 2', sans-serif;
+  overflow: hidden;
+  box-shadow:
+    0 0 14px rgba(255, 46, 136, 0.55),
+    0 0 40px rgba(255, 46, 136, 0.25);
+  animation: cta-breathe 2.4s ease-in-out infinite;
+  transition: transform 0.2s;
+
+  // Material по умолчанию даёт иконке в кнопке 18px и контурную — рядом с 20px жирного текста
+  // она терялась. Делаем крупнее и залитой (FILL 1 у шрифта Material Symbols).
+  mat-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 30px;
+    margin-inline: -6px 4px;
+    font-variation-settings: 'FILL' 1;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 -60%;
+    width: 40%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    transform: skewX(-20deg);
+    animation: cta-shine 4s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  &:hover,
+  &:focus-visible {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow:
+      0 0 20px rgba(255, 46, 136, 0.8),
+      0 0 60px rgba(255, 46, 136, 0.4);
+  }
+}
+
+@keyframes cta-breathe {
+  50% {
+    box-shadow:
+      0 0 22px rgba(255, 46, 136, 0.75),
+      0 0 56px rgba(255, 46, 136, 0.35);
+  }
+}
+
+@keyframes cta-shine {
+  0%,
+  70% {
+    left: -60%;
+  }
+  100% {
+    left: 130%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta,
+  .cta::after {
+    animation: none;
+  }
+
+  .cta::after {
+    display: none;
   }
 }
 
@@ -24,6 +128,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
+  margin-top: 24px;
 }
 
 .feature {
@@ -43,5 +148,94 @@
   p {
     color: var(--di-text-muted);
     margin: 0;
+  }
+}
+
+// «Как это работает»: три шага, соединённые линией голубой → фиолетовый → розовый.
+.how {
+  margin: 64px 0 40px;
+  text-align: center;
+
+  h2 {
+    font-family: var(--di-brand-font);
+    font-size: clamp(20px, 2.6vw, 28px);
+    margin: 0 0 8px;
+  }
+
+  .lead {
+    color: var(--di-text-muted);
+    margin: 0 0 32px;
+  }
+}
+
+.steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 28px;
+    left: 16%;
+    right: 16%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      var(--di-neon-cyan),
+      var(--di-neon-violet),
+      var(--di-neon-pink)
+    );
+    opacity: 0.5;
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+    gap: 24px;
+
+    &::before {
+      display: none;
+    }
+  }
+}
+
+.step {
+  position: relative;
+
+  .num {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    background: var(--di-bg);
+    border: 2px solid var(--di-neon-violet);
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+    font-family: var(--di-brand-font);
+    font-weight: 800;
+    font-size: 22px;
+  }
+
+  // Последний шаг — метч: розовый, как всё, что про взаимность.
+  &:last-child .num {
+    border-color: var(--di-neon-pink);
+    box-shadow: 0 0 12px rgba(255, 46, 136, 0.5);
+  }
+
+  h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+  }
+
+  p {
+    margin: 0;
+    color: var(--di-text-muted);
+    font-size: 14px;
+    line-height: 1.45;
   }
 }

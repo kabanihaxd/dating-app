@@ -34,5 +34,19 @@ export const routes: Routes = [
     canDeactivate: [unsavedChangesGuard],
     loadComponent: () => import('./pages/profile/profile').then((m) => m.Profile),
   },
-  { path: '**', loadComponent: () => import('./pages/not-found/not-found').then((m) => m.NotFound) },
+  // Страницы из подвала. Три текстовые — один компонент: data.page попадает в его input page.
+  ...(['rules', 'privacy', 'safety'] as const).map((page) => ({
+    path: page,
+    data: { page },
+    loadComponent: () => import('./pages/info/info').then((m) => m.Info),
+  })),
+  // Поддержка открыта и без входа: написать часто нужно именно когда войти не получается.
+  {
+    path: 'support',
+    loadComponent: () => import('./pages/support/support').then((m) => m.Support),
+  },
+  {
+    path: '**',
+    loadComponent: () => import('./pages/not-found/not-found').then((m) => m.NotFound),
+  },
 ];

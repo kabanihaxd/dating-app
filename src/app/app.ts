@@ -1,11 +1,12 @@
 import { Component, ElementRef, viewChild } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { TranslatePipe } from './core/i18n/translate.pipe';
+import { Footer } from './layout/footer/footer';
 import { Header } from './layout/header/header';
 import { OfflineBanner } from './layout/offline-banner/offline-banner';
 
 @Component({
-  imports: [RouterOutlet, Header, OfflineBanner, TranslatePipe],
+  imports: [RouterOutlet, Header, OfflineBanner, Footer, TranslatePipe],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',

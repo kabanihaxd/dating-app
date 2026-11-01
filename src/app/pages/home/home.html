@@ -1,7 +1,16 @@
+<!-- Первый экран: заставка «экран выбора игроков» фоном, заголовок сверху, кнопка снизу. -->
 <section class="hero">
-  <h1>{{ 'home.title' | t }} <span>player 2</span></h1>
-  <p>{{ 'home.subtitle' | t }}</p>
-  <a mat-flat-button [routerLink]="auth.isLoggedIn() ? '/feed' : '/login'">{{ 'home.cta' | t }}</a>
+  <app-lobby-splash class="hero-bg" />
+  <div class="hero-text">
+    <h1>{{ 'home.title' | t }} <span>player 2</span></h1>
+    <p>{{ 'home.subtitle' | t }}</p>
+  </div>
+  <div class="hero-cta">
+    <a mat-flat-button class="cta" [routerLink]="auth.isLoggedIn() ? '/feed' : '/login'">
+      <mat-icon>play_arrow</mat-icon>
+      {{ 'home.cta' | t }}
+    </a>
+  </div>
 </section>
 
 <section class="features">
@@ -12,4 +21,18 @@
       <p>{{ 'home.features.' + feature.key + '.text' | t }}</p>
     </div>
   }
+</section>
+
+<section class="how" aria-labelledby="how-title">
+  <h2 id="how-title">{{ 'home.how.title' | t }}</h2>
+  <p class="lead">{{ 'home.how.lead' | t }}</p>
+  <ol class="steps">
+    @for (step of steps; track step; let i = $index) {
+      <li class="step">
+        <span class="num" aria-hidden="true">{{ i + 1 }}</span>
+        <h3>{{ 'home.how.' + step + '.title' | t }}</h3>
+        <p>{{ 'home.how.' + step + '.text' | t }}</p>
+      </li>
+    }
+  </ol>
 </section>

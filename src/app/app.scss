@@ -32,7 +32,18 @@ main:focus {
   outline: none;
 }
 
+// Подвал всегда внизу экрана: приложение — колонка не ниже экрана, а <main> забирает
+// всё свободное место. Короткая страница — подвал у нижнего края; длинная — сразу после неё.
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
 .page {
+  flex: 1 0 auto;
+  width: 100%;
+  box-sizing: border-box;
   max-width: 960px;
   margin: 0 auto;
   padding: 24px 16px;
@@ -51,6 +62,11 @@ main:focus {
   display: flex;
   flex-direction: column;
   height: 100dvh;
+
+  // Подвал в чате не нужен: экран целиком занят перепиской.
+  app-footer {
+    display: none;
+  }
 
   .page {
     flex: 1;

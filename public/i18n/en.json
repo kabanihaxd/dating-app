@@ -73,6 +73,25 @@
         "title": "Mutual match",
         "text": "Discord and Steam nicknames are revealed only after a mutual like."
       }
+    },
+    "splash": {
+      "waiting": "waiting"
+    },
+    "how": {
+      "title": "How it works",
+      "lead": "Three steps from a lonely evening to a shared session.",
+      "profile": {
+        "title": "Build your profile",
+        "text": "Games, platforms and when you usually play. It is your card in the lobby."
+      },
+      "browse": {
+        "title": "Browse players",
+        "text": "You see the people you have the most in common with first."
+      },
+      "match": {
+        "title": "Match, then play",
+        "text": "A mutual like unlocks contacts and chat. The rest you do together."
+      }
     }
   },
   "feed": {
@@ -302,6 +321,22 @@
     },
     "retry": "Retry",
     "discard": "Delete",
+    "edit": {
+      "menu": "Message actions",
+      "edit": "Edit",
+      "unsend": "Unsend",
+      "title": "Editing",
+      "cancel": "Cancel editing",
+      "save": "Save",
+      "hint": "Enter to save, Esc to cancel",
+      "edited": "edited",
+      "deleted": "Message deleted",
+      "saveError": "Couldn't save your changes. Try again.",
+      "unsendError": "Couldn't unsend the message. Try again.",
+      "confirmTitle": "Unsend this message?",
+      "confirmText": "It will disappear for both of you — “Message deleted” stays in its place.",
+      "keep": "Keep"
+    },
     "newMessages": "New messages",
     "queuedOffline": "You're offline. Your messages will be sent when you're back online.",
     "tooLong": "Over {{max}} characters — shorten it to send.",
@@ -321,22 +356,6 @@
       "button": "Invite to play",
       "game": "Up for {{game}} together?",
       "any": "Want to play something together?",
-    "edit": {
-      "menu": "Message actions",
-      "edit": "Edit",
-      "unsend": "Unsend",
-      "title": "Editing",
-      "cancel": "Cancel editing",
-      "save": "Save",
-      "hint": "Enter to save, Esc to cancel",
-      "edited": "edited",
-      "deleted": "Message deleted",
-      "saveError": "Couldn't save your changes. Try again.",
-      "unsendError": "Couldn't unsend the message. Try again.",
-      "confirmTitle": "Unsend this message?",
-      "confirmText": "It will disappear for both of you — “Message deleted” stays in its place.",
-      "keep": "Keep"
-    },
       "platform": "I'm on {{platform}}.",
       "gameWhen": "Up for {{game}} {{when}}?",
       "anyWhen": "Want to play something {{when}}?",
@@ -501,5 +520,106 @@
     "title": "404 — Game Over",
     "text": "This page doesn't exist.",
     "home": "Back to home"
+  },
+  "footer": {
+    "label": "Information",
+    "rules": "Rules",
+    "privacy": "Privacy",
+    "safety": "Dating safety",
+    "support": "Support"
+  },
+  "info": {
+    "questions": "Still have questions?",
+    "rules": {
+      "title": "Community rules",
+      "intro": "DeadIsland is where gamers look for a partner and teammates. A few simple rules keep it good for everyone.",
+      "age": {
+        "title": "18+ only",
+        "text": "The site is for adults only. We remove profiles of anyone under 18."
+      },
+      "real": {
+        "title": "Be yourself",
+        "text": "Your real name or nickname, your own photos and honest info about your games. Other people’s photos and fake profiles are not allowed."
+      },
+      "respect": {
+        "title": "Respect",
+        "text": "No insults, threats, harassment or discrimination. A skip or a “no” is never a reason for aggression."
+      },
+      "spam": {
+        "title": "No spam or ads",
+        "text": "Don’t send ads, links to other services, or requests for money or in-game items."
+      },
+      "enforce": {
+        "title": "What happens if rules are broken",
+        "text": "Report through the ⋮ menu on a profile or in chat. We review reports and may remove a profile or ban an account."
+      }
+    },
+    "privacy": {
+      "title": "Privacy",
+      "intro": "Short and honest: what DeadIsland stores, who sees it and how to delete it.",
+      "what": {
+        "title": "What we store",
+        "text": "Your email and sign-in method; your profile (name, date of birth, city, bio, photo, games, platforms, genres, play times); gaming contacts (Discord, Steam, PSN, Xbox); likes, matches, messages, blocks, reports and support requests."
+      },
+      "who": {
+        "title": "Who sees it",
+        "text": "Signed-in players see your profile (your age, not your date of birth). Gaming contacts unlock only after a mutual like. Messages are visible only to the two people in the chat. Reports and support requests are seen only by the admins."
+      },
+      "where": {
+        "title": "Where data is stored",
+        "text": "On Google Firebase servers. We don’t sell or share data with advertisers; the site has no ads and no third-party trackers."
+      },
+      "local": {
+        "title": "In your browser",
+        "text": "Your browser remembers the language, feed and filter settings and a few hints you have already seen. This stays on your device."
+      },
+      "delete": {
+        "title": "How to delete your account",
+        "text": "Contact support with the topic “Delete account” from the same email. We will delete your profile, contacts, likes, matches and messages."
+      }
+    },
+    "safety": {
+      "title": "Dating safety",
+      "intro": "Most people here are gamers just like you. A few habits still help you stay out of trouble.",
+      "contacts": {
+        "title": "Take your time with contacts",
+        "text": "Play together and chat first. Share your phone number, address or workplace only with people you trust."
+      },
+      "money": {
+        "title": "Never send money",
+        "text": "No money, skins, in-game items or accounts. Requests for them are almost always a scam."
+      },
+      "meet": {
+        "title": "Meet in a public place first",
+        "text": "Pick a café, a gaming club or an esports event. Tell a friend where you are going and get there on your own."
+      },
+      "trust": {
+        "title": "Trust your gut",
+        "text": "If something feels off, you can simply leave or end the conversation. You don’t owe anyone anything."
+      },
+      "report": {
+        "title": "Tell us",
+        "text": "Use the ⋮ menu on a profile or in chat to report and block. If you are threatened, contact the police (112)."
+      }
+    }
+  },
+  "support": {
+    "title": "Support",
+    "lead": "Tell us what happened and we will reply to your email.",
+    "topic": "Topic",
+    "email": "Email for the reply",
+    "emailHint": "We will reply here",
+    "message": "Message",
+    "send": "Send",
+    "sending": "Sending…",
+    "sentTitle": "Request sent",
+    "sentText": "Thank you! We will reply to {{email}}.",
+    "topics": {
+      "account": "Sign-in and account",
+      "delete": "Delete account",
+      "bug": "Something is broken",
+      "safety": "Safety and reports",
+      "other": "Other"
+    }
   }
 }

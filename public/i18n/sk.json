@@ -73,6 +73,25 @@
         "title": "Vzájomný match",
         "text": "Prezývky z Discordu a Steamu sa zobrazia až po vzájomnom lajku."
       }
+    },
+    "splash": {
+      "waiting": "čaká"
+    },
+    "how": {
+      "title": "Ako to funguje",
+      "lead": "Tri kroky od osamelého večera k spoločnej hre.",
+      "profile": {
+        "title": "Vyplň profil",
+        "text": "Hry, platformy a kedy zvyčajne hráš. Je to tvoja karta v lobby."
+      },
+      "browse": {
+        "title": "Prezeraj hráčov",
+        "text": "Ako prvých vidíš tých, s ktorými máš najviac spoločného."
+      },
+      "match": {
+        "title": "Match a hor sa hrať",
+        "text": "Vzájomný lajk odomkne kontakty a chat. Ďalej už spolu."
+      }
     }
   },
   "feed": {
@@ -302,6 +321,22 @@
     },
     "retry": "Skúsiť znova",
     "discard": "Vymazať",
+    "edit": {
+      "menu": "Akcie so správou",
+      "edit": "Upraviť",
+      "unsend": "Zrušiť odoslanie",
+      "title": "Úprava",
+      "cancel": "Zrušiť úpravu",
+      "save": "Uložiť",
+      "hint": "Enter — uložiť, Esc — zrušiť",
+      "edited": "upravené",
+      "deleted": "Správa vymazaná",
+      "saveError": "Zmeny sa nepodarilo uložiť. Skús to znova.",
+      "unsendError": "Odoslanie sa nepodarilo zrušiť. Skús to znova.",
+      "confirmTitle": "Zrušiť odoslanie?",
+      "confirmText": "Správa zmizne vám obom — na jej mieste zostane „Správa vymazaná“.",
+      "keep": "Ponechať"
+    },
     "newMessages": "Nové správy",
     "queuedOffline": "Si offline. Správy sa odošlú, keď sa pripojenie obnoví.",
     "tooLong": "Viac ako {{max}} znakov — skráť ju, aby sa dala odoslať.",
@@ -321,22 +356,6 @@
       "button": "Pozvať hrať",
       "game": "Zahráme si spolu {{game}}?",
       "any": "Zahráme si spolu niečo?",
-    "edit": {
-      "menu": "Akcie so správou",
-      "edit": "Upraviť",
-      "unsend": "Zrušiť odoslanie",
-      "title": "Úprava",
-      "cancel": "Zrušiť úpravu",
-      "save": "Uložiť",
-      "hint": "Enter — uložiť, Esc — zrušiť",
-      "edited": "upravené",
-      "deleted": "Správa vymazaná",
-      "saveError": "Zmeny sa nepodarilo uložiť. Skús to znova.",
-      "unsendError": "Odoslanie sa nepodarilo zrušiť. Skús to znova.",
-      "confirmTitle": "Zrušiť odoslanie?",
-      "confirmText": "Správa zmizne vám obom — na jej mieste zostane „Správa vymazaná“.",
-      "keep": "Ponechať"
-    },
       "platform": "Hrám na {{platform}}.",
       "gameWhen": "Zahráme si {{game}} {{when}}?",
       "anyWhen": "Zahráme si niečo {{when}}?",
@@ -501,5 +520,106 @@
     "title": "404 — Game Over",
     "text": "Takáto stránka neexistuje.",
     "home": "Na hlavnú stránku"
+  },
+  "footer": {
+    "label": "Informácie",
+    "rules": "Pravidlá",
+    "privacy": "Ochrana súkromia",
+    "safety": "Bezpečné stretnutia",
+    "support": "Podpora"
+  },
+  "info": {
+    "questions": "Máš ešte otázky?",
+    "rules": {
+      "title": "Pravidlá komunity",
+      "intro": "DeadIsland je miesto, kde hráči hľadajú partnera a spoluhráčov. Aby tu bolo príjemne všetkým, platí pár jednoduchých pravidiel.",
+      "age": {
+        "title": "Len 18+",
+        "text": "Stránka je len pre dospelých. Profily ľudí mladších ako 18 rokov odstraňujeme."
+      },
+      "real": {
+        "title": "Buď sám sebou",
+        "text": "Skutočné meno alebo prezývka, vlastné fotky a pravdivé údaje o hrách. Cudzie fotky a vymyslené profily sú zakázané."
+      },
+      "respect": {
+        "title": "Rešpekt",
+        "text": "Žiadne urážky, vyhrážky, šikana ani diskriminácia. Odmietnutie či preskočený profil nie je dôvod na agresiu."
+      },
+      "spam": {
+        "title": "Bez spamu a reklamy",
+        "text": "Neposielaj reklamu, odkazy na iné služby ani prosby o peniaze či herné predmety."
+      },
+      "enforce": {
+        "title": "Čo hrozí za porušenie",
+        "text": "Nahlás to cez menu ⋮ na profile alebo v chate. Hlásenia posudzujeme a môžeme odstrániť profil alebo zablokovať účet."
+      }
+    },
+    "privacy": {
+      "title": "Ochrana súkromia",
+      "intro": "Stručne a úprimne: aké údaje DeadIsland ukladá, kto ich vidí a ako ich vymazať.",
+      "what": {
+        "title": "Čo ukladáme",
+        "text": "E-mail a spôsob prihlásenia; profil (meno, dátum narodenia, mesto, popis, fotka, hry, platformy, žánre, čas hrania); herné kontakty (Discord, Steam, PSN, Xbox); lajky, matche, správy, blokovania, hlásenia a žiadosti na podporu."
+      },
+      "who": {
+        "title": "Kto to vidí",
+        "text": "Profil vidia prihlásení hráči (namiesto dátumu narodenia vek). Herné kontakty sa odomknú až po vzájomnom lajku. Správy vidia len dvaja účastníci chatu. Hlásenia a žiadosti na podporu vidí len administrácia."
+      },
+      "where": {
+        "title": "Kde sú údaje uložené",
+        "text": "Na serveroch Google Firebase. Údaje nepredávame ani neposkytujeme inzerentom, na stránke nie je reklama ani sledovače tretích strán."
+      },
+      "local": {
+        "title": "V tvojom prehliadači",
+        "text": "Prehliadač si pamätá jazyk, nastavenia feedu a filtrov a pár tipov, ktoré si už videl. Zostáva to len v tvojom zariadení."
+      },
+      "delete": {
+        "title": "Ako vymazať účet",
+        "text": "Napíš na podporu s témou „Vymazať účet“ z rovnakého e-mailu. Vymažeme profil, kontakty, lajky, matche aj správy."
+      }
+    },
+    "safety": {
+      "title": "Bezpečné stretnutia",
+      "intro": "Väčšina ľudí sú tu hráči ako ty. Pár návykov ti však pomôže vyhnúť sa problémom.",
+      "contacts": {
+        "title": "Neponáhľaj sa s kontaktmi",
+        "text": "Najprv si spolu zahrajte a pokecajte v chate. Telefón, adresu a miesto práce dávaj len tým, ktorým dôveruješ."
+      },
+      "money": {
+        "title": "Nikdy neposielaj peniaze",
+        "text": "Žiadne peniaze, skiny, herné predmety ani účty. Prosby o ne sú takmer vždy podvod."
+      },
+      "meet": {
+        "title": "Prvé stretnutie na verejnom mieste",
+        "text": "Vyber kaviareň, herný klub alebo esportové podujatie. Povedz kamarátovi, kam ideš, a dopravuj sa sám."
+      },
+      "trust": {
+        "title": "Dôveruj intuícii",
+        "text": "Ak ti niečo nesedí, môžeš jednoducho odísť alebo ukončiť rozhovor. Nikomu nič nedlžíš."
+      },
+      "report": {
+        "title": "Daj nám vedieť",
+        "text": "Cez menu ⋮ na profile alebo v chate môžeš nahlásiť a zablokovať. Ak sa ti niekto vyhráža, obráť sa na políciu (112)."
+      }
+    }
+  },
+  "support": {
+    "title": "Podpora",
+    "lead": "Opíš, čo sa stalo, a odpovieme na tvoj e-mail.",
+    "topic": "Téma",
+    "email": "E-mail na odpoveď",
+    "emailHint": "Sem príde odpoveď",
+    "message": "Správa",
+    "send": "Odoslať",
+    "sending": "Odosielame…",
+    "sentTitle": "Žiadosť odoslaná",
+    "sentText": "Ďakujeme! Odpovieme na {{email}}.",
+    "topics": {
+      "account": "Prihlásenie a účet",
+      "delete": "Vymazať účet",
+      "bug": "Chyba na stránke",
+      "safety": "Bezpečnosť a hlásenie",
+      "other": "Iné"
+    }
   }
 }
