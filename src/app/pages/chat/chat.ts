@@ -96,6 +96,20 @@ function sameDay(a: Date, b: Date): boolean {
   );
 }
 
+// Насколько старо приглашение: «сегодня вечером» из вчерашнего сообщения — уже не план.
+// Только что отправленное (без времени сервера) — свежее.
+function inviteAge(createdAt: Date | null): 'fresh' | 'yesterday' | 'old' {
+  if (!createdAt) {
+    return 'fresh';
+  }
+  const now = new Date();
+  if (sameDay(createdAt, now)) {
+    return 'fresh';
+  }
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  return sameDay(createdAt, yesterday) ? 'yesterday' : 'old';
+}
+
 // «2026-10-28» — день по местному календарю для атрибута datetime у <time>.
 function isoDay(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -173,6 +187,8 @@ export class Chat {
   // Если из одного чата перейти в другой, Angular переиспользует компонент и просто меняет input —
   // поэтому всё, что зависит от matchId, делаем в effect, а не один раз в конструкторе.
   readonly matchId = input.required<string>();
+  // ?play=1 — пришли из карточки нового мэтча по «Позвать в …»: приглашение сразу лежит в поле ввода.
+  readonly play = input<string>();
 
   // Страница закрыта authGuard, поэтому пользователь здесь всегда есть.
   private readonly me = this.auth.user()!.uid;
@@ -279,6 +295,8 @@ export class Chat {
         groupEnd: !next || !joined(message, next),
         // Приглашение поиграть рисуем карточкой-пузырём, а не обычным сообщением.
         invite: message.invite,
+        // Вчерашнее и более старое приглашение — уже не план: другая подпись, без «Я в деле».
+        inviteAge: message.invite ? inviteAge(message.createdAt) : null,
       };
     });
   });
@@ -509,6 +527,26 @@ export class Chat {
       this.title.setTitle(name ? this.i18n.translate('chat.docTitle', { name }) : DEFAULT_TITLE);
     });
 
+    // Пришли по «Позвать в …» из карточки нового мэтча (?play=1): как только известна карточка
+    // собеседника (из неё собирается текст), кладём приглашение в поле — один раз — и убираем
+    // параметр из адреса, чтобы перезагрузка или «назад» не повторяли это. Не отправляем сами.
+    // Уже звали играть — ничего не кладём, просто чистим адрес.
+    afterRenderEffect(() => {
+      if (!this.play() || this.state() !== 'ready' || !this.partnerCard() || !this.input()) {
+        return;
+      }
+      untracked(() => {
+        if (!this.inviteSent()) {
+          this.inviteToPlay();
+        }
+        void this.router.navigate([], {
+          queryParams: { play: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true,
+        });
+      });
+    });
+
     // Фокус при открытии чата. Без него он оставался на <body>: клавиатурный пользователь
     // начинал «с нуля», а программа чтения с экрана не понимала, что страница сменилась.
     // - мышь/тачпад (pointer: fine) — сразу в поле ввода: открыл чат — можно печатать;
@@ -593,7 +631,7 @@ export class Chat {
   // игры, платформы и времени В ТОМ ЖЕ ПОРЯДКЕ, что в карточке игрока (порядок и написание
   // собеседника): иначе карточка показывала бы первой PlayStation, а приглашение говорило «Я на PC».
   // Общего нет — нейтральное «Сыграем во что-нибудь вместе?».
-  private readonly invite = computed(() => {
+  protected readonly invite = computed(() => {
     const card = this.partnerCard();
     const game = card?.games.find((g) => g.shared)?.item;
     const platform = card?.platforms.find((p) => p.shared)?.item;
@@ -624,9 +662,7 @@ export class Chat {
   // позвать ещё раз. Кнопка в карточке игрока остаётся: туда заходят осознанно.
   protected readonly inviteSent = computed(() => {
     const opener = this.invite().opener;
-    return this.messages().some(
-      (m) => m.invite || (m.from === this.me && m.text.includes(opener)),
-    );
+    return this.messages().some((m) => m.invite || (m.from === this.me && m.text.includes(opener)));
   });
 
   // «Позвать играть»: кладём приглашение в поле ввода. Не отправляем сами: человек допишет
@@ -658,7 +694,9 @@ export class Chat {
         return null;
       }
       if (list[i].invite) {
-        return list[i].id;
+        // Вчерашнее «сегодня вечером» уже прошло: согласие одним нажатием создало бы ложный план.
+        // Ответить можно обычным сообщением.
+        return inviteAge(list[i].createdAt) === 'fresh' ? list[i].id : null;
       }
     }
     return null;

@@ -267,7 +267,7 @@
                  и показываем её всегда (не только до первого лайка): это поворотный момент. -->
             @if (item.likedMe) {
               <p id="feed-like-hint" class="like-hint mutual">
-                <mat-icon aria-hidden="true">favorite</mat-icon>
+                <mat-icon class="di-filled" aria-hidden="true">favorite</mat-icon>
                 {{ 'feed.likeHintMutual' | t }}
               </p>
             } @else if (likeHint()) {

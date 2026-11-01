@@ -25,19 +25,21 @@
            наведения) открывает и закрывает подсказку. #tip="matTooltip" — ссылка на саму
            подсказку, чтобы вызвать её toggle(). Текст подсказки Material сам связывает
            с кнопкой (aria-describedby): скринридер прочитает «87% совпадения» и пояснение. -->
-      @if (match().percent) {
+      <!-- На карточке «Ты нравишься» слабое совпадение («Спільна платформа») не показываем: главный
+           сигнал здесь — взаимность, а вдвоём метки не влезали в ряд, переносились, и имя этой
+           карточки стояло ниже, чем у соседних в сетке. Что общего, всё равно видно ниже — в «Почему». -->
+      @if (match().percent && !(likedMe() && level() === 'low')) {
         <button
           type="button"
           class="match"
           [class]="level()"
           #tip="matTooltip"
           [matTooltip]="'feed.card.matchHint' | t"
-          matTooltipPosition="before"
+          [matTooltipPosition]="tipPosition()"
           (click)="tip.toggle()"
         >
           <!-- Ниже 40% цифра читается как провал («12%»), хотя общее есть. Вместо неё — что именно
-               совпало (lowLabel). Подсказка — слева от бейджа: под ним имя игрока, над ним (в колоде) —
-               счётчик «Найдено игроков»; обе закрывались. Слева только фото или метка «нравишься». -->
+               совпало (lowLabel). Где открывать подсказку — см. tipPosition в player-card.ts. -->
           @if (level() === 'low') {
             {{ lowLabel().key | t: { count: lowLabel().count } }}
           } @else {
@@ -110,6 +112,17 @@
       </section>
     }
 
+    <!-- Превью своей анкеты: общих игр с собой нет, но игры всё равно важнее всего в подборе —
+         в превью они идут первыми, как общие игры в ленте, а не последними. -->
+    @if (preview() && otherGames().length) {
+      <p class="label">{{ 'feed.card.games' | t }}</p>
+      <div class="tags">
+        @for (game of otherGames(); track game) {
+          <span class="tag">{{ game }}</span>
+        }
+      </div>
+    }
+
     @if (player().platforms.length) {
       <p class="label">{{ 'feed.card.platforms' | t }}</p>
       <div class="tags">
@@ -153,7 +166,7 @@
 
     <!-- Всё, что раскрывает кнопка «Подробнее», — в одном блоке: на него ссылается aria-controls. -->
     <div [id]="detailsId()">
-      @if (otherGames().length) {
+      @if (otherGames().length && !preview()) {
         <!-- «Другие игры» — другие по сравнению с общими. Общих нет — сравнивать не с чем,
              и подпись просто «Игры». -->
         <p class="label">

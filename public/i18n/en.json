@@ -253,6 +253,7 @@
     "toFeed": "Browse players",
     "noContacts": "This player hasn't added any contacts yet.",
     "write": "Send a message",
+    "invite": "Invite to play {{game}}",
     "you": "You",
     "unread": "New message",
     "chatWith": "Chat with {{name}}",
@@ -330,6 +331,9 @@
         "weekends": "this weekend"
       },
       "label": "Game invite",
+      "labelYesterday": "Yesterday’s game invite",
+      "labelOld": "Earlier game invite",
+      "preview": "Puts this in the message box: “{{text}}”",
       "accept": "I'm in! 🎮",
       "acceptButton": "I'm in"
     }

@@ -327,9 +327,16 @@ export class Profile implements HasUnsavedChanges {
     }
     const chosen = new Set(this.games().map(gameKey));
     const alias = catalogGame(query);
+    // Сначала игры, где набранное — начало слова («ov» → Overwatch 2), потом совпадения
+    // посреди слова (Escape from Tarkov): люди печатают название с начала.
+    const wordStart = (game: string) =>
+      game
+        .toLowerCase()
+        .split(/[\s:-]+/)
+        .some((word) => word.startsWith(query));
     const matches = POPULAR_GAMES.filter(
       (game) => game !== alias && game.toLowerCase().includes(query),
-    );
+    ).sort((a, b) => Number(wordStart(b)) - Number(wordStart(a)));
     return (alias ? [alias, ...matches] : matches).filter((game) => !chosen.has(gameKey(game)));
   });
 

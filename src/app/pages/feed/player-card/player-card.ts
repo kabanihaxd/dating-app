@@ -1,4 +1,13 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -13,6 +22,8 @@ import { ModerationMenu } from '../../../shared/moderation-menu/moderation-menu'
 const VISIBLE_OTHER_GAMES = 3;
 // Длинное описание обрезается до трёх строк — тогда тоже нужна кнопка «Больше».
 const LONG_BIO = 120;
+// Тот же порог, что в player-card.scss: от него колода раскладывает карточку в две колонки.
+const WIDE_DECK_QUERY = '(min-width: 840px)';
 
 // Карточка одного игрока. Сама ничего не загружает и не сохраняет:
 // данные получает через input(), а о нажатых кнопках сообщает ленте через output().
@@ -44,6 +55,26 @@ export class PlayerCard {
   readonly removed = output<void>();
 
   protected readonly expanded = signal(false);
+
+  // Куда открывать подсказку к проценту. Под меткой — если под ней фото или (широкая колода без фото)
+  // крупная монограмма: подсказка ляжет на картинку и ничего не закроет. Иначе (сетка и телефон
+  // без фото) ряд меток стоит прямо над именем — тогда над меткой, чтобы не закрыть имя.
+  // in-grid лента ставит на карточку статично, поэтому класс достаточно прочитать один раз.
+  private readonly inGrid = (inject(ElementRef).nativeElement as HTMLElement).classList.contains(
+    'in-grid',
+  );
+  private readonly wideDeck = signal(false);
+  protected readonly tipPosition = computed(() =>
+    this.player().photo || (!this.inGrid && this.wideDeck()) ? 'below' : 'above',
+  );
+
+  constructor() {
+    const media = window.matchMedia(WIDE_DECK_QUERY);
+    this.wideDeck.set(media.matches);
+    const onChange = (event: MediaQueryListEvent) => this.wideDeck.set(event.matches);
+    media.addEventListener('change', onChange);
+    inject(DestroyRef).onDestroy(() => media.removeEventListener('change', onChange));
+  }
 
   // id заголовка: по нему лента переводит фокус на следующую карточку после лайка.
   // uid из Firebase — только буквы и цифры, поэтому годится для id как есть.
@@ -77,7 +108,8 @@ export class PlayerCard {
   );
 
   protected readonly canExpand = computed(
-    () => this.gamesFold() || this.player().bio.length > LONG_BIO,
+    // В превью все игры показаны сразу (наверху), сворачивать там нечего — только длинное «о себе».
+    () => (this.gamesFold() && !this.preview()) || this.player().bio.length > LONG_BIO,
   );
 
   // Цвет полоски совместимости: от 70% — розовая, от 40% — бирюзовая, ниже — серая.

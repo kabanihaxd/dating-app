@@ -230,6 +230,7 @@
               class="message"
               [class.mine]="message.mine"
               [class.invite-msg]="message.invite"
+              [class.stale]="message.inviteAge && message.inviteAge !== 'fresh'"
               [class.group-start]="message.groupStart"
               [class.tail]="message.groupEnd"
               animate.enter="pop-in"
@@ -240,11 +241,20 @@
                   ? ('chat.speaker.me' | t)
                   : ('chat.speaker.partner' | t: { name: partnerName() })
               }}</span>
-              <!-- Приглашение поиграть — главный момент чата: у пузыря есть «шапка» с геймпадом. -->
+              <!-- Приглашение поиграть — главный момент чата: у пузыря есть «шапка» с геймпадом.
+                   Вчерашнее и старше — «Вчерашнее / Старое приглашение», тише и без «Я в деле»:
+                   его «сегодня вечером» уже прошло. -->
               @if (message.invite) {
                 <p class="invite-label">
                   <mat-icon aria-hidden="true">sports_esports</mat-icon>
-                  {{ 'chat.invite.label' | t }}
+                  {{
+                    (message.inviteAge === 'yesterday'
+                      ? 'chat.invite.labelYesterday'
+                      : message.inviteAge === 'old'
+                        ? 'chat.invite.labelOld'
+                        : 'chat.invite.label'
+                    ) | t
+                  }}
                 </p>
               }
               <p>{{ message.text }}</p>
@@ -299,11 +309,23 @@
                     }
                   </div>
                 }
+                <!-- Первое сообщение — самый страшный момент, а лучший инструмент для него — приглашение.
+                     Поэтому здесь это заметная кнопка 44px, а под ней — сама фраза, которую она положит
+                     в поле: видно, что ничего не уйдёт само и что можно поправить. -->
                 @if (!partnerOpen()) {
-                  <button type="button" class="invite-link" (click)="inviteToPlay()">
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    class="invite-cta"
+                    aria-describedby="invite-preview"
+                    (click)="inviteToPlay()"
+                  >
                     <mat-icon aria-hidden="true">sports_esports</mat-icon>
                     {{ 'chat.invite.button' | t }}
                   </button>
+                  <p id="invite-preview" class="invite-preview">
+                    {{ 'chat.invite.preview' | t: { text: invite().text } }}
+                  </p>
                 }
               </div>
             }

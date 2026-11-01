@@ -246,19 +246,33 @@
     min-width: 0;
   }
 
-  // Без фото — монограмма того же размера в фиолетовом кольце: «структура», а не розовое фото-кольцо
-  // (как у карточки в ленте). Буква — Orbitron, как у аватара в шапке.
+  // Без фото — монограмма того же размера, в том же розовом кольце и тем же цветом буквы, что аватар
+  // в шапке: это один и тот же человек, и оба видны одновременно. Розовое — это мэтч (фиолетовое
+  // кольцо — у ещё не знакомых в ленте).
   .monogram {
     display: grid;
     flex-shrink: 0;
     place-items: center;
     width: 96px;
     height: 96px;
-    border: 2px solid rgba(168, 85, 247, 0.4);
+    border: 2px solid var(--di-neon-pink);
     border-radius: 50%;
     background: var(--di-bg);
-    color: rgba(168, 85, 247, 0.8);
-    font: 800 40px/1 Orbitron, sans-serif;
+    color: var(--di-text-muted);
+    font: 700 40px/1 Orbitron, sans-serif;
+  }
+
+  // Телефон: карточка занимала больше половины экрана — фото и монограмма 64px вместо 96px.
+  @media (max-width: 600px) {
+    img,
+    .monogram {
+      width: 64px;
+      height: 64px;
+    }
+
+    .monogram {
+      font-size: 26px;
+    }
   }
 }
 
@@ -404,10 +418,16 @@
   color: var(--di-text-muted);
   animation: di-fade-up 0.3s ease-out;
 
-  mat-icon {
-    font-size: 48px;
-    width: 48px;
-    height: 48px;
+  // pretty — без висячего последнего слова («…почни / розмову!»).
+  p {
+    text-wrap: pretty;
+  }
+
+  // Ладошка — приветствие, а не главное: 36px, чтобы не спорить с кнопкой приглашения.
+  > mat-icon {
+    font-size: 36px;
+    width: 36px;
+    height: 36px;
     color: var(--di-neon-pink);
   }
 }
@@ -529,6 +549,17 @@
   // Моё приглашение тоже с бирюзовой рамкой — правило выше её снимало у всех моих пузырей.
   &.mine.invite-msg {
     border-color: var(--di-neon-cyan);
+  }
+
+  // Вчерашнее и старое приглашение — история, а не план: рамка тише, без свечения, шапка серая.
+  // Двойной класс — чтобы перебить и &.mine.invite-msg.
+  &.invite-msg.stale {
+    border-color: rgba(0, 229, 255, 0.35);
+    box-shadow: none;
+
+    .invite-label {
+      color: var(--di-text-muted);
+    }
   }
 
   // Новая серия — обычный отступ над ней; внутри серии остаётся плотный зазор списка (2px).
@@ -878,15 +909,26 @@
   }
 }
 
-// В пустом чате «Позвать играть» стоит под общими играми, с отступом от них.
-.empty .invite-link {
-  margin-top: 12px;
+// В пустом чате «Позвать играть» — главное действие: бирюзовая обводная кнопка 44px («общая почва»,
+// не спорит с розовой «Отправить»), под ней — фраза, которую она положит в поле.
+.empty .invite-cta {
+  min-height: 44px;
+  margin-top: 16px;
+  --mat-button-outlined-label-text-color: var(--di-neon-cyan);
+  --mat-button-outlined-outline-color: var(--di-neon-cyan);
+  --mat-button-outlined-state-layer-color: var(--di-neon-cyan);
+
+  // Значок обычного размера и цвета кнопки, а не крупная розовая «ладошка» приветствия.
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: inherit;
+  }
 }
 
-// Значок кнопки — обычного размера и цвета кнопки, а не крупная розовая «ладошка» приветствия.
-.empty .invite-link mat-icon {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
-  color: inherit;
+.invite-preview {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-style: italic;
 }

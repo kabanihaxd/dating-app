@@ -253,6 +253,7 @@
     "toFeed": "Na profily",
     "noContacts": "Hráč ešte nepridal kontakty.",
     "write": "Napísať správu",
+    "invite": "Pozvať na {{game}}",
     "you": "Ty",
     "unread": "Nová správa",
     "chatWith": "Chat: {{name}}",
@@ -330,6 +331,9 @@
         "weekends": "cez víkend"
       },
       "label": "Pozvánka na hru",
+      "labelYesterday": "Včerajšia pozvánka",
+      "labelOld": "Staršia pozvánka",
+      "preview": "Vloží do poľa: „{{text}}“",
       "accept": "Som za! 🎮",
       "acceptButton": "Som za"
     }

@@ -148,13 +148,25 @@
           <!-- Строка чата — главное действие карточки: превью последнего сообщения и его время.
                Скрытый текст делает имя ссылки понятным вне карточки:
                «Чат: Аня. Аня: го катку? 21:40. Новое сообщение». -->
-          <a class="chat-link" [class.unread]="unread" [routerLink]="['/chat', match.id]">
-            <mat-icon aria-hidden="true">chat</mat-icon>
+          <!-- Переписки ещё нет, а общая игра есть — строка зовёт не «написать», а сыграть:
+               «🎮 Позвать в Elden Ring». ?play=1 — чат откроется с готовым приглашением в поле
+               (сам ничего не отправит). Так мэтч сразу переходит к тому, ради чего он случился. -->
+          @let playGame = !last ? match.commonGames[0] : undefined;
+          <a
+            class="chat-link"
+            [class.unread]="unread"
+            [class.play]="playGame"
+            [routerLink]="['/chat', match.id]"
+            [queryParams]="playGame ? { play: 1 } : null"
+          >
+            <mat-icon aria-hidden="true">{{ playGame ? 'sports_esports' : 'chat' }}</mat-icon>
             <span class="preview">
               <span class="sr-only">{{ 'matches.chatWith' | t: { name } }}. </span>
               @if (last) {
                 <span class="speaker">{{ last.from === me ? ('matches.you' | t) : name }}:</span>
                 {{ last.text }}
+              } @else if (playGame) {
+                {{ 'matches.invite' | t: { game: playGame } }}
               } @else {
                 {{ 'matches.write' | t }}
               }
@@ -168,9 +180,9 @@
           </a>
 
           <!-- Контакты: чипы «PSN · ник» с копированием (общий компонент, тот же — в чате).
-               one-row — на телефоне одной строкой с прокруткой вбок. -->
+               compact — на телефоне у ссылок только платформа, чтобы все чипы помещались в две строки. -->
           <app-contact-chips
-            class="one-row"
+            class="compact"
             [contacts]="match.contacts"
             [name]="name"
             [idPrefix]="match.id"
