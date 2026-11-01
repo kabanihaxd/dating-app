@@ -397,13 +397,20 @@ export class Profile implements HasUnsavedChanges {
     const birthDate = this.previewPlayer().birthDate;
     return birthDate ? ageFrom(birthDate) : null;
   });
-  protected readonly previewMatch: MatchInfo = {
-    percent: 0,
-    commonGames: [],
-    commonPlatforms: [],
-    commonGenres: [],
-    commonPlayTimes: [],
-  };
+  // Превью показывает карточку глазами игрока, у которого с тобой общая первая игра и платформа.
+  // Совпадение — главное, что делает карточку живой в ленте: общее светится бирюзовым и стоит
+  // первым. С пустым совпадением превью было серым и не показывало, ради чего заполнять анкету.
+  // Процент не придумываем (0 — метка скрыта), над карточкой сказано, для кого этот вид.
+  protected readonly previewMatch = computed<MatchInfo>(() => {
+    const { games, platforms } = this.previewPlayer();
+    return {
+      percent: 0,
+      commonGames: games.slice(0, 1),
+      commonPlatforms: platforms.slice(0, 1),
+      commonGenres: [],
+      commonPlayTimes: [],
+    };
+  });
 
   constructor() {
     inject(DestroyRef).onDestroy(() => (this.destroyed = true));

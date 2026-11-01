@@ -940,3 +940,24 @@
   font-size: 13px;
   font-style: italic;
 }
+
+// «Приглашение уже в поле внизу»: бирюзовая стрелка вниз указывает на поле ввода —
+// туда, где лежит текст. Обычный (не курсив) 14px: это не цитата, а подсказка, что делать дальше.
+// Стрелка — строчным элементом в начале текста, а не flex-колонкой: в центрованном пустом чате
+// при переносе строки она оставалась у левого края, далеко от слов.
+.invite-drafted {
+  margin: 16px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--mat-sys-on-surface);
+
+  mat-icon {
+    display: inline-block;
+    vertical-align: -4px;
+    margin-right: 4px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--di-neon-cyan);
+  }
+}

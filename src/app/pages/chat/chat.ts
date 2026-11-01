@@ -429,6 +429,7 @@ export class Chat {
           // этому собеседнику, или пустую строку. emitEvent: false — это не ввод человека, и
           // подписка valueChanges ниже не должна записывать его обратно.
           this.draft.reset(this.drafts.get(matchId), { emitEvent: false });
+          this.draftText.set(this.draft.value);
           this.partner.set(null);
           this.commonGames.set([]);
           this.commonPlayTimes.set([]);
@@ -547,8 +548,10 @@ export class Chat {
         return;
       }
       untracked(() => {
+        // На сенсорном экране фокус в поле открыл бы клавиатуру, и она закрыла бы пустой чат
+        // с общими играми. Черновик просто лежит в поле, а пустой чат говорит, что он там.
         if (!this.inviteSent()) {
-          this.inviteToPlay();
+          this.inviteToPlay(!this.touch);
         }
         void this.router.navigate([], {
           queryParams: { play: null },
@@ -588,6 +591,7 @@ export class Chat {
     // После отправки send() очищает поле, и пустая строка стирает черновик.
     // takeUntilDestroyed — подписка сама закончится вместе со страницей.
     this.draft.valueChanges.pipe(takeUntilDestroyed()).subscribe((text) => {
+      this.draftText.set(text ?? '');
       if (this.loadedMatchId) {
         this.drafts.set(this.loadedMatchId, text);
       }
@@ -679,7 +683,8 @@ export class Chat {
   // «Позвать играть»: кладём приглашение в поле ввода. Не отправляем сами: человек допишет
   // или поправит и отправит, когда захочет. Уже набранный текст не стираем — приглашение встаёт
   // после него. Если оно уже есть в поле (второе нажатие) — не дублируем, только ставим фокус.
-  protected inviteToPlay(): void {
+  // focus: false — только положить текст, не трогая фокус (переход из «Позвать в …» на телефоне).
+  protected inviteToPlay(focus = true): void {
     const invite = this.invite().text;
     const current = this.draft.value.trimEnd();
     if (!current.includes(invite)) {
@@ -689,11 +694,17 @@ export class Chat {
     this.partnerOpen.set(false);
     // Фокус — в поле с курсором в конце: остаётся нажать «Отправить» или дописать.
     const field = this.input()?.nativeElement;
-    if (field) {
+    if (field && focus) {
       field.focus();
       field.setSelectionRange(field.value.length, field.value.length);
     }
   }
+
+  // Текст поля ввода сигналом: по нему пустой чат узнаёт, что приглашение уже лежит в поле.
+  private readonly draftText = signal('');
+  // Приглашение уже в поле (пришли по «Позвать в …» или нажали кнопку): кнопка «Позвать играть»
+  // и строка «Положит в поле: …» больше ничего не сделают — вместо них короткое «оно уже в поле».
+  protected readonly inviteDrafted = computed(() => this.draftText().includes(this.invite().text));
 
   // Приглашение от собеседника, на которое я ещё ничего не ответил: под ним — кнопка «Я в деле!».
   // Как только я написал что угодно после него, кнопка пропадает: ответ уже есть.

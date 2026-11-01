@@ -96,6 +96,14 @@ aside.preview {
   margin-top: 16px;
 }
 
+// «Так тебе видит игрок, который тоже играет в …»: объясняет бирюзовое в превью.
+.shared-note {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--di-text-muted);
+  text-wrap: pretty;
+}
+
 .preview.inline {
   margin-top: 12px;
 }
@@ -209,6 +217,14 @@ mat-form-field {
 // на нём нет. :host впереди не даёт правилу утечь за пределы страницы анкеты.
 :host ::ng-deep .mat-mdc-form-field-subscript-dynamic-size {
   min-height: 20px;
+}
+
+// Подсказка под полем игр: живая область (пустая, пока игра не отклонена) и текст подсказки.
+// В flex-контейнере пробел между ними не рисуется — иначе подсказка начиналась с лишнего пробела
+// и её первая строка стояла на 3px правее второй.
+.games-hint {
+  display: flex;
+  flex-wrap: wrap;
 }
 
 // Два поля в строку на широком экране, одно под другим — на телефоне.

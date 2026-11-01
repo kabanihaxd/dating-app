@@ -336,6 +336,7 @@
       "labelYesterday": "Yesterday’s game invite",
       "labelOld": "Earlier game invite",
       "preview": "Puts this in the message box: “{{text}}”",
+      "drafted": "The invite is in the message box below: edit it or send it.",
       "accept": "I'm in! 🎮",
       "acceptButton": "I'm in"
     }
@@ -433,6 +434,7 @@
       "show": "Preview your card",
       "hide": "Hide preview",
       "noName": "Your name",
+      "sharedNote": "This is how a player who also plays {{game}} sees you: what you share glows cyan and comes first.",
       "hint": "Updates as you type. Contacts stay hidden until a mutual match."
     }
   },

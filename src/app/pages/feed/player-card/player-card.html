@@ -120,10 +120,13 @@
       </section>
     }
 
-    <!-- Превью своей анкеты: общих игр с собой нет, но игры всё равно важнее всего в подборе —
-         в превью они идут первыми, как общие игры в ленте, а не последними. -->
+    <!-- Превью своей анкеты: остальные игры (кроме общей первой, см. previewMatch в profile.ts) —
+         сразу после «Почему», целиком: игры важнее всего в подборе, а не в конце карточки. -->
     @if (preview() && otherGames().length) {
-      <p class="label">{{ 'feed.card.games' | t }}</p>
+      <!-- Над ними уже «Общие игры» (превью глазами игрока с общей первой игрой) — значит, «Другие». -->
+      <p class="label">
+        {{ (match().commonGames.length ? 'feed.card.otherGames' : 'feed.card.games') | t }}
+      </p>
       <div class="tags">
         @for (game of otherGames(); track game) {
           <span class="tag">{{ game }}</span>

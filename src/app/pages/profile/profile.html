@@ -46,10 +46,13 @@
       </button>
       @if (previewOpen()) {
         <div id="profile-preview" class="preview inline">
+          @if (previewMatch().commonGames[0]; as game) {
+            <p class="shared-note">{{ 'profile.preview.sharedNote' | t: { game } }}</p>
+          }
           <app-player-card
             [player]="previewPlayer()"
             [age]="previewAge()"
-            [match]="previewMatch"
+            [match]="previewMatch()"
             [showActions]="false"
             [preview]="true"
           />
@@ -124,7 +127,9 @@
             </mat-option>
           }
         </mat-autocomplete>
-        <mat-hint>
+        <!-- games-hint: flex — пробел между живой областью и текстом подсказки не рисуется,
+             и подсказка не начиналась с «висящего» отступа в 3px. -->
+        <mat-hint class="games-hint">
           <!-- Живая область: диктор вежливо (polite) прочитает, почему игра не добавилась.
                Сама область есть всегда — иначе её появление вместе с текстом диктор мог бы пропустить. -->
           <span aria-live="polite">
@@ -369,12 +374,16 @@
   <!-- Колонка «Так вас видят игроки»: карточка из ленты, собранная из того, что сейчас в форме. -->
   <aside class="preview" [attr.aria-label]="'profile.preview.title' | t">
     <p class="preview-title">{{ 'profile.preview.title' | t }}</p>
+    <!-- Для кого этот вид: бирюзовое в карточке — общее с таким игроком, а не выдумка. -->
+    @if (previewMatch().commonGames[0]; as game) {
+      <p class="shared-note">{{ 'profile.preview.sharedNote' | t: { game } }}</p>
+    }
     <!-- in-grid: колонка шириной с карточку сетки ленты — и раскладка та же, что там. -->
     <app-player-card
       class="in-grid preview"
       [player]="previewPlayer()"
       [age]="previewAge()"
-      [match]="previewMatch"
+      [match]="previewMatch()"
       [showActions]="false"
       [preview]="true"
     />
