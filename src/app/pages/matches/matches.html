@@ -164,7 +164,7 @@
               <span class="sr-only">{{ 'matches.chatWith' | t: { name } }}. </span>
               @if (last) {
                 <span class="speaker">{{ last.from === me ? ('matches.you' | t) : name }}:</span>
-                {{ last.text }}
+                {{ last.deleted ? ('chat.edit.deleted' | t) : last.text }}
               } @else if (playGame) {
                 {{ 'matches.invite' | t: { game: playGame } }}
               } @else {

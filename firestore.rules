@@ -193,19 +193,52 @@ service cloud.firestore {
         && !isBlocked(request.resource.data.users[0], request.resource.data.users[1]);
 
       // Менять готовый мэтч можно только участнику и только два поля:
-      //  lastMessage — последнее сообщение (превью в списке мэтчей), обязательно от моего имени;
+      //  lastMessage — последнее сообщение (превью в списке мэтчей), обязательно от моего имени,
+      //    или правка моего же превью, когда я поправил или отменил последнее сообщение;
       //  readAt.{uid} — когда я последний раз читал чат; чужое время прочтения трогать нельзя.
+    // Правка или отмена отправки своего сообщения. Менять можно только текст и служебные метки;
+    // автор, время отправки и прочее остаются как были. Удалённое уже не правится.
+    //  правка — новый текст 1–1000 символов и время правки editedAt (его ставит сервер);
+    //  отмена — deleted: true, текст стёрт (''), метки kind больше нет.
+    function isValidMessageChange() {
+      let next = request.resource.data;
+      let changed = next.diff(resource.data).affectedKeys();
+      return resource.data.from == request.auth.uid
+        && resource.data.get('deleted', false) == false
+        && ((changed.hasOnly(['text', 'editedAt'])
+            && next.text is string && next.text.size() > 0 && next.text.size() <= 1000
+            && next.editedAt == request.time)
+          || (changed.hasOnly(['text', 'deleted', 'kind'])
+            && next.deleted == true && next.text == '' && !('kind' in next)));
+    }
+
+    // Превью последнего сообщения после правки или отмены: оно моё и до, и после, а время
+    // отправки и автор не меняются (иначе правка выглядела бы новым сообщением).
+    // Удалённое превью — пустой текст с deleted: true.
+    function isValidPreviewChange(next, prev) {
+      return next.keys().hasOnly(['from', 'text', 'createdAt', 'deleted'])
+        && prev.from == request.auth.uid
+        && next.from == prev.from
+        && next.createdAt == prev.createdAt
+        && next.text is string && next.text.size() <= 1000
+        && ((next.get('deleted', false) == true && next.text == '')
+          || (next.get('deleted', false) == false && next.text.size() > 0));
+    }
+
       // users, createdBy и createdAt после создания не меняются.
       allow update: if isMember(resource.data)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'readAt'])
         && (!('lastMessage' in request.resource.data.diff(resource.data).affectedKeys())
-          || (isValidMessage(request.resource.data.lastMessage)))
+          || isValidMessage(request.resource.data.lastMessage)
+          || ('lastMessage' in resource.data
+            && isValidPreviewChange(request.resource.data.lastMessage, resource.data.lastMessage)))
         && request.resource.data.get('readAt', {}).diff(resource.data.get('readAt', {}))
           .affectedKeys().hasOnly([request.auth.uid]);
 
       // Сообщения чата. Читать и писать — только двоим участникам мэтча.
       // get() достаёт документ мэтча, чтобы узнать участников (это ещё одно чтение, оно платное).
-      // Удалять может любой участник — например, вместе с мэтчем; менять сообщения нельзя.
+      // Удалять может любой участник — например, вместе с мэтчем. Менять — только автор:
+      // поправить текст или отменить отправку (см. isValidMessageChange).
       match /messages/{messageId} {
         allow read, delete: if isMember(get(/databases/$(database)/documents/matches/$(matchId)).data);
         allow create: if isMember(get(/databases/$(database)/documents/matches/$(matchId)).data)
@@ -214,3 +247,5 @@ service cloud.firestore {
     }
   }
 }
+        allow update: if isMember(get(/databases/$(database)/documents/matches/$(matchId)).data)
+          && isValidMessageChange();

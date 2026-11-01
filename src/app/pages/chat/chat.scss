@@ -654,6 +654,152 @@
   }
 }
 
+// «изменено» рядом со временем — та же мелкая Haze Grey-строка, курсивом, чтобы не спутать со временем.
+.message .edited {
+  font-style: italic;
+}
+
+// «⋯» у своего сообщения: маленький значок в мета-строке, а нажимать удобно — та же 44px-«подушка»,
+// что у «Повторить» (::after). С мышью значок появляется при наведении на пузырь или фокусе
+// (всегда видимый «⋯» у каждого сообщения шумел бы); на сенсорном экране наведения нет — виден всегда.
+.message .more {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 16px;
+  margin-right: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--di-text-muted);
+  cursor: pointer;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    translate: -50% -50%;
+  }
+
+  &:hover {
+    color: var(--mat-sys-on-surface);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--di-neon-cyan);
+    outline-offset: 1px;
+  }
+
+  // Меню открыто — значок остаётся на месте, пока мышь ушла в меню.
+  &[aria-expanded='true'] {
+    opacity: 1;
+  }
+}
+
+@media (hover: hover) {
+  .message .more {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .message:hover .more,
+  .message:focus-within .more {
+    opacity: 1;
+  }
+}
+
+// Отменённое сообщение: пузырь без заливки, пунктирная рамка, пометка курсивом Haze Grey —
+// видно, что здесь что-то было, но внимание оно не забирает.
+.message.deleted {
+  background: none;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+
+  .deleted-text {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-style: italic;
+    color: var(--di-text-muted);
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
+// Пузырь, который сейчас правится в поле ввода: бирюзовая обводка — связь с плашкой над полем.
+.message.editing {
+  outline: 2px solid var(--di-neon-cyan);
+  outline-offset: 2px;
+}
+
+// Плашка «Редактирование» над полем ввода: что правим (одной строкой) и крестик отмены.
+.edit-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 4px 0 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  animation: di-fade-up 0.2s ease-out;
+
+  > mat-icon {
+    flex-shrink: 0;
+    color: var(--di-neon-cyan);
+  }
+}
+
+.edit-bar-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--di-neon-cyan);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.edit-bar-title {
+  font-weight: 600;
+  color: var(--di-neon-cyan);
+}
+
+.edit-bar-quote {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--di-text-muted);
+}
+
+.queued + .edit-bar {
+  border-top: 0;
+}
+
+.edit-bar + .composer {
+  border-top: 0;
+}
+
+// Ошибка правки или отмены — та же строка над полем, но красная, как все ошибки.
+.queued-text.change-error {
+  color: var(--mat-sys-error);
+}
+
 // Плашка «Новые сообщения ↓» — пилюля по центру над низом списка, в цвет «общей почвы» (cyan).
 .new-below {
   position: absolute;

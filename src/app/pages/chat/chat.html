@@ -235,6 +235,8 @@
               [class.stale]="message.inviteAge && message.inviteAge !== 'fresh'"
               [class.group-start]="message.groupStart"
               [class.tail]="message.groupEnd"
+              [class.deleted]="message.deleted"
+              [class.editing]="editing()?.id === message.id"
               animate.enter="pop-in"
             >
               <!-- Кто говорит: глазами это видно по стороне и цвету пузыря, а на слух — нет. -->
@@ -246,7 +248,7 @@
               <!-- Приглашение поиграть — главный момент чата: у пузыря есть «шапка» с геймпадом.
                    Вчерашнее и старше — «Вчерашнее / Старое приглашение», тише и без «Я в деле»:
                    его «сегодня вечером» уже прошло. -->
-              @if (message.invite) {
+              @if (message.invite && !message.deleted) {
                 <p class="invite-label">
                   <mat-icon aria-hidden="true">sports_esports</mat-icon>
                   {{
@@ -259,7 +261,15 @@
                   }}
                 </p>
               }
-              <p>{{ message.text }}</p>
+              <!-- Отменённое сообщение: текста на сервере уже нет, остаётся тихая пометка на его месте. -->
+              @if (message.deleted) {
+                <p class="deleted-text">
+                  <mat-icon aria-hidden="true">block</mat-icon>
+                  {{ 'chat.edit.deleted' | t }}
+                </p>
+              } @else {
+                <p>{{ message.text }}</p>
+              }
               <!-- Согласие одним нажатием — только под последним приглашением собеседника, пока я не ответил. -->
               @if (message.id === openInviteId()) {
                 <button
@@ -274,6 +284,22 @@
                 </button>
               }
               <div class="meta">
+                <!-- «⋯» у своего сообщения: поправить или отменить отправку. Одно меню на всю
+                     переписку (#messageMenu ниже), какое сообщение — передаём через matMenuTriggerData. -->
+                @if (message.changeable && state() === 'ready') {
+                  <button
+                    type="button"
+                    class="more"
+                    [matMenuTriggerFor]="messageMenu"
+                    [matMenuTriggerData]="{ id: message.id }"
+                    [attr.aria-label]="'chat.edit.menu' | t"
+                  >
+                    <mat-icon aria-hidden="true">more_horiz</mat-icon>
+                  </button>
+                }
+                @if (message.edited && !message.deleted) {
+                  <span class="edited">{{ 'chat.edit.edited' | t }}</span>
+                }
                 <time [attr.datetime]="message.datetime">{{ message.time }}</time>
                 <!-- Доставка — только у своих: «часики», пока сервер не подтвердил запись
                    (медленная сеть или офлайн), и галочка, когда сообщение записано.
@@ -283,7 +309,7 @@
                    объясняет, что значок значит: «часики» сами отправятся, когда появится сеть. -->
                 <!-- Двойная бирюзовая галочка — «Прочитано»: собеседник открыл чат после этого
                    сообщения. Бирюзовый — цвет связи между двумя игроками (правило One Meaning). -->
-                @if (message.mine) {
+                @if (message.mine && !message.deleted) {
                   @let status = message.pending ? 'sending' : message.read ? 'read' : 'sent';
                   <mat-icon
                     class="status"
@@ -360,6 +386,18 @@
             </div>
           }
         </div>
+        <mat-menu #messageMenu="matMenu" xPosition="before">
+          <ng-template matMenuContent let-id="id">
+            <button mat-menu-item type="button" (click)="startEdit(id)">
+              <mat-icon aria-hidden="true">edit</mat-icon>
+              <span>{{ 'chat.edit.edit' | t }}</span>
+            </button>
+            <button mat-menu-item type="button" (click)="unsend(id)">
+              <mat-icon aria-hidden="true">undo</mat-icon>
+              <span>{{ 'chat.edit.unsend' | t }}</span>
+            </button>
+          </ng-template>
+        </mat-menu>
         @if (newBelow()) {
           <!-- Пришло входящее, а человек листает историю выше — не прокручиваем силой,
              а предлагаем спуститься. Озвучку нового сообщения и так делает живая область ниже. -->
@@ -413,6 +451,12 @@
              программа чтения с экрана надёжнее замечает текст, ПОЯВИВШИЙСЯ внутри уже знакомой
              области, чем область, которая возникла вместе с текстом. Пустая обёртка места не занимает. -->
         <div class="queued" role="status">
+          @if (changeError(); as error) {
+            <p class="queued-text change-error">
+              <mat-icon aria-hidden="true">error_outline</mat-icon>
+              <span>{{ error }}</span>
+            </p>
+          }
           @if (queuedOffline()) {
             <p class="queued-text">
               <mat-icon aria-hidden="true">cloud_off</mat-icon>
@@ -423,6 +467,25 @@
         <!-- (submit), а не (ngSubmit): ngSubmit выдаёт директива NgForm из FormsModule, а здесь только
              ReactiveFormsModule и одиночный FormControl без [formGroup]. Без неё ngSubmit не наступал
              никогда, а обычная отправка формы ПЕРЕЗАГРУЖАЛА страницу при нажатии кнопки «Отправить». -->
+        <!-- Правим своё сообщение: над полем — что именно правим и крестик «Отменить». -->
+        @if (editing(); as edit) {
+          <div class="edit-bar">
+            <mat-icon aria-hidden="true">edit</mat-icon>
+            <div class="edit-bar-text">
+              <span class="edit-bar-title">{{ 'chat.edit.title' | t }}</span>
+              <span class="edit-bar-quote">{{ edit.text }}</span>
+            </div>
+            <button
+              mat-icon-button
+              type="button"
+              [attr.aria-label]="'chat.edit.cancel' | t"
+              (pointerdown)="keepFocus($event)"
+              (click)="cancelEdit()"
+            >
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        }
         <form class="composer" (submit)="onSubmit($event)">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <textarea
@@ -433,8 +496,12 @@
               cdkAutosizeMinRows="1"
               cdkAutosizeMaxRows="5"
               [placeholder]="'chat.placeholder' | t"
-              [attr.aria-label]="'chat.messageTo' | t: { name: partnerName() }"
+              [attr.aria-label]="
+                editing() ? ('chat.edit.title' | t) : ('chat.messageTo' | t: { name: partnerName() })
+              "
               (keydown.enter)="onEnter($event)"
+              (keydown.escape)="onEscape($event)"
+              (keydown.arrowup)="onArrowUp($event)"
             ></textarea>
             <!-- Слева — подсказка про Enter (нужна только с физической клавиатурой: на телефоне
                  отправляют кнопкой) или, если текст длиннее лимита, объяснение, почему кнопка
@@ -445,7 +512,9 @@
                 'chat.tooLong' | t: { max: maxLength }
               }}</mat-hint>
             } @else if (!touch) {
-              <mat-hint class="enter-hint">{{ 'chat.hint' | t }}</mat-hint>
+              <mat-hint class="enter-hint">{{
+                (editing() ? 'chat.edit.hint' : 'chat.hint') | t
+              }}</mat-hint>
             }
             <!-- Счётчик справа — только у длинных сообщений. Material сам связывает подсказки с полем
                  (aria-describedby), так что программа чтения прочтёт счётчик, встав в поле. -->
@@ -462,10 +531,10 @@
             type="submit"
             class="send"
             [disabled]="!draft.value.trim() || draft.value.length > maxLength"
-            [attr.aria-label]="'chat.send' | t"
+            [attr.aria-label]="(editing() ? 'chat.edit.save' : 'chat.send') | t"
             (pointerdown)="keepFocus($event)"
           >
-            <mat-icon>send</mat-icon>
+            <mat-icon>{{ editing() ? 'check' : 'send' }}</mat-icon>
           </button>
         </form>
       } @else {

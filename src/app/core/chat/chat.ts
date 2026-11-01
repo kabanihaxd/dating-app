@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import {
   Timestamp,
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocFromServer,
@@ -31,6 +32,10 @@ export interface ChatMessage {
   // Приглашение поиграть, собранное кнопкой «Позвать играть» (поле kind: 'invite' в базе).
   // Метка не зависит от языка: приглашение на русском узнаётся и в украинском интерфейсе.
   invite: boolean;
+  // Автор поправил текст после отправки (поле editedAt в базе) — у пузыря подпись «изменено».
+  edited: boolean;
+  // Автор отменил отправку (deleted: true): текст стёрт с сервера, на месте пузыря — «Сообщение удалено».
+  deleted: boolean;
   // true — сообщение пока есть только в локальном кэше: Firestore показал его сразу,
   // но сервер ещё не подтвердил запись (медленная сеть или её нет вовсе).
   // По этому флагу чат рисует «часики» вместо галочки.
@@ -129,6 +134,8 @@ export class ChatService {
             from: message.get('from') as string,
             text: message.get('text') as string,
             invite: message.get('kind') === 'invite',
+            edited: message.get('editedAt') != null,
+            deleted: message.get('deleted') === true,
             // Своё сообщение появляется на экране ДО ответа сервера, и времени у него ещё нет.
             // 'estimate' подставляет примерное время, чтобы его можно было сразу показать.
             createdAt:
@@ -155,6 +162,47 @@ export class ChatService {
     );
     batch.update(doc(this.db, 'matches', matchId), { lastMessage: message });
     return batch.commit();
+  }
+
+  // Правка своего сообщения: новый текст и время правки (editedAt). Время отправки (createdAt)
+  // не трогаем — сообщение остаётся на своём месте в переписке.
+  // last — это последнее сообщение чата: тогда поправляем и превью в мэтче (см. updatePreview).
+  async edit(matchId: string, messageId: string, text: string, last: boolean): Promise<void> {
+    await updateDoc(doc(this.db, 'matches', matchId, 'messages', messageId), {
+      text,
+      editedAt: serverTimestamp(),
+    });
+    if (last) {
+      await this.updatePreview(matchId, { 'lastMessage.text': text });
+    }
+  }
+
+  // «Отменить отправку»: сообщение не удаляем, а помечаем deleted и стираем текст. Документ
+  // остаётся, поэтому у собеседника на его месте — «Сообщение удалено», а не дыра в переписке;
+  // и чат не путает это с разрывом мэтча (там сообщения исчезают целиком, см. страницу чата).
+  // kind убираем: от удалённого приглашения не должно остаться карточки «Позвать играть».
+  async unsend(matchId: string, messageId: string, last: boolean): Promise<void> {
+    await updateDoc(doc(this.db, 'matches', matchId, 'messages', messageId), {
+      text: '',
+      deleted: true,
+      kind: deleteField(),
+    });
+    if (last) {
+      await this.updatePreview(matchId, { 'lastMessage.text': '', 'lastMessage.deleted': true });
+    }
+  }
+
+  // Превью правим отдельной записью и по полям (точка в имени — поле внутри lastMessage):
+  // createdAt превью остаётся прежним, поэтому правка не выглядит «новым сообщением» —
+  // ни всплывашки, ни розовой точки «непрочитано» у собеседника.
+  // Отдельно, а не одним batch с сообщением: пока мы правили, собеседник мог успеть ответить,
+  // превью уже не наше, и правила его не дадут поменять. Это не повод отменять саму правку.
+  private async updatePreview(matchId: string, fields: Record<string, unknown>): Promise<void> {
+    await updateDoc(doc(this.db, 'matches', matchId), fields).catch((error: unknown) => {
+      if (!isPermissionDenied(error)) {
+        throw error;
+      }
+    });
   }
 
   // «Прочитано»: запоминаем время в самом мэтче — readAt.{uid}. Точка в имени поля значит

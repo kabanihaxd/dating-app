@@ -19,7 +19,9 @@ import { TextFieldModule } from '@angular/cdk/text-field';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialog } from '@angular/material/dialog';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '../../core/auth/auth';
 import { FirebaseError } from 'firebase/app';
@@ -46,6 +48,7 @@ import {
   UserContacts,
   UserProfile,
 } from '../../core/profile/profile.model';
+import { confirmDialog } from '../../shared/confirm-dialog/confirm-dialog';
 import { ContactChips } from '../../shared/contact-chips/contact-chips';
 import { initialOf } from '../../shared/initial';
 import { ErrorState } from '../../shared/error-state/error-state';
@@ -165,6 +168,7 @@ interface FailedMessage {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatMenuModule,
     MatTooltipModule,
     TranslatePipe,
     ModerationMenu,
@@ -183,6 +187,7 @@ export class Chat {
   private readonly notifications = inject(NotificationService);
   private readonly i18n = inject(I18n);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
   // Title — сервис Angular для заголовка вкладки браузера (<title> в <head>).
   private readonly title = inject(Title);
 
@@ -241,6 +246,13 @@ export class Chat {
   // Плашка «Новые сообщения ↓»: пришло входящее, а человек в этот момент листал историю выше.
   // Прокручивать его вниз силой нельзя — он потеряет место, где читал.
   protected readonly newBelow = signal(false);
+  // Какое своё сообщение я сейчас правлю: его текст лежит в поле ввода, а «Отправить» его сохраняет.
+  // text — текст до правки: если ничего не поменяли, сохранять нечего.
+  protected readonly editing = signal<{ id: string; text: string } | null>(null);
+  // Правка или отмена отправки не удалась — одна строка над полем ввода (см. .queued в шаблоне).
+  protected readonly changeError = signal<string | null>(null);
+  // Недописанное сообщение, отложенное на время правки: после неё возвращаем его в поле.
+  private stashedDraft = '';
 
   // Есть ли у браузера сеть. Обновляется событиями online/offline на window (подписка в конструкторе).
   // navigator.onLine === false — надёжный признак «сети точно нет»; true бывает и при «плохой» сети,
@@ -306,6 +318,10 @@ export class Chat {
         groupEnd: !next || !joined(message, next),
         // Приглашение поиграть рисуем карточкой-пузырём, а не обычным сообщением.
         invite: message.invite,
+        edited: message.edited,
+        deleted: message.deleted,
+        // Своё неудалённое сообщение можно поправить или отменить (меню «⋯» у пузыря).
+        changeable: message.from === this.me && !message.deleted,
         // Вчерашнее и более старое приглашение — уже не план: другая подпись, без «Я в деле».
         inviteAge: message.invite ? inviteAge(message.createdAt) : null,
       };
@@ -445,6 +461,9 @@ export class Chat {
           // Неотправленные сообщения относятся к тому чату, где их писали.
           this.failed.set([]);
           this.stopLeaving();
+          // Правка относится к сообщению того чата; отложенный черновик уже подменён черновиком нового.
+          this.editing.set(null);
+          this.stashedDraft = '';
         }
         this.state.set('loading');
         this.messages.set([]);
@@ -459,6 +478,7 @@ export class Chat {
         this.pendingMessages = null;
         this.endSuppressed = false;
         this.newBelow.set(false);
+        this.changeError.set(null);
         // Прокрутку отдельно сбрасывать не нужно: в состоянии loading список удаляется из DOM,
         // а новый после загрузки сам прокручивается в самый низ (afterRenderEffect ниже узнаёт
         // его как «новый элемент»).
@@ -595,9 +615,10 @@ export class Chat {
     // (назад, по уведомлению, перезагрузит вкладку) — текст дождётся его возвращения.
     // После отправки send() очищает поле, и пустая строка стирает черновик.
     // takeUntilDestroyed — подписка сама закончится вместе со страницей.
+    // Пока правим сообщение, в поле — его текст, а не черновик: черновик не трогаем.
     this.draft.valueChanges.pipe(takeUntilDestroyed()).subscribe((text) => {
       this.draftText.set(text ?? '');
-      if (this.loadedMatchId) {
+      if (this.loadedMatchId && !this.editing()) {
         this.drafts.set(this.loadedMatchId, text);
       }
     });
@@ -620,6 +641,10 @@ export class Chat {
 
   protected send(): void {
     const text = this.draft.value.trim();
+    if (this.editing()) {
+      this.saveEdit(text);
+      return;
+    }
     if (!text || this.draft.invalid || this.sending() || this.state() !== 'ready') {
       return;
     }
@@ -633,6 +658,113 @@ export class Chat {
     // Фокус остаётся в поле ввода: на телефоне клавиатура не закрывается, можно писать дальше.
     this.input()?.nativeElement.focus();
     void this.deliver(this.matchId(), text);
+  }
+
+  // «Изменить» в меню сообщения: текст сообщения — в поле ввода, недописанный черновик откладываем.
+  protected startEdit(id: string): void {
+    const message = this.messages().find((m) => m.id === id);
+    if (!message || message.from !== this.me || message.deleted || this.state() !== 'ready') {
+      return;
+    }
+    if (!this.editing()) {
+      this.stashedDraft = this.draft.value;
+    }
+    // editing ставим ДО setValue: подписка на поле увидит правку и не запишет её в черновик.
+    this.editing.set({ id, text: message.text });
+    this.draft.setValue(message.text);
+    this.changeError.set(null);
+    this.partnerOpen.set(false);
+    const field = this.input()?.nativeElement;
+    if (field) {
+      field.focus();
+      field.setSelectionRange(field.value.length, field.value.length);
+    }
+  }
+
+  // Отмена правки (крестик, Esc): возвращаем в поле отложенный черновик.
+  protected cancelEdit(): void {
+    if (!this.editing()) {
+      return;
+    }
+    this.editing.set(null);
+    this.draft.setValue(this.stashedDraft);
+    this.stashedDraft = '';
+    this.input()?.nativeElement.focus();
+  }
+
+  // Сохранение правки. Как и отправка, не ждёт сервера: Firestore сразу покажет новый текст
+  // из локального кэша (без сети — дошлёт сам). Ответ сервера нужен, только чтобы сказать об ошибке.
+  private saveEdit(text: string): void {
+    const editing = this.editing();
+    if (!editing || !text || this.draft.invalid || this.state() !== 'ready') {
+      return;
+    }
+    const matchId = this.matchId();
+    const last = this.messages().at(-1)?.id === editing.id;
+    this.cancelEdit();
+    if (text === editing.text) {
+      return;
+    }
+    this.chat.edit(matchId, editing.id, text, last).catch((error: unknown) => {
+      console.error(error);
+      if (matchId === this.matchId()) {
+        this.changeError.set(this.i18n.translate('chat.edit.saveError'));
+      }
+    });
+  }
+
+  // «Отменить отправку»: спрашиваем подтверждения — сообщение пропадёт и у собеседника.
+  // Фокус после окна — в поле ввода: кнопка «⋯», откуда открыли меню, исчезнет вместе с текстом.
+  protected unsend(id: string): void {
+    const matchId = this.matchId();
+    confirmDialog(
+      this.dialog,
+      {
+        title: this.i18n.translate('chat.edit.confirmTitle'),
+        message: this.i18n.translate('chat.edit.confirmText'),
+        confirm: this.i18n.translate('chat.edit.unsend'),
+        cancel: this.i18n.translate('chat.edit.keep'),
+        icon: 'undo',
+        destructive: true,
+      },
+      this.input()?.nativeElement,
+    ).subscribe((ok) => {
+      if (!ok || matchId !== this.matchId() || this.state() !== 'ready') {
+        return;
+      }
+      // Правили как раз это сообщение — править больше нечего.
+      if (this.editing()?.id === id) {
+        this.cancelEdit();
+      }
+      this.changeError.set(null);
+      const last = this.messages().at(-1)?.id === id;
+      this.chat.unsend(matchId, id, last).catch((error: unknown) => {
+        console.error(error);
+        if (matchId === this.matchId()) {
+          this.changeError.set(this.i18n.translate('chat.edit.unsendError'));
+        }
+      });
+    });
+  }
+
+  // Esc в поле ввода отменяет правку. Без правки Esc ничего не делает.
+  protected onEscape(event: Event): void {
+    if (this.editing()) {
+      event.preventDefault();
+      this.cancelEdit();
+    }
+  }
+
+  // Стрелка вверх в пустом поле — поправить своё последнее сообщение (привычно по Telegram и Slack).
+  protected onArrowUp(event: Event): void {
+    if (this.draft.value || this.editing() || this.isTouch()) {
+      return;
+    }
+    const mine = [...this.messages()].reverse().find((m) => m.from === this.me && !m.deleted);
+    if (mine) {
+      event.preventDefault();
+      this.startEdit(mine.id);
+    }
   }
 
   // Кнопка-имя в шапке раскрывает и прячет карточку игрока.
@@ -690,6 +822,8 @@ export class Chat {
   // после него. Если оно уже есть в поле (второе нажатие) — не дублируем, только ставим фокус.
   // focus: false — только положить текст, не трогая фокус (переход из «Позвать в …» на телефоне).
   protected inviteToPlay(focus = true): void {
+    // Приглашение — новое сообщение, а не правка старого.
+    this.cancelEdit();
     const invite = this.invite().text;
     const current = this.draft.value.trimEnd();
     if (!current.includes(invite)) {
@@ -1051,6 +1185,7 @@ export class Chat {
     if (this.state() === 'ready') {
       this.state.set('ended');
       this.sending.set(false);
+      this.cancelEdit();
     }
   }
 

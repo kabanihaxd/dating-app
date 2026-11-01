@@ -47,6 +47,8 @@ export interface LastMessage {
   from: string;
   text: string;
   at: number; // мс с 1970 года — так время удобно сравнивать
+  // Автор отменил отправку последнего сообщения: текста нет, в превью — «Сообщение удалено».
+  deleted: boolean;
 }
 
 // То, что уведомлениям нужно знать про один мэтч.
@@ -461,14 +463,21 @@ export class NotificationService {
 function toSummary(match: DocumentSnapshot, uid: string): MatchSummary {
   const millis = (field: string) =>
     (match.get(field, { serverTimestamps: 'estimate' }) as Timestamp | undefined)?.toMillis() ?? 0;
-  const lastMessage = match.get('lastMessage') as { from: string; text: string } | undefined;
+  const lastMessage = match.get('lastMessage') as
+    | { from: string; text: string; deleted?: boolean }
+    | undefined;
   const users = (match.get('users') as string[] | undefined) ?? [];
   return {
     id: match.id,
     otherUid: users.find((user) => user !== uid) ?? '',
     createdAt: millis('createdAt'),
     lastMessage: lastMessage
-      ? { from: lastMessage.from, text: lastMessage.text, at: millis('lastMessage.createdAt') }
+      ? {
+          from: lastMessage.from,
+          text: lastMessage.text,
+          at: millis('lastMessage.createdAt'),
+          deleted: lastMessage.deleted === true,
+        }
       : null,
     readAt: millis(`readAt.${uid}`),
   };
